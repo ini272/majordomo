@@ -5,7 +5,8 @@ from sqlmodel import SQLModel, Session
 from fastapi.testclient import TestClient
 
 # Import models to register them
-from app.models import user, quest, reward
+from app.models import home, user, quest, reward
+from app.crud import quest_template
 from app.database import get_db
 from app.main import app
 

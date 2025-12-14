@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel
-from app.routes import user, quest, reward
+from app.routes import home, user, quest, reward
 
 
 @asynccontextmanager
@@ -53,6 +53,7 @@ else:
     )
 
 # Include routers
+app.include_router(home.router)
 app.include_router(user.router)
 app.include_router(quest.router)
 app.include_router(reward.router)

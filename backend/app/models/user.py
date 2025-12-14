@@ -3,21 +3,24 @@ from typing import Optional, List, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 
 if TYPE_CHECKING:
+    from app.models.home import Home
     from app.models.quest import Quest
     from app.models.reward import UserRewardClaim
 
 
 class User(SQLModel, table=True):
-    """User model representing a household member"""
+    """User model representing a home member"""
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    username: str = Field(index=True, unique=True)
+    home_id: int = Field(foreign_key="home.id", index=True)
+    username: str = Field(index=True)
     level: int = Field(default=1)
     xp: int = Field(default=0)
     gold_balance: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Relationships
+    home: "Home" = Relationship(back_populates="users")
     quests: List["Quest"] = Relationship(back_populates="user")
     reward_claims: List["UserRewardClaim"] = Relationship(back_populates="user")
 
@@ -25,6 +28,7 @@ class User(SQLModel, table=True):
 class UserRead(SQLModel):
     """Schema for reading user data"""
     id: int
+    home_id: int
     username: str
     level: int
     xp: int

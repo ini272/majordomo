@@ -2,24 +2,50 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+@pytest.fixture
+def home_with_user(client: TestClient):
+    """Create a home with a user for test setup"""
+    home_response = client.post("/api/homes", json={"name": "Test Home"})
+    home_id = home_response.json()["id"]
+    
+    user_response = client.post(
+        f"/api/homes/{home_id}/join",
+        json={"username": "testuser"}
+    )
+    user_id = user_response.json()["id"]
+    
+    return home_id, user_id
+
+
 def test_create_reward(client: TestClient):
     """Test creating a reward"""
+    # Create home
+    home_response = client.post("/api/homes", json={"name": "Test Home"})
+    home_id = home_response.json()["id"]
+    
+    # Create reward
     reward_data = {
         "name": "Gaming hour",
-        "description": "1 hour guilt-free gaming"
+        "description": "1 hour guilt-free gaming",
+        "cost": 100
     }
-    response = client.post("/api/rewards", json=reward_data)
+    response = client.post(f"/api/rewards?home_id={home_id}", json=reward_data)
     assert response.status_code == 200
     assert response.json()["name"] == "Gaming hour"
     assert response.json()["description"] == "1 hour guilt-free gaming"
+    assert response.json()["cost"] == 100
 
 
 def test_get_reward(client: TestClient):
     """Test retrieving a reward"""
+    # Create home
+    home_response = client.post("/api/homes", json={"name": "Test Home"})
+    home_id = home_response.json()["id"]
+    
     # Create reward
     create_response = client.post(
-        "/api/rewards",
-        json={"name": "Reward", "description": "Test reward"}
+        f"/api/rewards?home_id={home_id}",
+        json={"name": "Reward", "description": "Test reward", "cost": 50}
     )
     reward_id = create_response.json()["id"]
     
@@ -29,26 +55,53 @@ def test_get_reward(client: TestClient):
     assert response.json()["name"] == "Reward"
 
 
-def test_get_all_rewards(client: TestClient):
-    """Test retrieving all rewards"""
-    client.post("/api/rewards", json={"name": "Reward 1"})
-    client.post("/api/rewards", json={"name": "Reward 2"})
+def test_get_home_rewards(client: TestClient):
+    """Test retrieving all rewards in a home"""
+    # Create home
+    home_response = client.post("/api/homes", json={"name": "Test Home"})
+    home_id = home_response.json()["id"]
     
-    response = client.get("/api/rewards")
+    # Create rewards
+    client.post(f"/api/rewards?home_id={home_id}", json={"name": "Reward 1", "cost": 100})
+    client.post(f"/api/rewards?home_id={home_id}", json={"name": "Reward 2", "cost": 50})
+    
+    # Get rewards
+    response = client.get(f"/api/rewards?home_id={home_id}")
     assert response.status_code == 200
     assert len(response.json()) == 2
 
 
-def test_claim_reward(client: TestClient):
+def test_get_home_rewards_multiple_homes(client: TestClient):
+    """Test that rewards are isolated by home"""
+    # Create first home and reward
+    home1_response = client.post("/api/homes", json={"name": "Home 1"})
+    home1_id = home1_response.json()["id"]
+    
+    client.post(f"/api/rewards?home_id={home1_id}", json={"name": "Reward 1", "cost": 100})
+    client.post(f"/api/rewards?home_id={home1_id}", json={"name": "Reward 2", "cost": 50})
+    
+    # Create second home and reward
+    home2_response = client.post("/api/homes", json={"name": "Home 2"})
+    home2_id = home2_response.json()["id"]
+    
+    client.post(f"/api/rewards?home_id={home2_id}", json={"name": "Reward 3", "cost": 75})
+    
+    # Verify isolation
+    response1 = client.get(f"/api/rewards?home_id={home1_id}")
+    response2 = client.get(f"/api/rewards?home_id={home2_id}")
+    
+    assert len(response1.json()) == 2
+    assert len(response2.json()) == 1
+
+
+def test_claim_reward(client: TestClient, home_with_user):
     """Test claiming a reward"""
-    # Create user
-    user_response = client.post("/api/users", json={"username": "testuser"})
-    user_id = user_response.json()["id"]
+    home_id, user_id = home_with_user
     
     # Create reward
     reward_response = client.post(
-        "/api/rewards",
-        json={"name": "Gaming hour"}
+        f"/api/rewards?home_id={home_id}",
+        json={"name": "Gaming hour", "cost": 100}
     )
     reward_id = reward_response.json()["id"]
     
@@ -61,28 +114,24 @@ def test_claim_reward(client: TestClient):
     assert response.json()["reward_id"] == reward_id
 
 
-def test_claim_reward_not_found(client: TestClient):
+def test_claim_reward_not_found(client: TestClient, home_with_user):
     """Test claiming a non-existent reward"""
-    # Create user
-    user_response = client.post("/api/users", json={"username": "testuser"})
-    user_id = user_response.json()["id"]
+    home_id, user_id = home_with_user
     
     # Try to claim non-existent reward
     response = client.post(f"/api/rewards/999/claim?user_id={user_id}")
     assert response.status_code == 404
 
 
-def test_get_user_reward_claims(client: TestClient):
+def test_get_user_reward_claims(client: TestClient, home_with_user):
     """Test retrieving a user's reward claims"""
-    # Create user
-    user_response = client.post("/api/users", json={"username": "testuser"})
-    user_id = user_response.json()["id"]
+    home_id, user_id = home_with_user
     
     # Create and claim multiple rewards
     for i in range(2):
         reward = client.post(
-            "/api/rewards",
-            json={"name": f"Reward {i}"}
+            f"/api/rewards?home_id={home_id}",
+            json={"name": f"Reward {i}", "cost": 100 * (i + 1)}
         ).json()
         client.post(f"/api/rewards/{reward['id']}/claim?user_id={user_id}")
     
@@ -94,10 +143,14 @@ def test_get_user_reward_claims(client: TestClient):
 
 def test_delete_reward(client: TestClient):
     """Test deleting a reward"""
+    # Create home
+    home_response = client.post("/api/homes", json={"name": "Test Home"})
+    home_id = home_response.json()["id"]
+    
     # Create reward
     reward_response = client.post(
-        "/api/rewards",
-        json={"name": "Test reward"}
+        f"/api/rewards?home_id={home_id}",
+        json={"name": "Test reward", "cost": 50}
     )
     reward_id = reward_response.json()["id"]
     
@@ -108,3 +161,18 @@ def test_delete_reward(client: TestClient):
     # Verify reward is deleted
     response = client.get(f"/api/rewards/{reward_id}")
     assert response.status_code == 404
+
+
+def test_reward_with_zero_cost(client: TestClient):
+    """Test creating a reward with zero cost"""
+    # Create home
+    home_response = client.post("/api/homes", json={"name": "Test Home"})
+    home_id = home_response.json()["id"]
+    
+    # Create free reward
+    response = client.post(
+        f"/api/rewards?home_id={home_id}",
+        json={"name": "Free reward", "cost": 0}
+    )
+    assert response.status_code == 200
+    assert response.json()["cost"] == 0

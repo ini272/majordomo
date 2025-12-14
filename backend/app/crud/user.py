@@ -3,33 +3,9 @@ from sqlmodel import select, Session
 from app.models.user import User, UserCreate, UserUpdate
 
 
-def calculate_level(xp: int) -> int:
-    """
-    Calculate level based on total XP using cumulative formula.
-    
-    Level progression:
-    - Level 1: 0-99 XP
-    - Level 2: 100-299 XP (requires 100 XP)
-    - Level 3: 300-599 XP (requires 300 more XP)
-    etc.
-    """
-    level = 1
-    xp_threshold = 0
-    
-    while xp >= xp_threshold:
-        xp_threshold += level * 100
-        level += 1
-    
-    return level - 1
-
-
-def create_user(db: Session, user_in: UserCreate) -> User:
-    """Create a new user"""
-    db_user = User(**user_in.model_dump())
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+def get_all_users(db: Session) -> List[User]:
+    """Get all users"""
+    return db.exec(select(User)).all()
 
 
 def get_user(db: Session, user_id: int) -> Optional[User]:
@@ -37,14 +13,27 @@ def get_user(db: Session, user_id: int) -> Optional[User]:
     return db.exec(select(User).where(User.id == user_id)).first()
 
 
-def get_user_by_username(db: Session, username: str) -> Optional[User]:
-    """Get user by username"""
-    return db.exec(select(User).where(User.username == username)).first()
+def get_user_by_username(db: Session, home_id: int, username: str) -> Optional[User]:
+    """Get user by username in a specific home"""
+    return db.exec(
+        select(User).where(
+            (User.home_id == home_id) & (User.username == username)
+        )
+    ).first()
 
 
-def get_all_users(db: Session) -> List[User]:
-    """Get all users"""
-    return db.exec(select(User)).all()
+def get_home_users(db: Session, home_id: int) -> List[User]:
+    """Get all users in a home"""
+    return db.exec(select(User).where(User.home_id == home_id)).all()
+
+
+def create_user(db: Session, home_id: int, user_in: UserCreate) -> User:
+    """Create a new user in a home"""
+    db_user = User(**user_in.model_dump(), home_id=home_id)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
 
 
 def update_user(db: Session, user_id: int, user_in: UserUpdate) -> Optional[User]:
@@ -61,17 +50,6 @@ def update_user(db: Session, user_id: int, user_in: UserUpdate) -> Optional[User
     db.commit()
     db.refresh(db_user)
     return db_user
-
-
-def delete_user(db: Session, user_id: int) -> bool:
-    """Delete user"""
-    db_user = get_user(db, user_id)
-    if not db_user:
-        return False
-    
-    db.delete(db_user)
-    db.commit()
-    return True
 
 
 def add_xp(db: Session, user_id: int, amount: int) -> Optional[User]:
@@ -99,3 +77,34 @@ def add_gold(db: Session, user_id: int, amount: int) -> Optional[User]:
     db.commit()
     db.refresh(db_user)
     return db_user
+
+
+def delete_user(db: Session, user_id: int) -> bool:
+    """Delete user"""
+    db_user = get_user(db, user_id)
+    if not db_user:
+        return False
+    
+    db.delete(db_user)
+    db.commit()
+    return True
+
+
+def calculate_level(xp: int) -> int:
+    """
+    Calculate level based on total XP using cumulative formula.
+    
+    Level progression:
+    - Level 1: 0-99 XP
+    - Level 2: 100-299 XP (requires 100 XP)
+    - Level 3: 300-599 XP (requires 300 more XP)
+    etc.
+    """
+    level = 1
+    xp_threshold = 0
+    
+    while xp >= xp_threshold:
+        xp_threshold += level * 100
+        level += 1
+    
+    return level - 1
