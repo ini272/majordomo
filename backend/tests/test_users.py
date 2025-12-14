@@ -11,7 +11,7 @@ def test_get_user(client: TestClient):
     # Create user
     user_response = client.post(
         f"/api/homes/{home_id}/join",
-        json={"username": "testuser"}
+        json={"username": "testuser", "password": "testpass"}
     )
     user_id = user_response.json()["id"]
     
@@ -35,7 +35,7 @@ def test_update_user(client: TestClient):
     
     user_response = client.post(
         f"/api/homes/{home_id}/join",
-        json={"username": "testuser"}
+        json={"username": "testuser", "password": "testpass"}
     )
     user_id = user_response.json()["id"]
     
@@ -53,7 +53,7 @@ def test_add_xp_to_user(client: TestClient):
     
     user_response = client.post(
         f"/api/homes/{home_id}/join",
-        json={"username": "testuser"}
+        json={"username": "testuser", "password": "testpass"}
     )
     user_id = user_response.json()["id"]
     
@@ -71,7 +71,7 @@ def test_level_progression(client: TestClient):
     
     user_response = client.post(
         f"/api/homes/{home_id}/join",
-        json={"username": "testuser"}
+        json={"username": "testuser", "password": "testpass"}
     )
     user_id = user_response.json()["id"]
     
@@ -90,7 +90,7 @@ def test_add_gold_to_user(client: TestClient):
     
     user_response = client.post(
         f"/api/homes/{home_id}/join",
-        json={"username": "testuser"}
+        json={"username": "testuser", "password": "testpass"}
     )
     user_id = user_response.json()["id"]
     
@@ -108,7 +108,7 @@ def test_delete_user(client: TestClient):
     
     user_response = client.post(
         f"/api/homes/{home_id}/join",
-        json={"username": "testuser"}
+        json={"username": "testuser", "password": "testpass"}
     )
     user_id = user_response.json()["id"]
     
@@ -128,8 +128,8 @@ def test_get_home_users(client: TestClient):
     home_id = home_response.json()["id"]
     
     # Create multiple users
-    client.post(f"/api/homes/{home_id}/join", json={"username": "user1"})
-    client.post(f"/api/homes/{home_id}/join", json={"username": "user2"})
+    client.post(f"/api/homes/{home_id}/join", json={"username": "user1", "password": "pass1"})
+    client.post(f"/api/homes/{home_id}/join", json={"username": "user2", "password": "pass2"})
     
     # Get users
     response = client.get(f"/api/homes/{home_id}/users")
@@ -144,10 +144,10 @@ def test_duplicate_username_in_home(client: TestClient):
     home_id = home_response.json()["id"]
     
     # Create first user
-    client.post(f"/api/homes/{home_id}/join", json={"username": "testuser"})
+    client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
     
     # Try to create duplicate
-    response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser"})
+    response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "different"})
     assert response.status_code == 400
     assert "already exists" in response.json()["detail"]
 
@@ -162,8 +162,8 @@ def test_same_username_different_homes(client: TestClient):
     home2_id = home2_response.json()["id"]
     
     # Create same username in each home
-    response1 = client.post(f"/api/homes/{home1_id}/join", json={"username": "testuser"})
-    response2 = client.post(f"/api/homes/{home2_id}/join", json={"username": "testuser"})
+    response1 = client.post(f"/api/homes/{home1_id}/join", json={"username": "testuser", "password": "pass1"})
+    response2 = client.post(f"/api/homes/{home2_id}/join", json={"username": "testuser", "password": "pass2"})
     
     assert response1.status_code == 200
     assert response2.status_code == 200

@@ -1,6 +1,7 @@
 from typing import Optional, List
 from sqlmodel import select, Session
 from app.models.user import User, UserCreate, UserUpdate
+from app.auth import hash_password
 
 
 def get_all_users(db: Session) -> List[User]:
@@ -22,6 +23,11 @@ def get_user_by_username(db: Session, home_id: int, username: str) -> Optional[U
     ).first()
 
 
+def get_user_by_username_any_home(db: Session, username: str) -> Optional[User]:
+    """Get user by username across all homes (for login)"""
+    return db.exec(select(User).where(User.username == username)).first()
+
+
 def get_home_users(db: Session, home_id: int) -> List[User]:
     """Get all users in a home"""
     return db.exec(select(User).where(User.home_id == home_id)).all()
@@ -29,7 +35,13 @@ def get_home_users(db: Session, home_id: int) -> List[User]:
 
 def create_user(db: Session, home_id: int, user_in: UserCreate) -> User:
     """Create a new user in a home"""
-    db_user = User(**user_in.model_dump(), home_id=home_id)
+    data = user_in.model_dump()
+    password = data.pop("password")
+    db_user = User(
+        **data,
+        home_id=home_id,
+        password_hash=hash_password(password)
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)

@@ -35,10 +35,10 @@ def seed_database():
         home = crud_home.create_home(session, home_data)
         print(f"✓ Created home: {home.name}")
         
-        # Create users
+        # Create users (passwords: alice123, bob123, charlie123)
         users = []
         for username in ["alice", "bob", "charlie"]:
-            user_data = UserCreate(username=username)
+            user_data = UserCreate(username=username, password=f"{username}123")
             user = crud_user.create_user(session, home.id, user_data)
             users.append(user)
             print(f"  ✓ Created user: {user.username} (level {user.level})")

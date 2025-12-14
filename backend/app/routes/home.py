@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 from app.database import get_db
@@ -6,6 +6,7 @@ from app.models.home import Home, HomeCreate, HomeRead, HomeJoin
 from app.models.user import User, UserCreate, UserRead
 from app.crud import home as crud_home
 from app.crud import user as crud_user
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/homes", tags=["homes"])
 
@@ -18,8 +19,12 @@ def get_all_homes(db: Session = Depends(get_db)):
 
 
 @router.get("/{home_id}", response_model=HomeRead)
-def get_home(home_id: int, db: Session = Depends(get_db)):
+def get_home(home_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
     """Get home by ID"""
+    # Verify user belongs to this home
+    if auth["home_id"] != home_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this home")
+    
     home = crud_home.get_home(db, home_id)
     if not home:
         raise HTTPException(status_code=404, detail="Home not found")
@@ -28,8 +33,12 @@ def get_home(home_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{home_id}/users", response_model=List[UserRead])
-def get_home_users(home_id: int, db: Session = Depends(get_db)):
+def get_home_users(home_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
     """Get all users in a home"""
+    # Verify user belongs to this home
+    if auth["home_id"] != home_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this home")
+    
     home = crud_home.get_home(db, home_id)
     if not home:
         raise HTTPException(status_code=404, detail="Home not found")
@@ -61,8 +70,12 @@ def join_home(home_id: int, user: UserCreate, db: Session = Depends(get_db)):
 
 # DELETE endpoints
 @router.delete("/{home_id}")
-def delete_home(home_id: int, db: Session = Depends(get_db)):
+def delete_home(home_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
     """Delete a home"""
+    # Verify user belongs to this home
+    if auth["home_id"] != home_id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this home")
+    
     if not crud_home.delete_home(db, home_id):
         raise HTTPException(status_code=404, detail="Home not found")
     

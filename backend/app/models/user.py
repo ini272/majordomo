@@ -14,6 +14,7 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     home_id: int = Field(foreign_key="home.id", index=True)
     username: str = Field(index=True)
+    password_hash: str
     level: int = Field(default=1)
     xp: int = Field(default=0)
     gold_balance: int = Field(default=0)
@@ -39,6 +40,7 @@ class UserRead(SQLModel):
 class UserCreate(SQLModel):
     """Schema for creating a user"""
     username: str = Field(min_length=1, max_length=50)
+    password: str = Field(min_length=1)
 
 
 class UserUpdate(SQLModel):

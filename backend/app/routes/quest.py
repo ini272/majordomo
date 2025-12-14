@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 from app.database import get_db
@@ -6,27 +6,30 @@ from app.models.quest import Quest, QuestCreate, QuestRead, QuestUpdate, QuestTe
 from app.crud import quest as crud_quest
 from app.crud import quest_template as crud_quest_template
 from app.crud import user as crud_user
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/quests", tags=["quests"])
 
 
 # GET endpoints
+@router.get("/templates/all", response_model=List[QuestTemplateRead])
+def get_all_quest_templates(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+    """Get all quest templates in the authenticated user's home"""
+    return crud_quest_template.get_home_quest_templates(db, auth["home_id"])
+
+
 @router.get("", response_model=List[QuestRead])
-def get_all_quests(db: Session = Depends(get_db)):
-    """Get all quests"""
-    return crud_quest.get_all_quests(db)
+def get_all_quests(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+    """Get all quests in authenticated user's home"""
+    return crud_quest.get_quests_by_home(db, auth["home_id"])
 
 
 @router.get("/{quest_id}", response_model=QuestRead)
-def get_quest(quest_id: int, user_id: int = Query(...), db: Session = Depends(get_db)):
-    """Get quest by ID (only owner can access)"""
+def get_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+    """Get quest by ID (only those in your home can access)"""
     quest = crud_quest.get_quest(db, quest_id)
-    if not quest:
+    if not quest or quest.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="Quest not found")
-    
-    # Verify ownership
-    if quest.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to access this quest")
     
     return quest
 
@@ -34,40 +37,36 @@ def get_quest(quest_id: int, user_id: int = Query(...), db: Session = Depends(ge
 @router.get("/user/{user_id}", response_model=List[QuestRead])
 def get_user_quests(
     user_id: int,
-    home_id: int = Query(...),
     completed: Optional[bool] = Query(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    auth: Dict = Depends(get_current_user)
 ):
     """Get all quests for a user, optionally filtered by completion status"""
-    # Verify user exists in home
+    # Verify user exists in authenticated home
     user = crud_user.get_user(db, user_id)
-    if not user or user.home_id != home_id:
+    if not user or user.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="User not found in home")
     
-    return crud_quest.get_quests_by_user(db, home_id, user_id, completed)
+    return crud_quest.get_quests_by_user(db, auth["home_id"], user_id, completed)
 
 
 @router.get("/templates/{template_id}", response_model=QuestTemplateRead)
-def get_quest_template(template_id: int, db: Session = Depends(get_db)):
+def get_quest_template(template_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
     """Get quest template by ID"""
     template = crud_quest_template.get_quest_template(db, template_id)
-    if not template:
+    if not template or template.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="Quest template not found")
     
     return template
 
 
-@router.get("/templates/home/{home_id}", response_model=List[QuestTemplateRead])
-def get_home_quest_templates(home_id: int, system: Optional[bool] = Query(None), db: Session = Depends(get_db)):
-    """Get all quest templates in a home"""
-    return crud_quest_template.get_home_quest_templates(db, home_id, system)
-
-
 # POST endpoints
 @router.post("", response_model=QuestRead)
-def create_quest(quest: QuestCreate, home_id: int = Query(...), user_id: int = Query(...), db: Session = Depends(get_db)):
+def create_quest(quest: QuestCreate, user_id: int = Query(...), db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
     """Create a new quest instance for a user"""
-    # Verify user exists in home
+    home_id = auth["home_id"]
+    
+    # Verify user exists in home and belongs to authenticated home
     user = crud_user.get_user(db, user_id)
     if not user or user.home_id != home_id:
         raise HTTPException(status_code=404, detail="User not found in home")
@@ -81,15 +80,11 @@ def create_quest(quest: QuestCreate, home_id: int = Query(...), user_id: int = Q
 
 
 @router.post("/{quest_id}/complete", response_model=QuestRead)
-def complete_quest(quest_id: int, user_id: int = Query(...), db: Session = Depends(get_db)):
-    """Mark quest as completed and award XP/gold to user (only owner)"""
+def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+    """Mark quest as completed and award XP/gold to user"""
     quest = crud_quest.get_quest(db, quest_id)
-    if not quest:
+    if not quest or quest.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="Quest not found")
-    
-    # Verify ownership
-    if quest.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to complete this quest")
     
     # Prevent double-completion
     if quest.completed:
@@ -107,8 +102,10 @@ def complete_quest(quest_id: int, user_id: int = Query(...), db: Session = Depen
 
 
 @router.post("/templates", response_model=QuestTemplateRead)
-def create_quest_template(home_id: int = Query(...), created_by: int = Query(...), template: QuestTemplateCreate = None, db: Session = Depends(get_db)):
+def create_quest_template(created_by: int = Query(...), template: QuestTemplateCreate = None, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
     """Create a new quest template"""
+    home_id = auth["home_id"]
+    
     # Verify user exists in home
     user = crud_user.get_user(db, created_by)
     if not user or user.home_id != home_id:
@@ -119,15 +116,11 @@ def create_quest_template(home_id: int = Query(...), created_by: int = Query(...
 
 # PUT endpoints
 @router.put("/{quest_id}", response_model=QuestRead)
-def update_quest(quest_id: int, user_id: int = Query(...), quest_update: QuestUpdate = None, db: Session = Depends(get_db)):
-    """Update quest (only owner can update)"""
+def update_quest(quest_id: int, quest_update: QuestUpdate = None, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+    """Update quest"""
     quest = crud_quest.get_quest(db, quest_id)
-    if not quest:
+    if not quest or quest.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="Quest not found")
-    
-    # Verify ownership
-    if quest.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to update this quest")
     
     quest = crud_quest.update_quest(db, quest_id, quest_update)
     return quest
@@ -135,15 +128,11 @@ def update_quest(quest_id: int, user_id: int = Query(...), quest_update: QuestUp
 
 # DELETE endpoints
 @router.delete("/{quest_id}")
-def delete_quest(quest_id: int, user_id: int = Query(...), db: Session = Depends(get_db)):
-    """Delete quest (only owner can delete)"""
+def delete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+    """Delete quest"""
     quest = crud_quest.get_quest(db, quest_id)
-    if not quest:
+    if not quest or quest.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="Quest not found")
-    
-    # Verify ownership
-    if quest.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this quest")
     
     crud_quest.delete_quest(db, quest_id)
     return {"detail": "Quest deleted"}

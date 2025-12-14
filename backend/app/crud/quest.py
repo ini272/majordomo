@@ -14,6 +14,11 @@ def get_all_quests(db: Session) -> List[Quest]:
     return db.exec(select(Quest).order_by(Quest.created_at.desc())).all()
 
 
+def get_quests_by_home(db: Session, home_id: int) -> List[Quest]:
+    """Get all quests in a home"""
+    return db.exec(select(Quest).where(Quest.home_id == home_id).order_by(Quest.created_at.desc())).all()
+
+
 def get_quests_by_user(db: Session, home_id: int, user_id: int, completed: Optional[bool] = None) -> List[Quest]:
     """Get all quests for a user in a home, optionally filtered by completion status"""
     query = select(Quest).where(

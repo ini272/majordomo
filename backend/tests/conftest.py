@@ -9,6 +9,7 @@ from app.models import home, user, quest, reward
 from app.crud import quest_template
 from app.database import get_db
 from app.main import app
+from app.auth import get_current_user
 
 
 # Create in-memory SQLite database for testing
@@ -41,7 +42,12 @@ def client(db):
         finally:
             pass
     
+    async def override_get_current_user():
+        """Override auth to allow tests without tokens"""
+        return {"user_id": 1, "home_id": 1}
+    
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()

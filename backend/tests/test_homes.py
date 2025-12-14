@@ -23,9 +23,9 @@ def test_get_home(client: TestClient):
 
 
 def test_get_home_not_found(client: TestClient):
-    """Test retrieving a non-existent home"""
+    """Test retrieving a non-existent/unauthorized home"""
     response = client.get("/api/homes/999")
-    assert response.status_code == 404
+    assert response.status_code == 403  # Not authorized to access home 999
 
 
 def test_invite_code_is_unique(client: TestClient):
@@ -49,7 +49,7 @@ def test_join_home(client: TestClient):
     # Join home
     response = client.post(
         f"/api/homes/{home_id}/join",
-        json={"username": "newuser"}
+        json={"username": "newuser", "password": "testpass"}
     )
     assert response.status_code == 200
     assert response.json()["username"] == "newuser"
@@ -60,7 +60,7 @@ def test_join_home_not_found(client: TestClient):
     """Test joining a non-existent home"""
     response = client.post(
         "/api/homes/999/join",
-        json={"username": "newuser"}
+        json={"username": "newuser", "password": "testpass"}
     )
     assert response.status_code == 404
 
@@ -72,9 +72,9 @@ def test_get_home_users(client: TestClient):
     home_id = home_response.json()["id"]
     
     # Add users
-    client.post(f"/api/homes/{home_id}/join", json={"username": "user1"})
-    client.post(f"/api/homes/{home_id}/join", json={"username": "user2"})
-    client.post(f"/api/homes/{home_id}/join", json={"username": "user3"})
+    client.post(f"/api/homes/{home_id}/join", json={"username": "user1", "password": "pass1"})
+    client.post(f"/api/homes/{home_id}/join", json={"username": "user2", "password": "pass2"})
+    client.post(f"/api/homes/{home_id}/join", json={"username": "user3", "password": "pass3"})
     
     # Get users
     response = client.get(f"/api/homes/{home_id}/users")
@@ -122,14 +122,14 @@ def test_duplicate_username_in_same_home_rejected(client: TestClient):
     # Create first user
     response1 = client.post(
         f"/api/homes/{home_id}/join",
-        json={"username": "alice"}
+        json={"username": "alice", "password": "pass1"}
     )
     assert response1.status_code == 200
     
     # Try to create duplicate
     response2 = client.post(
         f"/api/homes/{home_id}/join",
-        json={"username": "alice"}
+        json={"username": "alice", "password": "pass2"}
     )
     assert response2.status_code == 400
     assert "already exists" in response2.json()["detail"]
@@ -143,7 +143,7 @@ def test_same_username_different_homes_allowed(client: TestClient):
     
     response1 = client.post(
         f"/api/homes/{home1_id}/join",
-        json={"username": "alice"}
+        json={"username": "alice", "password": "pass1"}
     )
     assert response1.status_code == 200
     
@@ -153,7 +153,7 @@ def test_same_username_different_homes_allowed(client: TestClient):
     
     response2 = client.post(
         f"/api/homes/{home2_id}/join",
-        json={"username": "alice"}
+        json={"username": "alice", "password": "pass2"}
     )
     assert response2.status_code == 200
     
