@@ -13,8 +13,9 @@ router = APIRouter(prefix="/api/homes", tags=["homes"])
 
 # GET endpoints
 @router.get("", response_model=List[HomeRead])
-def get_all_homes(db: Session = Depends(get_db)):
-    """Get all homes"""
+def get_all_homes(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+    """Get all homes (admin endpoint - requires authentication)"""
+    # TODO: Add admin-only check if needed
     return crud_home.get_all_homes(db)
 
 

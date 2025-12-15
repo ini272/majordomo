@@ -5,8 +5,14 @@ import bcrypt
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, Header
 
-# In production, load from environment variables
-SECRET_KEY = "your-secret-key-change-this-in-production"
+import os
+
+# Load from environment variables, fail fast if missing in production
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if os.getenv("NODE_ENV") == "production":
+        raise ValueError("SECRET_KEY environment variable is required in production")
+    SECRET_KEY = "dev-secret-key-change-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 

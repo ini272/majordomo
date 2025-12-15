@@ -98,7 +98,7 @@ def custom_openapi():
     }
     
     # Mark routes as requiring auth (except public routes)
-    public_paths = ["/api/auth/login", "/api/homes"]
+    public_paths = ["/api/auth/login", "/api/homes/"] # POST /api/homes and POST /api/homes/{id}/join are public
     for path, methods in openapi_schema.get("paths", {}).items():
         if not any(path.startswith(p) for p in public_paths):
             for method in methods.values():
