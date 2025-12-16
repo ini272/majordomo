@@ -31,7 +31,7 @@ def seed_database():
     
     with Session(engine) as session:
         # Create a home
-        home_data = HomeCreate(name="The Martinez Family")
+        home_data = HomeCreate(name="Grindstone Home")
         home = crud_home.create_home(session, home_data)
         print(f"✓ Created home: {home.name}")
         
@@ -48,35 +48,39 @@ def seed_database():
         # Create quest templates
         templates = []
         quest_data = [
-            ("Clean Kitchen", "Wash dishes and wipe counters", 25, 15),
-            ("Do Laundry", "Wash, dry, and fold clothes", 30, 20),
-            ("Vacuum Living Room", "Deep clean the living room", 20, 10),
-            ("Walk the Dog", "Take Rex for a 30 minute walk", 15, 5),
-            ("Mow Lawn", "Cut the grass and edge the driveway", 50, 30),
-            ("Take out Trash", "Bins to curb, bring them back", 5, 2),
+            ("Clean Kitchen", "Wash dishes and wipe counters", 25, 15, "one-off"),
+            ("Do Laundry", "Wash, dry, and fold clothes", 30, 20, "one-off"),
+            ("Vacuum Living Room", "Deep clean the living room", 20, 10, "one-off"),
+            ("Walk the Dog", "Take Rex for a 30 minute walk", 15, 5, "daily"),
+            ("Mow Lawn", "Cut the grass and edge the driveway", 50, 30, "weekly"),
+            ("Take out Trash", "Bins to curb, bring them back", 5, 2, "daily"),
         ]
         
         quest_display_names = [
             "Slay the Grease Dragon",
             "Conquer the Textile Mountains",
             "Purify the Dust Realm",
-            "Quest with the Noble Beast",
-            "Tame the Grass Kingdom",
-            "Vanquish the Trash Goblins",
+            "Daily: Quest with the Noble Beast",
+            "Weekly: Tame the Grass Kingdom",
+            "Daily: Vanquish the Trash Goblins",
         ]
         
-        for i, (title, description, xp, gold) in enumerate(quest_data):
+        # Assign quest types: standard, bounty, corrupted
+        quest_types = ["standard", "standard", "corrupted", "bounty", "bounty", "corrupted"]
+        
+        for i, (title, description, xp, gold, recurrence) in enumerate(quest_data):
             template_in = QuestTemplateCreate(
                 title=title,
                 display_name=quest_display_names[i],
                 description=description,
                 xp_reward=xp,
                 gold_reward=gold,
-                recurrence="one-off"
+                quest_type=quest_types[i],
+                recurrence=recurrence
             )
             template = crud_quest_template.create_quest_template(session, home.id, alice.id, template_in)
             templates.append(template)
-            print(f"  ✓ Created template: {template.title} ({template.xp_reward} XP)")
+            print(f"  ✓ Created template: {template.title} [{template.quest_type}] ({template.recurrence}) ({template.xp_reward} XP)")
         
         # Create quest instances (some completed, some active)
         quests_data = [

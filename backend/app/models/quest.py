@@ -18,6 +18,7 @@ class QuestTemplate(SQLModel, table=True):
     description: Optional[str] = Field(default=None, max_length=1000)
     xp_reward: int = Field(default=10, ge=0, le=10000)
     gold_reward: int = Field(default=5, ge=0, le=10000)
+    quest_type: str = Field(default="standard")  # standard, corrupted
     recurrence: str = Field(default="one-off")  # one-off, daily, weekly
     system: bool = Field(default=False)  # true = system default, false = user created
     created_by: int = Field(foreign_key="user.id")  # user who created it
@@ -37,6 +38,7 @@ class QuestTemplateRead(SQLModel):
     description: Optional[str]
     xp_reward: int
     gold_reward: int
+    quest_type: str
     recurrence: str
     system: bool
     created_by: int
@@ -50,6 +52,7 @@ class QuestTemplateCreate(SQLModel):
     description: Optional[str] = Field(default=None, max_length=1000)
     xp_reward: int = Field(default=10, ge=0, le=10000)
     gold_reward: int = Field(default=5, ge=0, le=10000)
+    quest_type: str = Field(default="standard")
     recurrence: str = Field(default="one-off")
 
 

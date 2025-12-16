@@ -1,13 +1,46 @@
 import { COLORS } from '../constants/colors';
 
+const getQuestTypeStyles = (questType) => {
+  switch (questType) {
+    case 'bounty':
+      return {
+        borderColor: '#6b5fb7',
+        titleColor: '#9d84ff',
+        badgeBg: 'rgba(107, 95, 183, 0.3)',
+        badgeColor: '#9d84ff',
+      };
+    case 'corrupted':
+      return {
+        borderColor: '#8b3a3a',
+        titleColor: '#ff6b6b',
+        badgeBg: 'rgba(139, 58, 58, 0.3)',
+        badgeColor: '#ff8080',
+      };
+    default: // standard
+      return {
+        borderColor: COLORS.gold,
+        titleColor: COLORS.gold,
+        badgeBg: 'rgba(212, 175, 55, 0.1)',
+        badgeColor: COLORS.gold,
+      };
+  }
+};
+
 export default function QuestCard({ quest, onComplete }) {
+  const typeStyles = getQuestTypeStyles(quest.template.quest_type);
+  
   return (
-    <div className="relative p-6 md:p-8 mb-6 md:mb-8 shadow-lg" style={{backgroundColor: COLORS.darkPanel, borderColor: COLORS.gold, borderWidth: '3px'}}>
+    <div className="relative p-6 md:p-8 mb-6 md:mb-8 shadow-lg" style={{backgroundColor: COLORS.darkPanel, borderColor: typeStyles.borderColor, borderWidth: '3px'}}>
       {/* Decorative element */}
       <div className="absolute top-3 right-4 text-2xl opacity-20">⚔</div>
 
+      {/* Quest Type Badge */}
+      <div className="absolute top-4 left-4 px-2 py-1 rounded text-xs uppercase font-serif font-bold" style={{backgroundColor: typeStyles.badgeBg, color: typeStyles.badgeColor}}>
+        {quest.template.quest_type}
+      </div>
+
       {/* Title */}
-      <h2 className="text-2xl md:text-3xl font-serif font-bold pb-3 md:pb-4 mb-4 uppercase tracking-wider" style={{color: COLORS.gold, borderBottomColor: COLORS.gold, borderBottomWidth: '2px'}}>
+      <h2 className="text-2xl md:text-3xl font-serif font-bold pb-3 md:pb-4 mb-4 uppercase tracking-wider" style={{color: typeStyles.titleColor, borderBottomColor: typeStyles.titleColor, borderBottomWidth: '2px'}}>
         {quest.template.display_name || quest.template.title || 'Unknown Quest'}
       </h2>
 

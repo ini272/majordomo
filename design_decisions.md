@@ -10,6 +10,16 @@ The modern world is efficient but often "disenchanted." This project's goal is t
 -   **Moral Clarity:** A quest has an unambiguously good outcome. This provides a restful escape from the complex moral calculus of the real world.
 -   **Agency and Progression:** Users are not just completing tasks; they are Heroes on a journey. Their actions have a direct, measurable impact, which is visualized through XP, levels, and tangible rewards.
 
+## I.B. Design Constraints & Core Values
+
+The following principles guide all design and engineering decisions:
+
+-   **Mobile-First:** The app is designed for phones first, tablets second, desktop third. Touch interactions and responsive layouts are foundational, not afterthoughts.
+-   **Self-Hosted Simplicity:** The system must run locally with minimal infrastructure. SQLite + FastAPI on a single machine is the target. No cloud dependencies, no complex DevOps.
+-   **Family-Friendly & Private:** All data remains on the home network. No external logins, no tracking, no ads. The app is safe for kids to use independently.
+-   **Low Friction, High Engagement:** The user should be completing their first quest within 30 seconds of opening the app. No tutorials, no onboarding, no friction. The fantasy flavor does the heavy lifting.
+-   **Incremental Complexity:** The MVP is deliberately simple. Advanced features (classes, boss quests, dynamic events) come later, once the core loop is proven.
+
 ## II. Core Gameplay Mechanics
 
 The system is built on a foundation of proven RPG mechanics to ensure long-term engagement.
@@ -34,10 +44,16 @@ The system is built on a foundation of proven RPG mechanics to ensure long-term 
     -   **Formula:** `Final_XP = Base_XP * (decay_factor ^ recent_completions)`
     -   *Recommended Value:* `decay_factor = 0.8`. This must be transparent in the UI.
 
-### 4. Advanced Gameplay Concepts
+### 4. Quest Attributes & Categorization
+-   **Difficulty Level:** Quests are rated Easy, Medium, or Hard. This helps users choose appropriate challenges and provides a visual indicator of effort required. Difficulty may inform XP scaling and enable level-gating in future phases.
+-   **Category/Tags:** Quests are tagged with categories (e.g., Chores, Learning, Exercise, Health, Organization). This enables filtering and organization on the board, and allows for streak challenges ("Complete 5 Exercise quests") and targeted rewards.
+-   **Icon/Emoji:** Each quest displays a thematic icon or emoji for quick visual recognition and flavor. Icons are assigned per quest or per category to reinforce identity and make the board more visually engaging.
+
+### 5. Advanced Gameplay Concepts
 -   **The "Corruption" System:** Quests not completed by their deadline can become "Corrupted." They transform into a more dire version worth more XP/Gold but may apply a minor household "debuff" until cleared, creating urgency.
 -   **Player Classes:** At a milestone level (e.g., Level 10), players can choose a Class (e.g., **Guardian, Forager, Berserker**) that provides passive XP bonuses to certain quest types, encouraging specialization and identity.
 -   **Achievements & Titles:** A "Feats of Strength" system tracks long-term stats, unlocking cosmetic "Titles" that players can display next to their name (e.g., "Kitchen Scourge," "Bane of the Pungent").
+-   **Boss Quests & Subtasks (Phase 2):** Large household challenges ("The Garage Dragon") can be broken into subtasks and completed collaboratively by multiple users. Progress tracking per subtask incentivizes teamwork and provides a sense of progression through larger endeavors.
 
 ## III. UI/UX Design: The Hero's Interface
 
@@ -71,10 +87,58 @@ These technical pillars are designed to create a seamless and magical user exper
     -   **Server:** Uvicorn
 -   **Frontend:**
     -   **Framework:** React (bootstrapped with Vite)
-    -   **UI Library:** Mantine or Chakra UI
-    -   **Animation:** Framer Motion
+    -   **UI Library:** Tailwind CSS (for MVP simplicity, Mantine/Chakra UI considered for Phase 1+)
+    -   **Animation:** Framer Motion (Phase 1+)
 
-## VI. Future Development Roadmap
+## VI. Development Phases
+
+### MVP (Current)
+**Goal:** Validate the core gameplay loop. A user can log in, see quests, complete them, gain XP, and level up.
+
+**Features:**
+- User authentication (login/password per home)
+- Quest Board displaying available quests
+- Quest completion with XP/Gold rewards
+- Hero Status Bar (Level, XP, Gold)
+- Bottom Tab Navigation structure (Board functional, others as stubs)
+- Quest type distinctions (Standard, Bounty, Corrupted)
+- Responsive design (mobile + desktop)
+
+### Phase 1
+**Goal:** Flesh out the game world and player progression. Introduce filtering, quest metadata, and the Profile/Market pages.
+
+**Features:**
+- Difficulty levels and categories/tags on quests
+- Quest filtering by category/difficulty
+- Profile Page: Character Sheet, Quest History (Chronicle), Achievements (Feats)
+- Market Page: Reward shop with Gold spending
+- Heroes Page: Leaderboard (weekly/all-time)
+- Settings panel (within Profile)
+- Error boundaries and user-facing error handling
+- Toast notifications for feedback
+
+### Phase 2
+**Goal:** Advanced mechanics and immersion. Boss quests, NFC, AI flavor text, sound/animation.
+
+**Features:**
+- Boss Quests with subtasks and collaborative completion
+- NFC tag integration for location-based quests
+- AI-generated quest descriptions (Asynchronous Scribe)
+- Sound effects and Framer Motion animations ("juice")
+- Corruption system (overdue quests degrade)
+- Player Classes with specialization bonuses
+
+### Future
+**Goal:** Long-term engagement and household gamification.
+
+**Features:**
+- Dynamic World Events (Daily Bounty Board, category bonuses)
+- Exhaustion system (diminishing returns on quest grinding)
+- Achievements & cosmetic Titles
+- Dungeon Master's Screen (admin panel)
+- Advanced leaderboard mechanics (streaks, category rankings)
+
+## VII. Future Development Roadmap
 
 -   **The Dungeon Master's Screen:** A password-protected admin panel for the app creator to manually grant rewards, review AI-generated content, and trigger world events.
 -   **Household Co-op:** Implementing "Boss Fights" that require multiple users to complete sub-quests to defeat a large household challenge (e.g., "The Garage Dragon").
