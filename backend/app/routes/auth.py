@@ -31,15 +31,14 @@ def login(username: str, password: str, db: Session = Depends(get_db)):
 
 
 @router.get("/dev/token")
-def get_dev_token(db: Session = Depends(get_db)):
-    """Dev-only: Get a test token for first user (alice from seed)"""
+def get_dev_token(user_id: int = 1, db: Session = Depends(get_db)):
+    """Dev-only: Get a test token for any user"""
     if os.getenv("NODE_ENV") == "production":
         raise HTTPException(status_code=403, detail="Not available in production")
     
-    # Get first user (alice) from seed data
-    user = crud_user.get_user(db, 1)
+    user = crud_user.get_user(db, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="No test user found. Run seed.py first.")
+        raise HTTPException(status_code=404, detail=f"User {user_id} not found")
     
     token = create_access_token(user.id, user.home_id)
-    return {"access_token": token, "token_type": "bearer", "user": user.username}
+    return {"access_token": token, "token_type": "bearer", "user": user.username, "home_id": user.home_id}
