@@ -10,6 +10,15 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 
 
 # GET endpoints
+@router.get("/me", response_model=UserRead)
+def get_current_user_stats(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+    """Get current authenticated user's stats"""
+    user = crud_user.get_user(db, auth["user_id"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
 @router.get("", response_model=List[UserRead])
 def get_all_users(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
     """Get all users in the authenticated user's home"""

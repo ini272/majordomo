@@ -1,0 +1,80 @@
+# Project: The Gamified Chore Quest System
+
+A self-hosted, fantasy-themed RPG designed to re-enchant the mundane tasks of daily household life. This system transforms chores into quests, progression into levels, and a home into a realm of adventure.
+
+## I. The Core Philosophy: Re-enchanting the Mundane
+
+The modern world is efficient but often "disenchanted." This project's goal is to battle the monotony of daily chores by applying the "cozy effect" of a fantasy RPG setting. It aims to provide:
+
+-   **A Sense of Purpose:** By framing chores as "quests," we give them narrative significance. The kitchen is no longer just a kitchen; it is **"The Forge."** Taking out the trash is not a chore; it is **"Defeating the Trash Elemental."**
+-   **Moral Clarity:** A quest has an unambiguously good outcome. This provides a restful escape from the complex moral calculus of the real world.
+-   **Agency and Progression:** Users are not just completing tasks; they are Heroes on a journey. Their actions have a direct, measurable impact, which is visualized through XP, levels, and tangible rewards.
+
+## II. Core Gameplay Mechanics
+
+The system is built on a foundation of proven RPG mechanics to ensure long-term engagement.
+
+### 1. XP & The Leveling Curve
+-   **Concept:** Players level up by gaining XP. The journey is designed to be rewarding, with a "WoW-Style" exponential curve. Early levels are fast to provide a hook, while later levels become epic achievements.
+-   **Formula:** `XP_for_Next_Level = base_xp * (current_level ^ exponent)`
+    -   *Recommended Values:* `base_xp = 100`, `exponent = 1.5`
+
+### 2. Quest Rewards & Valuation
+-   **Concept:** Not all quests are created equal. The XP reward for a quest is calculated based on three axes to ensure the system feels fair.
+-   **Formula:** `Base_XP = (Time + Effort + Dread) * multiplier`
+    -   **Time:** How long does it take? (Scale 1-5)
+    -   **Effort:** How physically or mentally draining is it? (Scale 1-5)
+    -   **Dread:** The subjective "ick" factor. How much do you hate doing it? (Scale 1-5)
+
+### 3. Dynamic World Systems
+-   **"World Events" (Alternating Rewards):** To make the world feel alive, special bonuses are available on certain days.
+    -   *Simple:* "The Sunday Pilgrim's Progress" - Exercise quests are always worth more on Sundays.
+    -   *Advanced:* A "Daily Bounty Board" that randomly selects 1-3 quest categories to receive a bonus for 24 hours.
+-   **"Exhaustion" (Diminishing Returns):** To discourage grinding the easiest quest, rewards diminish for repeated completions within a short time frame (e.g., 24 hours).
+    -   **Formula:** `Final_XP = Base_XP * (decay_factor ^ recent_completions)`
+    -   *Recommended Value:* `decay_factor = 0.8`. This must be transparent in the UI.
+
+### 4. Advanced Gameplay Concepts
+-   **The "Corruption" System:** Quests not completed by their deadline can become "Corrupted." They transform into a more dire version worth more XP/Gold but may apply a minor household "debuff" until cleared, creating urgency.
+-   **Player Classes:** At a milestone level (e.g., Level 10), players can choose a Class (e.g., **Guardian, Forager, Berserker**) that provides passive XP bonuses to certain quest types, encouraging specialization and identity.
+-   **Achievements & Titles:** A "Feats of Strength" system tracks long-term stats, unlocking cosmetic "Titles" that players can display next to their name (e.g., "Kitchen Scourge," "Bane of the Pungent").
+
+## III. UI/UX Design: The Hero's Interface
+
+The user interface is designed to feel like a game dashboard, not a to-do list.
+
+-   **Main Screen ("The Quest Board"):** The app opens directly to a dashboard showing all available quests. Quests are visually distinguished (e.g., Standard, Daily Bounty, Corrupted). A "Hero Status Bar" at the top always shows Level, XP, and Gold.
+-   **Bottom Tab Bar Navigation:** Main navigation is handled by a five-icon bottom tab bar for an intuitive, mobile-first experience.
+    1.  **Board (📜):** The main Quest Board dashboard.
+    2.  **Profile (👤):** A consolidated view of the player's `Character Sheet`, `Chronicle` (Quest History), and `Feats` (Achievements).
+    3.  **Scan Glyph (SCAN):** The "Center Stage" action button. Styled uniquely, this instantly opens the NFC/camera scanner, emphasizing it as the core interactive feature.
+    4.  **Market (💰):** The shop for spending Gold on in-game perks.
+    5.  **Heroes (🏆):** The "Hall of Heroes" weekly leaderboard.
+-   **Settings (⚙️):** Located unobtrusively within the Hero's Profile screen.
+
+## IV. The "Magic" - Key Technical Features
+
+These technical pillars are designed to create a seamless and magical user experience.
+
+-   **NFC Integration ("Arcane Sigils"):** Cheap NFC tags are programmed with a URL pointing to a specific app location (e.g., `yourapp.com/locations/shed`). Tapping a tag opens the app contextually, showing quests for that physical location. This provides a tactile bridge between the real world and the game.
+-   **The Asynchronous Scribe (AI Descriptions):** A FastAPI `BackgroundTask` calls a free-tier LLM API (e.g., Google Gemini Pro, Groq) to pre-populate a database with witty, thematic quest descriptions. This provides endless variety without sacrificing speed at the moment of quest creation.
+-   **Immersive Feedback (Sound & Animation):** The app will make heavy use of "juice" to feel satisfying.
+    -   **Sound:** A custom `useSound` hook will manage sound effects for quest completions, level-ups, UI clicks, and rewards.
+    -   **Animation:** `Framer Motion` will be used for fluid layout animations, "springy" physics on modals, and other effects that make the UI feel alive.
+
+## V. Technology Stack
+
+-   **Backend:**
+    -   **Framework:** FastAPI
+    -   **Database/ORM:** SQLModel
+    -   **Database:** SQLite
+    -   **Server:** Uvicorn
+-   **Frontend:**
+    -   **Framework:** React (bootstrapped with Vite)
+    -   **UI Library:** Mantine or Chakra UI
+    -   **Animation:** Framer Motion
+
+## VI. Future Development Roadmap
+
+-   **The Dungeon Master's Screen:** A password-protected admin panel for the app creator to manually grant rewards, review AI-generated content, and trigger world events.
+-   **Household Co-op:** Implementing "Boss Fights" that require multiple users to complete sub-quests to defeat a large household challenge (e.g., "The Garage Dragon").
