@@ -4,25 +4,21 @@ import { COLORS } from '../constants/colors';
 
 export default function HeroStatusBar({ username, token, refreshTrigger }) {
   const [userStats, setUserStats] = useState({ level: 1, xp: 0, gold: 0, total_xp: 0 });
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const fetchUserStats = async () => {
+      try {
+        const data = await api.user.getStats(token);
+        setUserStats(data);
+      } catch (err) {
+        console.error('Failed to fetch user stats:', err);
+      }
+    };
+
     if (token && username) {
       fetchUserStats();
     }
   }, [token, username, refreshTrigger]);
-
-  const fetchUserStats = async () => {
-    setLoading(true);
-    try {
-      const data = await api.user.getStats(token);
-      setUserStats(data);
-    } catch (err) {
-      console.error('Failed to fetch user stats:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="mb-8 p-4 md:p-6 rounded-sm font-serif" style={{backgroundColor: COLORS.darkPanel, borderTopColor: COLORS.gold, borderTopWidth: '3px'}}>

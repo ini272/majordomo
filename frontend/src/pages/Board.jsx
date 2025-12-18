@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import QuestCard from '../components/QuestCard';
 import { api } from '../services/api';
+import { COLORS } from '../constants/colors';
 
 export default function Board({ token, onQuestUpdate }) {
   const [quests, setQuests] = useState([]);
@@ -8,21 +9,21 @@ export default function Board({ token, onQuestUpdate }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchQuests();
-  }, []);
+    const fetchQuests = async () => {
+      setLoading(true);
+      try {
+        const data = await api.quests.getAll(token);
+        setQuests(data);
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const fetchQuests = async () => {
-    setLoading(true);
-    try {
-      const data = await api.quests.getAll(token);
-      setQuests(data);
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchQuests();
+  }, [token]);
 
   const handleCompleteQuest = async (questId) => {
     try {
@@ -40,14 +41,14 @@ export default function Board({ token, onQuestUpdate }) {
     <div>
       {/* Error */}
       {error && (
-        <div className="px-4 py-3 mb-6 rounded-sm font-serif" style={{backgroundColor: '#4a0000', borderColor: '#8b0000', borderWidth: '1px', color: '#ff6b6b'}}>
+        <div className="px-4 py-3 mb-6 rounded-sm font-serif" style={{backgroundColor: COLORS.redDarker, borderColor: COLORS.redBorder, borderWidth: '1px', color: COLORS.redLight}}>
           {error}
         </div>
       )}
 
       {/* Loading */}
       {loading && (
-        <div className="text-center py-12 md:py-16 font-serif" style={{color: '#8b7355'}}>
+        <div className="text-center py-12 md:py-16 font-serif" style={{color: COLORS.brown}}>
           Loading quests...
         </div>
       )}
@@ -65,7 +66,7 @@ export default function Board({ token, onQuestUpdate }) {
         </div>
       ) : (
         !loading && (
-          <div className="text-center py-12 md:py-16 font-serif" style={{color: '#8b7355'}}>
+          <div className="text-center py-12 md:py-16 font-serif" style={{color: COLORS.brown}}>
             No quests found
           </div>
         )
