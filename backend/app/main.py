@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from sqlmodel import SQLModel
-from app.routes import auth, home, user, quest, reward
+from app.routes import auth, home, user, quest, reward, triggers
 
 # Load environment variables from .env file
 load_dotenv()
@@ -51,7 +51,11 @@ if IS_PRODUCTION:
 else:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://localhost:5173"],  # React dev servers
+        allow_origins=[
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://192.168.178.33:3000",  # LAN access
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -63,6 +67,7 @@ app.include_router(home.router)
 app.include_router(user.router)
 app.include_router(quest.router)
 app.include_router(reward.router)
+app.include_router(triggers.router)
 
 
 @app.get("/")

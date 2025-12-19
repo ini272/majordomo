@@ -10,8 +10,13 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
+    host: '0.0.0.0',
     strictPort: true,
     open: false,
+    hmr: {
+      host: '192.168.178.33',
+      port: 3000,
+    },
   },
   resolve: {
     alias: {

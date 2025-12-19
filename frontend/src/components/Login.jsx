@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { COLORS } from '../constants/colors';
 
 export default function Login({ onLoginSuccess }) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -21,6 +23,14 @@ export default function Login({ onLoginSuccess }) {
       localStorage.setItem('token', data.access_token);
       localStorage.setItem('username', username);
       onLoginSuccess(data.access_token);
+      
+      // Check for next redirect param
+      const params = new URLSearchParams(window.location.search);
+      const nextUrl = params.get('next');
+      
+      if (nextUrl) {
+        navigate(nextUrl);
+      }
     } catch (err) {
       setError(err.message);
     } finally {

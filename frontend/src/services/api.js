@@ -1,5 +1,5 @@
-const API_URL = 'http://localhost:8000/api';
-
+//const API_URL = 'http://localhost:8000/api';
+const API_URL = 'http://192.168.178.33:8000/api';
 export const api = {
   auth: {
     login: async (homeId, username, password) => {
@@ -38,6 +38,17 @@ export const api = {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Failed to complete quest');
+      return res.json();
+    }
+  },
+
+  triggers: {
+    quest: async (questTemplateId, token) => {
+      const res = await fetch(`${API_URL}/triggers/quest/${questTemplateId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to trigger quest');
       return res.json();
     }
   }

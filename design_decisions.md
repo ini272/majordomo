@@ -50,7 +50,7 @@ The system is built on a foundation of proven RPG mechanics to ensure long-term 
 -   **Icon/Emoji:** Each quest displays a thematic icon or emoji for quick visual recognition and flavor. Icons are assigned per quest or per category to reinforce identity and make the board more visually engaging.
 
 ### 5. Advanced Gameplay Concepts
--   **The "Corruption" System:** Quests not completed by their deadline can become "Corrupted." They transform into a more dire version worth more XP/Gold but may apply a minor household "debuff" until cleared, creating urgency.
+-   **The "Corruption" System:** Quests not completed by their deadline can become "Corrupted." Each quest instance tracks its own `quest_type` (standard, bounty, corrupted) independently from its template. When a quest becomes overdue, its `quest_type` is changed to "corrupted" and a `corrupted_at` timestamp is recorded. Corrupted quests are worth more XP/Gold but may apply a minor household "debuff" until cleared, creating urgency. This allows the same template to spawn quests with different types and states without affecting the template itself.
 -   **Player Classes:** At a milestone level (e.g., Level 10), players can choose a Class (e.g., **Guardian, Forager, Berserker**) that provides passive XP bonuses to certain quest types, encouraging specialization and identity.
 -   **Achievements & Titles:** A "Feats of Strength" system tracks long-term stats, unlocking cosmetic "Titles" that players can display next to their name (e.g., "Kitchen Scourge," "Bane of the Pungent").
 -   **Boss Quests & Subtasks (Phase 2):** Large household challenges ("The Garage Dragon") can be broken into subtasks and completed collaboratively by multiple users. Progress tracking per subtask incentivizes teamwork and provides a sense of progression through larger endeavors.
@@ -72,7 +72,7 @@ The user interface is designed to feel like a game dashboard, not a to-do list.
 
 These technical pillars are designed to create a seamless and magical user experience.
 
--   **NFC Integration ("Arcane Sigils"):** Cheap NFC tags are programmed with a URL pointing to a specific app location (e.g., `yourapp.com/locations/shed`). Tapping a tag opens the app contextually, showing quests for that physical location. This provides a tactile bridge between the real world and the game.
+-   **NFC Integration ("Arcane Sigils"):** Cheap NFC tags are programmed with a URL pointing to a zone (e.g., `https://grindstone.local/trigger/zone/kitchen`). Each physical location has a 1:1 zone mapping to a quest template, which can be rotated/updated without rewriting the tag. When scanned, the app triggers quest completion for the authenticated user, immediately awarding XP/Gold and providing visual feedback. This provides a tactile bridge between the real world and the game.
 -   **The Asynchronous Scribe (AI Descriptions):** A FastAPI `BackgroundTask` calls a free-tier LLM API (e.g., Google Gemini Pro, Groq) to pre-populate a database with witty, thematic quest descriptions. This provides endless variety without sacrificing speed at the moment of quest creation.
 -   **Immersive Feedback (Sound & Animation):** The app will make heavy use of "juice" to feel satisfying.
     -   **Sound:** A custom `useSound` hook will manage sound effects for quest completions, level-ups, UI clicks, and rewards.

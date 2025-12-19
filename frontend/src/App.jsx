@@ -7,6 +7,7 @@ import Board from './pages/Board';
 import Profile from './pages/Profile';
 import Market from './pages/Market';
 import Heroes from './pages/Heroes';
+import NFCTrigger from './pages/NFCTrigger';
 import { COLORS } from './constants/colors';
 
 function App() {
@@ -27,21 +28,23 @@ function App() {
 
   if (!token) {
     return (
-      <div className="max-w-2xl mx-auto">
-        <header className="text-center mb-10 md:mb-16 pb-6 md:pb-8" style={{borderBottomColor: COLORS.gold, borderBottomWidth: '4px'}}>
-          <h1 className="text-4xl md:text-5xl font-serif font-bold drop-shadow-lg mb-2" style={{color: COLORS.gold}}>
-            GRINDSTONE
-          </h1>
-          <p className="text-sm md:text-base italic font-serif" style={{color: COLORS.brown}}>
-            Gamified Family Quests
-          </p>
-        </header>
-        <Login onLoginSuccess={(token) => {
-          setToken(token);
-          const username = localStorage.getItem('username');
-          setUsername(username);
-        }} />
-      </div>
+      <Router>
+        <div className="max-w-2xl mx-auto">
+          <header className="text-center mb-10 md:mb-16 pb-6 md:pb-8" style={{borderBottomColor: COLORS.gold, borderBottomWidth: '4px'}}>
+            <h1 className="text-4xl md:text-5xl font-serif font-bold drop-shadow-lg mb-2" style={{color: COLORS.gold}}>
+              GRINDSTONE
+            </h1>
+            <p className="text-sm md:text-base italic font-serif" style={{color: COLORS.brown}}>
+              Gamified Family Quests
+            </p>
+          </header>
+          <Login onLoginSuccess={(token) => {
+            setToken(token);
+            const username = localStorage.getItem('username');
+            setUsername(username);
+          }} />
+        </div>
+      </Router>
     );
   }
 
@@ -73,6 +76,7 @@ function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/market" element={<Market />} />
           <Route path="/heroes" element={<Heroes />} />
+          <Route path="/trigger/quest/:questTemplateId" element={<NFCTrigger />} />
           <Route path="/" element={<Navigate to="/board" replace />} />
         </Routes>
 
