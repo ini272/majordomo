@@ -1,0 +1,15 @@
+venv
+.venv
+env
+__pycache__
+.pytest_cache
+.git
+.gitignore
+README.md
+*.pyc
+*.pyo
+*.log
+.env
+.env.local
+.DS_Store
+Thumbs.db

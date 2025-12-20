@@ -14,7 +14,7 @@ export default defineConfig({
     strictPort: true,
     open: false,
     hmr: {
-      host: '192.168.178.33',
+      host: process.env.HMR_HOST || 'localhost',
       port: 3000,
     },
   },
@@ -22,5 +22,8 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+  },
+  define: {
+    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || '')
   }
 })

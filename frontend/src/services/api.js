@@ -1,5 +1,17 @@
 //const API_URL = 'http://localhost:8000/api';
-const API_URL = 'http://192.168.178.33:8000/api';
+// Detect API URL at runtime
+// If VITE_API_URL env var is set (from docker-compose or build), use it
+// Otherwise, construct from current hostname (replace port 3000 with 8000)
+const getAPIURL = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  const { hostname, protocol } = window.location;
+  return `${protocol}//${hostname}:8000/api`;
+};
+
+const API_URL = getAPIURL();
 export const api = {
   auth: {
     login: async (homeId, username, password) => {

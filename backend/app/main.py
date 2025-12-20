@@ -49,13 +49,17 @@ if IS_PRODUCTION:
         allow_headers=["*"],
     )
 else:
+    # In development, allow all origins (frontend will be on same network)
+    # For production, configure specific origins via environment
+    allow_origins_config = os.getenv("CORS_ORIGINS", "*")
+    if allow_origins_config == "*":
+        allow_origins = ["*"]
+    else:
+        allow_origins = allow_origins_config.split(",")
+    
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:3000",
-            "http://localhost:5173",
-            "http://192.168.178.33:3000",  # LAN access
-        ],
+        allow_origins=allow_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
