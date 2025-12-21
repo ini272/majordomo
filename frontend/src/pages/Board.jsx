@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import QuestCard from '../components/QuestCard';
+import CreateQuestForm from '../components/CreateQuestForm';
 import { api } from '../services/api';
 import { COLORS } from '../constants/colors';
 
@@ -7,6 +8,7 @@ export default function Board({ token, onQuestUpdate }) {
   const [quests, setQuests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   useEffect(() => {
     const fetchQuests = async () => {
@@ -35,6 +37,11 @@ export default function Board({ token, onQuestUpdate }) {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const handleQuestCreated = (newQuest) => {
+    setQuests([...quests, newQuest]);
+    onQuestUpdate?.();
   };
 
   return (
@@ -71,6 +78,29 @@ export default function Board({ token, onQuestUpdate }) {
           </div>
         )
       )}
-    </div>
-  );
-}
+
+      {/* FAB - Create Quest */}
+      <button
+       onClick={() => setShowCreateForm(true)}
+       className="fixed right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl transition-all hover:shadow-xl active:scale-95 z-40"
+       style={{
+         backgroundColor: COLORS.gold,
+         color: COLORS.darkPanel,
+         bottom: '6rem',
+       }}
+       title="Create Quest"
+      >
+       +
+      </button>
+
+      {/* Create Quest Modal */}
+      {showCreateForm && (
+       <CreateQuestForm
+         token={token}
+         onQuestCreated={handleQuestCreated}
+         onClose={() => setShowCreateForm(false)}
+       />
+      )}
+      </div>
+      );
+      }

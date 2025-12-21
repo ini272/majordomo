@@ -51,6 +51,32 @@ export const api = {
       });
       if (!res.ok) throw new Error('Failed to complete quest');
       return res.json();
+    },
+
+    createTemplate: async (templateData, token) => {
+      const res = await fetch(`${API_URL}/quests/templates?created_by=1`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(templateData)
+      });
+      if (!res.ok) throw new Error('Failed to create quest template');
+      return res.json();
+    },
+
+    create: async (questData, token) => {
+      const res = await fetch(`${API_URL}/quests?user_id=1`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(questData)
+      });
+      if (!res.ok) throw new Error('Failed to create quest');
+      return res.json();
     }
   },
 
