@@ -16,6 +16,7 @@ class QuestTemplate(SQLModel, table=True):
     title: str = Field(min_length=1, max_length=200)
     display_name: Optional[str] = Field(default=None, max_length=200)  # fantasy/gamified variant of title
     description: Optional[str] = Field(default=None, max_length=1000)
+    tags: Optional[str] = Field(default=None, max_length=500)  # comma-separated: "chores,exercise,health"
     xp_reward: int = Field(default=10, ge=0, le=10000)
     gold_reward: int = Field(default=5, ge=0, le=10000)
     quest_type: str = Field(default="standard")  # standard, corrupted
@@ -36,6 +37,7 @@ class QuestTemplateRead(SQLModel):
     title: str
     display_name: Optional[str]
     description: Optional[str]
+    tags: Optional[str]
     xp_reward: int
     gold_reward: int
     quest_type: str
@@ -50,6 +52,7 @@ class QuestTemplateCreate(SQLModel):
     title: str = Field(min_length=1, max_length=200)
     display_name: Optional[str] = Field(default=None, max_length=200)
     description: Optional[str] = Field(default=None, max_length=1000)
+    tags: Optional[str] = Field(default=None, max_length=500)
     xp_reward: int = Field(default=10, ge=0, le=10000)
     gold_reward: int = Field(default=5, ge=0, le=10000)
     quest_type: str = Field(default="standard")

@@ -49,6 +49,25 @@ export default function QuestCard({ quest, onComplete }) {
         {quest.template.description || 'No description'}
       </p>
 
+      {/* Tags */}
+      {quest.template.tags && (
+        <div className="flex flex-wrap gap-2 mb-6 md:mb-8">
+          {quest.template.tags.split(',').map((tag) => (
+            <span
+              key={tag}
+              className="px-2 py-1 text-xs uppercase font-serif rounded"
+              style={{
+                backgroundColor: 'rgba(212, 175, 55, 0.2)',
+                color: COLORS.gold,
+                border: `1px solid ${COLORS.gold}`,
+              }}
+            >
+              {tag.trim()}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Stats Grid */}
       <div className="flex flex-col md:flex-row gap-8 md:gap-12 md:gap-16 mt-6 md:mt-8 pt-6 md:pt-8" style={{borderTopColor: COLORS.redBorder, borderTopWidth: '1px'}}>
         <div className="text-center flex-1">

@@ -22,6 +22,8 @@ export default function Login({ onLoginSuccess }) {
       const data = await api.auth.login(homeId, username, password);
       localStorage.setItem('token', data.access_token);
       localStorage.setItem('username', username);
+      localStorage.setItem('userId', data.user_id.toString());
+      localStorage.setItem('homeId', data.home_id.toString());
       onLoginSuccess(data.access_token);
       
       // Check for next redirect param

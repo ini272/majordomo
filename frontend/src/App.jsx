@@ -20,6 +20,8 @@ function App() {
     setUsername(null);
     localStorage.removeItem('token');
     localStorage.removeItem('username');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('homeId');
   };
 
   const handleQuestUpdate = () => {

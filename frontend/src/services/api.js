@@ -53,8 +53,8 @@ export const api = {
       return res.json();
     },
 
-    createTemplate: async (templateData, token) => {
-      const res = await fetch(`${API_URL}/quests/templates?created_by=1`, {
+    createTemplate: async (templateData, token, createdBy) => {
+      const res = await fetch(`${API_URL}/quests/templates?created_by=${createdBy}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,8 +66,8 @@ export const api = {
       return res.json();
     },
 
-    create: async (questData, token) => {
-      const res = await fetch(`${API_URL}/quests?user_id=1`, {
+    create: async (questData, token, userId) => {
+      const res = await fetch(`${API_URL}/quests?user_id=${userId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

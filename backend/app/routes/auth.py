@@ -27,7 +27,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid username or password")
     
     token = create_access_token(user.id, user.home_id)
-    return {"access_token": token, "token_type": "bearer"}
+    return {"access_token": token, "token_type": "bearer", "user_id": user.id, "home_id": user.home_id}
 
 
 @router.get("/dev/token")

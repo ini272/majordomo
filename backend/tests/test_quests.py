@@ -46,6 +46,62 @@ def test_create_quest_template(client: TestClient):
     assert response.json()["system"] is False
 
 
+def test_create_quest_template_with_tags(client: TestClient):
+    """Test creating a quest template with tags"""
+    # Create home and user
+    home_response = client.post("/api/homes", json={"name": "Test Home"})
+    home_id = home_response.json()["id"]
+    
+    user_response = client.post(
+        f"/api/homes/{home_id}/join",
+        json={"username": "creator", "password": "creatorpass"}
+    )
+    user_id = user_response.json()["id"]
+    
+    # Create template with tags
+    template_data = {
+        "title": "Clean kitchen",
+        "description": "Scrub counters and sink",
+        "tags": "chores,cleaning,kitchen",
+        "xp_reward": 25,
+        "gold_reward": 10,
+        "recurrence": "one-off"
+    }
+    response = client.post(
+        f"/api/quests/templates?created_by={user_id}",
+        json=template_data
+    )
+    assert response.status_code == 200
+    assert response.json()["title"] == "Clean kitchen"
+    assert response.json()["tags"] == "chores,cleaning,kitchen"
+
+
+def test_create_quest_template_without_tags(client: TestClient):
+    """Test creating a quest template without tags (should be null)"""
+    # Create home and user
+    home_response = client.post("/api/homes", json={"name": "Test Home"})
+    home_id = home_response.json()["id"]
+    
+    user_response = client.post(
+        f"/api/homes/{home_id}/join",
+        json={"username": "creator", "password": "creatorpass"}
+    )
+    user_id = user_response.json()["id"]
+    
+    # Create template without tags
+    template_data = {
+        "title": "Clean kitchen",
+        "xp_reward": 25,
+        "gold_reward": 10,
+    }
+    response = client.post(
+        f"/api/quests/templates?created_by={user_id}",
+        json=template_data
+    )
+    assert response.status_code == 200
+    assert response.json()["tags"] is None
+
+
 def test_get_quest_template(client: TestClient):
     """Test retrieving a quest template"""
     # Setup
@@ -456,3 +512,39 @@ def test_delete_quest(client: TestClient, home_with_user):
     # Verify quest is deleted
     response = client.get(f"/api/quests/{quest_id}?user_id={user_id}")
     assert response.status_code == 404
+
+
+def test_quest_template_tags_in_quest_response(client: TestClient, home_with_user):
+    """Test that tags from template are included in quest response"""
+    home_id, user_id = home_with_user
+    
+    # Create creator
+    creator_response = client.post(
+        f"/api/homes/{home_id}/join",
+        json={"username": "creator", "password": "creatorpass"}
+    )
+    creator_id = creator_response.json()["id"]
+    
+    # Create template with tags
+    template_response = client.post(
+        f"/api/quests/templates?created_by={creator_id}",
+        json={
+            "title": "Exercise",
+            "tags": "health,exercise",
+            "xp_reward": 50,
+            "gold_reward": 20
+        }
+    )
+    template_id = template_response.json()["id"]
+    
+    # Create quest from template
+    quest_response = client.post(
+        f"/api/quests?user_id={user_id}",
+        json={"quest_template_id": template_id}
+    )
+    assert quest_response.status_code == 200
+    quest_data = quest_response.json()
+    
+    # Verify template data including tags is in quest response
+    assert quest_data["template"]["tags"] == "health,exercise"
+    assert quest_data["template"]["title"] == "Exercise"

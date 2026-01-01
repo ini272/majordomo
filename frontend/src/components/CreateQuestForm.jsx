@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { api } from '../services/api';
 import { COLORS } from '../constants/colors';
 
+const AVAILABLE_TAGS = ['Chores', 'Learning', 'Exercise', 'Health', 'Organization'];
+
 export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
   const [title, setTitle] = useState('');
+  const [selectedTags, setSelectedTags] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -11,6 +14,12 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
     e.preventDefault();
     if (!title.trim()) {
       setError('Title is required');
+      return;
+    }
+
+    const userId = parseInt(localStorage.getItem('userId'));
+    if (!userId) {
+      setError('User ID not found in session');
       return;
     }
 
@@ -23,12 +32,14 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
           title: title.trim(),
           display_name: null,
           description: null,
+          tags: selectedTags.length > 0 ? selectedTags.join(',') : null,
           xp_reward: 25,
           gold_reward: 15,
           quest_type: 'standard',
           recurrence: 'one-off',
         },
-        token
+        token,
+        userId
       );
 
       // Create quest instance from template
@@ -36,10 +47,12 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
         {
           quest_template_id: newTemplate.id,
         },
-        token
+        token,
+        userId
       );
 
       setTitle('');
+      setSelectedTags([]);
       onQuestCreated?.(newQuest);
       onClose?.();
     } catch (err) {
@@ -101,6 +114,39 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
               }}
               disabled={loading}
             />
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm uppercase tracking-wider mb-2 font-serif" style={{ color: COLORS.gold }}>
+              Tags (Optional)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {AVAILABLE_TAGS.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => {
+                    if (selectedTags.includes(tag)) {
+                      setSelectedTags(selectedTags.filter((t) => t !== tag));
+                    } else {
+                      setSelectedTags([...selectedTags, tag]);
+                    }
+                  }}
+                  className="px-3 py-1 text-xs uppercase tracking-wider font-serif rounded transition-all"
+                  style={{
+                    backgroundColor: selectedTags.includes(tag)
+                      ? COLORS.gold
+                      : `rgba(212, 175, 55, 0.2)`,
+                    color: selectedTags.includes(tag) ? COLORS.darkPanel : COLORS.gold,
+                    border: `1px solid ${COLORS.gold}`,
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                  }}
+                  disabled={loading}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
           </div>
 
           <button
