@@ -1,6 +1,6 @@
 from typing import Optional, List
 from sqlmodel import select, Session
-from app.models.quest import QuestTemplate, QuestTemplateCreate
+from app.models.quest import QuestTemplate, QuestTemplateCreate, QuestTemplateUpdate
 
 
 def get_quest_template(db: Session, template_id: int) -> Optional[QuestTemplate]:
@@ -26,6 +26,22 @@ def create_quest_template(db: Session, home_id: int, created_by: int, template_i
         created_by=created_by,
         system=False
     )
+    db.add(db_template)
+    db.commit()
+    db.refresh(db_template)
+    return db_template
+
+
+def update_quest_template(db: Session, template_id: int, template_in: QuestTemplateUpdate) -> Optional[QuestTemplate]:
+    """Update quest template"""
+    db_template = get_quest_template(db, template_id)
+    if not db_template:
+        return None
+    
+    update_data = template_in.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_template, key, value)
+    
     db.add(db_template)
     db.commit()
     db.refresh(db_template)

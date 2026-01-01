@@ -43,6 +43,27 @@ export const api = {
       if (!res.ok) throw new Error('Failed to fetch quests');
       return res.json();
     },
+
+    getTemplate: async (templateId, token) => {
+      const res = await fetch(`${API_URL}/quests/templates/${templateId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to fetch quest template');
+      return res.json();
+    },
+
+    updateTemplate: async (templateId, templateData, token) => {
+      const res = await fetch(`${API_URL}/quests/templates/${templateId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(templateData)
+      });
+      if (!res.ok) throw new Error('Failed to update quest template');
+      return res.json();
+    },
     
     complete: async (questId, token) => {
       const res = await fetch(`${API_URL}/quests/${questId}/complete`, {

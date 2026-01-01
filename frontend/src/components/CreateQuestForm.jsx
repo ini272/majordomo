@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../services/api';
 import { COLORS } from '../constants/colors';
+import EditQuestModal from './EditQuestModal';
 
 const AVAILABLE_TAGS = ['Chores', 'Learning', 'Exercise', 'Health', 'Organization'];
 
@@ -9,6 +10,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
   const [selectedTags, setSelectedTags] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [createdTemplateId, setCreatedTemplateId] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,10 +54,12 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
         userId
       );
 
+      // Open edit modal instead of closing immediately
+      setCreatedTemplateId(newTemplate.id);
+      setShowEditModal(true);
       setTitle('');
       setSelectedTags([]);
-      onQuestCreated?.(newQuest);
-      onClose?.();
+      // Note: onQuestCreated will be called after edit modal saves
     } catch (err) {
       setError(err.message);
     } finally {
@@ -166,6 +171,23 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
           </button>
         </form>
       </div>
+
+      {/* Edit Quest Modal */}
+      {showEditModal && createdTemplateId && (
+        <EditQuestModal
+          templateId={createdTemplateId}
+          token={token}
+          onSave={() => {
+            // After save, just close and let parent refetch quests
+            setShowEditModal(false);
+            onClose?.();
+          }}
+          onClose={() => {
+            setShowEditModal(false);
+            onClose?.();
+          }}
+        />
+      )}
     </div>
   );
 }

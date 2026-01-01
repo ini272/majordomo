@@ -59,6 +59,17 @@ class QuestTemplateCreate(SQLModel):
     recurrence: str = Field(default="one-off")
 
 
+class QuestTemplateUpdate(SQLModel):
+    """Schema for updating a quest template"""
+    display_name: Optional[str] = Field(default=None, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    tags: Optional[str] = Field(default=None, max_length=500)
+    xp_reward: Optional[int] = Field(default=None, ge=0, le=10000)
+    gold_reward: Optional[int] = Field(default=None, ge=0, le=10000)
+    quest_type: Optional[str] = Field(default=None)
+    recurrence: Optional[str] = Field(default=None)
+
+
 class Quest(SQLModel, table=True):
     """Quest model representing a task instance for a user"""
     

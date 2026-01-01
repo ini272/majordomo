@@ -40,8 +40,18 @@ export default function Board({ token, onQuestUpdate }) {
   };
 
   const handleQuestCreated = (newQuest) => {
-    setQuests([...quests, newQuest]);
+    setQuests([newQuest, ...quests]);
     onQuestUpdate?.();
+  };
+
+  const handleCreateFormClose = async () => {
+    // Refetch quests after create form closes (whether quest was created or not)
+    try {
+      const data = await api.quests.getAll(token);
+      setQuests(data);
+    } catch (err) {
+      // Silently fail - quests might be stale but UI won't break
+    }
   };
 
   return (
@@ -98,7 +108,10 @@ export default function Board({ token, onQuestUpdate }) {
        <CreateQuestForm
          token={token}
          onQuestCreated={handleQuestCreated}
-         onClose={() => setShowCreateForm(false)}
+         onClose={() => {
+           setShowCreateForm(false);
+           handleCreateFormClose();
+         }}
        />
       )}
       </div>
