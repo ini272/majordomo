@@ -144,6 +144,7 @@ def _generate_and_update_quest_template(template_id: int, quest_title: str):
 @router.post("/templates", response_model=QuestTemplateRead)
 def create_quest_template(
     created_by: int = Query(...),
+    skip_ai: bool = Query(False),
     template: QuestTemplateCreate = None,
     db: Session = Depends(get_db),
     auth: Dict = Depends(get_current_user),
@@ -160,12 +161,13 @@ def create_quest_template(
     # Create template with defaults
     new_template = crud_quest_template.create_quest_template(db, home_id, created_by, template)
 
-    # Trigger background task to generate content from Groq
-    background_tasks.add_task(
-        _generate_and_update_quest_template,
-        template_id=new_template.id,
-        quest_title=new_template.title,
-    )
+    # Trigger background task to generate content from Groq (unless skipping AI)
+    if not skip_ai:
+        background_tasks.add_task(
+            _generate_and_update_quest_template,
+            template_id=new_template.id,
+            quest_title=new_template.title,
+        )
 
     return new_template
 

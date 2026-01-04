@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../services/api';
 import { COLORS } from '../constants/colors';
 import EditQuestModal from './EditQuestModal';
+import StewardImage from '../assets/thesteward.png';
 
 const AVAILABLE_TAGS = ['Chores', 'Learning', 'Exercise', 'Health', 'Organization'];
 
@@ -10,6 +11,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
   const [selectedTags, setSelectedTags] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [skipAI, setSkipAI] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [createdTemplateId, setCreatedTemplateId] = useState(null);
 
@@ -42,7 +44,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
           recurrence: 'one-off',
         },
         token,
-        userId
+        userId,
+        skipAI
       );
 
       // Create quest instance from template
@@ -59,6 +62,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
       setShowEditModal(true);
       setTitle('');
       setSelectedTags([]);
+      setSkipAI(false);
       // Note: onQuestCreated will be called after edit modal saves
     } catch (err) {
       setError(err.message);
@@ -70,9 +74,11 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div
-        className="w-full max-w-md p-6 rounded-lg shadow-xl"
+        className="w-full max-w-4xl p-6 md:p-8 rounded-lg shadow-xl flex gap-6"
         style={{ backgroundColor: COLORS.darkPanel, borderColor: COLORS.gold, borderWidth: '2px' }}
       >
+        {/* Form Content */}
+        <div className="flex-1 min-w-0">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-serif font-bold" style={{ color: COLORS.gold }}>
             Create Quest
@@ -154,6 +160,22 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
             </div>
           </div>
 
+          {/* Skip AI Scribe Checkbox */}
+          <div className="mb-6 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="skipAI"
+              checked={skipAI}
+              onChange={(e) => setSkipAI(e.target.checked)}
+              className="w-4 h-4"
+              style={{ accentColor: COLORS.gold }}
+              disabled={loading}
+            />
+            <label htmlFor="skipAI" className="text-xs uppercase tracking-wider font-serif" style={{ color: COLORS.gold, cursor: loading ? 'not-allowed' : 'pointer' }}>
+              Skip AI Scribe (testing)
+            </label>
+          </div>
+
           <button
             type="submit"
             disabled={loading || !title.trim()}
@@ -170,6 +192,17 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
             {loading ? 'Creating...' : 'Create Quest'}
           </button>
         </form>
+        </div>
+
+        {/* Steward Image - Right side (hidden on mobile/tablet) */}
+        <div className="hidden xl:flex flex-shrink-0 items-center justify-center w-48">
+          <img
+            src={StewardImage}
+            alt="The Steward"
+            className="w-full h-auto object-contain"
+            style={{ maxHeight: '500px' }}
+          />
+        </div>
       </div>
 
       {/* Edit Quest Modal */}
@@ -177,6 +210,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
         <EditQuestModal
           templateId={createdTemplateId}
           token={token}
+          skipAI={skipAI}
           onSave={() => {
             // After save, just close and let parent refetch quests
             setShowEditModal(false);

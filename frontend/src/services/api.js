@@ -74,8 +74,8 @@ export const api = {
       return res.json();
     },
 
-    createTemplate: async (templateData, token, createdBy) => {
-      const res = await fetch(`${API_URL}/quests/templates?created_by=${createdBy}`, {
+    createTemplate: async (templateData, token, createdBy, skipAI = false) => {
+      const res = await fetch(`${API_URL}/quests/templates?created_by=${createdBy}&skip_ai=${skipAI}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
