@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
-import { COLORS } from '../constants/colors';
+import { COLORS, PARCHMENT_STYLES } from '../constants/colors';
 import StewardImage from '../assets/thesteward.png';
+import ParchmentTypeWriter from './ParchmentTypeWriter';
 
 const AVAILABLE_TAGS = ['Chores', 'Learning', 'Exercise', 'Health', 'Organization'];
 
@@ -17,6 +18,8 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
   const [time, setTime] = useState(2);
   const [effort, setEffort] = useState(2);
   const [dread, setDread] = useState(2);
+  const [showTypeWriter, setShowTypeWriter] = useState(false);
+  const [nameAnimationDone, setNameAnimationDone] = useState(false);
 
   // Fetch template and wait for Groq to populate it (unless skipAI is true)
   useEffect(() => {
@@ -46,6 +49,10 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
         }
 
         setLoading(false);
+        // Show typewriter animation after loading completes and has content
+        if (response.display_name || response.description) {
+          setShowTypeWriter(true);
+        }
       } catch (err) {
         setError(err.message);
         setLoading(false);
@@ -55,7 +62,7 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
     fetchTemplate();
   }, [templateId, token, skipAI]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     setSaving(true);
     setError(null);
 
@@ -80,7 +87,7 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
     } finally {
       setSaving(false);
     }
-  };
+  }, [time, effort, dread, displayName, description, selectedTags, templateId, token, onSave, onClose]);
 
   const xp = (time + effort + dread) * 2;
   const gold = Math.floor(xp / 2);
@@ -94,18 +101,21 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
         {/* Form Content */}
         <div className="flex-1 min-w-0">
           {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-serif font-bold" style={{ color: COLORS.gold }}>
-              Scribe Quest Details
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-2xl leading-none"
-              style={{ color: COLORS.gold }}
-              disabled={loading || saving}
-            >
-              ✕
-            </button>
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-serif font-bold" style={{ color: COLORS.gold }}>
+                Scribe Quest Details
+              </h2>
+              <button
+                onClick={onClose}
+                className="text-2xl leading-none"
+                style={{ color: COLORS.gold }}
+                disabled={loading || saving}
+              >
+                ✕
+              </button>
+            </div>
+
           </div>
 
           {/* Error */}
@@ -146,20 +156,36 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
                 <label className="block text-sm uppercase tracking-wider mb-2 font-serif" style={{ color: COLORS.gold }}>
                   Quest Name (Fantasy)
                 </label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="e.g., The Cookery Cleanup"
-                  className="w-full px-3 py-2 font-serif focus:outline-none focus:shadow-lg transition-all"
-                  style={{
-                    backgroundColor: COLORS.black,
-                    borderColor: COLORS.gold,
-                    borderWidth: '2px',
-                    color: COLORS.parchment,
-                  }}
-                  disabled={saving}
-                />
+                {showTypeWriter ? (
+                  <div onClick={() => setShowTypeWriter(false)} title="Click to skip animation" className="cursor-pointer">
+                    <ParchmentTypeWriter text={displayName} speed={30} delay={200} onComplete={() => setNameAnimationDone(true)} />
+                  </div>
+                ) : (
+                  <div
+                    className="w-full rounded"
+                    style={{
+                      backgroundColor: PARCHMENT_STYLES.backgroundColor,
+                      backgroundImage: PARCHMENT_STYLES.backgroundImage,
+                      border: `2px solid ${PARCHMENT_STYLES.borderColor}`,
+                      boxShadow: PARCHMENT_STYLES.boxShadow,
+                    }}
+                  >
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="e.g., The Cookery Cleanup"
+                      className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                      style={{
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        color: PARCHMENT_STYLES.textColor,
+                        fontFamily: 'Georgia, serif',
+                      }}
+                      disabled={saving}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Description */}
@@ -167,20 +193,48 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
                 <label className="block text-sm uppercase tracking-wider mb-2 font-serif" style={{ color: COLORS.gold }}>
                   Description
                 </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="e.g., Vanquish the grimy counters and slay the sink dragon."
-                  rows="3"
-                  className="w-full px-3 py-2 font-serif focus:outline-none focus:shadow-lg transition-all"
-                  style={{
-                    backgroundColor: COLORS.black,
-                    borderColor: COLORS.gold,
-                    borderWidth: '2px',
-                    color: COLORS.parchment,
-                  }}
-                  disabled={saving}
-                />
+                {showTypeWriter && nameAnimationDone ? (
+                  <div onClick={() => setShowTypeWriter(false)} title="Click to skip animation" className="cursor-pointer">
+                    <ParchmentTypeWriter text={description} speed={40} delay={200} onComplete={() => setShowTypeWriter(false)} />
+                  </div>
+                ) : showTypeWriter ? (
+                  <div
+                    className="p-6 rounded"
+                    style={{
+                      backgroundColor: PARCHMENT_STYLES.backgroundColor,
+                      backgroundImage: PARCHMENT_STYLES.backgroundImage,
+                      border: `2px solid ${PARCHMENT_STYLES.borderColor}`,
+                      minHeight: '100px',
+                      boxShadow: PARCHMENT_STYLES.boxShadow,
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="w-full rounded"
+                    style={{
+                      backgroundColor: PARCHMENT_STYLES.backgroundColor,
+                      backgroundImage: PARCHMENT_STYLES.backgroundImage,
+                      border: `2px solid ${PARCHMENT_STYLES.borderColor}`,
+                      boxShadow: PARCHMENT_STYLES.boxShadow,
+                    }}
+                  >
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="e.g., Vanquish the grimy counters and slay the sink dragon."
+                      rows="3"
+                      className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                      style={{
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        color: PARCHMENT_STYLES.textColor,
+                        fontFamily: 'Georgia, serif',
+                        resize: 'none',
+                      }}
+                      disabled={saving}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Tags */}
