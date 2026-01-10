@@ -333,8 +333,11 @@ def test_complete_quest(client: TestClient, home_with_user):
     # Complete quest
     response = client.post(f"/api/quests/{quest_id}/complete?user_id={user_id}")
     assert response.status_code == 200
-    assert response.json()["completed"] is True
-    
+    result = response.json()
+    assert result["quest"]["completed"] is True
+    assert result["rewards"]["xp"] == 50
+    assert result["rewards"]["gold"] == 25
+
     # Verify user received XP and gold
     user = client.get(f"/api/users/{user_id}").json()
     assert user["xp"] == 50

@@ -31,7 +31,7 @@ def seed_database():
     
     with Session(engine) as session:
         # Create a home
-        home_data = HomeCreate(name="Grindstone Home")
+        home_data = HomeCreate(name="Majordomo Home")
         home = crud_home.create_home(session, home_data)
         print(f"✓ Created home: {home.name}")
         

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from sqlmodel import SQLModel
-from app.routes import auth, home, user, quest, reward, triggers
+from app.routes import auth, home, user, quest, reward, triggers, bounty
 
 # Load environment variables from .env file
 load_dotenv()
@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
 def create_app():
     """Factory function to create FastAPI app"""
     app = FastAPI(
-        title="Grindstone API",
+        title="Majordomo API",
         description="A gamified chore quest system",
         version="0.1.0",
         lifespan=lifespan
@@ -72,12 +72,13 @@ app.include_router(user.router)
 app.include_router(quest.router)
 app.include_router(reward.router)
 app.include_router(triggers.router)
+app.include_router(bounty.router)
 
 
 @app.get("/")
 async def root():
     """Health check endpoint"""
-    return {"message": "Grindstone API is running"}
+    return {"message": "Majordomo API is running"}
 
 
 @app.get("/health")
@@ -92,7 +93,7 @@ def custom_openapi():
         return app.openapi_schema
     
     openapi_schema = get_openapi(
-        title="Grindstone API",
+        title="Majordomo API",
         version="0.1.0",
         description="A gamified chore quest system",
         routes=app.routes,

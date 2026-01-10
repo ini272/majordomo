@@ -25,7 +25,7 @@ https://<your-lan-ip>:3000/trigger/quest/<quest_template_id>
 
 **Examples:**
 - If your laptop IP is `192.168.1.100`: `https://192.168.1.100:3000/trigger/quest/1`
-- If using mDNS: `https://grindstone.local:3000/trigger/quest/1`
+- If using mDNS: `https://majordomo.local:3000/trigger/quest/1`
 
 ### How to Write the Tag
 1. Use an NFC writing app on your phone (e.g., TagWriter by NXP, Trigger)

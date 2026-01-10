@@ -34,7 +34,7 @@ function App() {
         <div className="max-w-2xl mx-auto">
           <header className="text-center mb-10 md:mb-16 pb-6 md:pb-8" style={{borderBottomColor: COLORS.gold, borderBottomWidth: '4px'}}>
             <h1 className="text-4xl md:text-5xl font-serif font-bold drop-shadow-lg mb-2" style={{color: COLORS.gold}}>
-              GRINDSTONE
+              MAJORDOMO
             </h1>
             <p className="text-sm md:text-base italic font-serif" style={{color: COLORS.brown}}>
               Gamified Family Quests
@@ -57,7 +57,7 @@ function App() {
         <header className="text-center mb-6 md:mb-8 pb-4 md:pb-6" style={{borderBottomColor: COLORS.gold, borderBottomWidth: '4px'}}>
           <div className="flex justify-between items-start">
             <h1 className="text-3xl md:text-4xl font-serif font-bold" style={{color: COLORS.gold}}>
-              GRINDSTONE
+              MAJORDOMO
             </h1>
             <button
               className="px-3 py-1 md:px-4 md:py-2 font-serif text-xs uppercase tracking-wider transition-all"

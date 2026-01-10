@@ -26,17 +26,24 @@ const getQuestTypeStyles = (questType) => {
   }
 };
 
-export default function QuestCard({ quest, onComplete }) {
+export default function QuestCard({ quest, onComplete, isDailyBounty = false }) {
   const typeStyles = getQuestTypeStyles(quest.template.quest_type);
-  
+
   return (
-    <div className="relative p-6 md:p-8 mb-6 md:mb-8 shadow-lg" style={{backgroundColor: COLORS.darkPanel, borderColor: typeStyles.borderColor, borderWidth: '3px'}}>
+    <div className="relative p-6 md:p-8 mb-6 md:mb-8 shadow-lg" style={{backgroundColor: COLORS.darkPanel, borderColor: isDailyBounty ? '#6b5fb7' : typeStyles.borderColor, borderWidth: '3px'}}>
       {/* Decorative element */}
       <div className="absolute top-3 right-4 text-2xl opacity-20">⚔</div>
 
       {/* Quest Type Badge */}
-      <div className="absolute top-4 left-4 px-2 py-1 rounded text-xs uppercase font-serif font-bold" style={{backgroundColor: typeStyles.badgeBg, color: typeStyles.badgeColor}}>
-        {quest.template.quest_type}
+      <div className="absolute top-4 left-4 flex gap-2">
+        <span className="px-2 py-1 rounded text-xs uppercase font-serif font-bold" style={{backgroundColor: typeStyles.badgeBg, color: typeStyles.badgeColor}}>
+          {quest.template.quest_type}
+        </span>
+        {isDailyBounty && (
+          <span className="px-2 py-1 rounded text-xs uppercase font-serif font-bold" style={{backgroundColor: 'rgba(107, 95, 183, 0.3)', color: '#9d84ff'}}>
+            2x Bounty
+          </span>
+        )}
       </div>
 
       {/* Title */}

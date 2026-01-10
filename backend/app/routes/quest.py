@@ -8,6 +8,7 @@ from app.crud import quest_template as crud_quest_template
 from app.crud import user as crud_user
 from app.auth import get_current_user
 from app.services.scribe import generate_quest_content
+from app.crud import daily_bounty as crud_daily_bounty
 
 router = APIRouter(prefix="/api/quests", tags=["quests"])
 
@@ -80,26 +81,43 @@ def create_quest(quest: QuestCreate, user_id: int = Query(...), db: Session = De
     return crud_quest.create_quest(db, home_id, user_id, quest)
 
 
-@router.post("/{quest_id}/complete", response_model=QuestRead)
+@router.post("/{quest_id}/complete")
 def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
-    """Mark quest as completed and award XP/gold to user"""
+    """Mark quest as completed and award XP/gold to user (2x if daily bounty)"""
     quest = crud_quest.get_quest(db, quest_id)
     if not quest or quest.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="Quest not found")
-    
+
     # Prevent double-completion
     if quest.completed:
         raise HTTPException(status_code=400, detail="Quest is already completed")
-    
+
+    # Check if this quest's template is today's daily bounty
+    today_bounty = crud_daily_bounty.get_today_bounty(db, auth["home_id"])
+    is_daily_bounty = today_bounty and today_bounty.quest_template_id == quest.quest_template_id
+    multiplier = 2 if is_daily_bounty else 1
+
     # Mark quest as completed
     quest = crud_quest.complete_quest(db, quest_id)
-    
-    # Award XP and gold to user from template
+
+    # Award XP and gold to user from template (with bounty multiplier)
+    xp_awarded = 0
+    gold_awarded = 0
     if quest.template:
-        crud_user.add_xp(db, quest.user_id, quest.template.xp_reward)
-        crud_user.add_gold(db, quest.user_id, quest.template.gold_reward)
-    
-    return quest
+        xp_awarded = quest.template.xp_reward * multiplier
+        gold_awarded = quest.template.gold_reward * multiplier
+        crud_user.add_xp(db, quest.user_id, xp_awarded)
+        crud_user.add_gold(db, quest.user_id, gold_awarded)
+
+    return {
+        "quest": QuestRead.model_validate(quest),
+        "rewards": {
+            "xp": xp_awarded,
+            "gold": gold_awarded,
+            "is_daily_bounty": is_daily_bounty,
+            "multiplier": multiplier,
+        }
+    }
 
 
 def _generate_and_update_quest_template(template_id: int, quest_title: str):

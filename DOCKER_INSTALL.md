@@ -37,7 +37,7 @@ Both should display version numbers.
 ## First Run
 
 ```bash
-cd /path/to/grindstone
+cd /path/to/majordomo
 docker-compose up --build
 ```
 
@@ -55,7 +55,7 @@ Access:
 
 Inside WSL, your project path should be:
 ```
-/home/jvr/grindstone
+/home/jvr/majordomo
 ```
 
 Docker automatically mounts this. Volumes in `docker-compose.yml` work without modification.

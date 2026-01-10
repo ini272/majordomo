@@ -6,7 +6,7 @@ User identity is resolved via the authenticated web session, not the NFC tag.
 
 Each NFC tag stores a simple URL:
 
-https://grindstone.local/trigger/quest/<quest_id>
+https://majordomo.local/trigger/quest/<quest_id>
 
 
 Optionally with metadata:

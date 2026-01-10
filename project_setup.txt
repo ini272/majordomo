@@ -1,10 +1,10 @@
-**Grindstone - Project Kickstart Document**
+**majordomo - Project Kickstart Document**
 
 ---
 
 ## 1. Project Overview
 
-**Project Name (working):** Grindstone
+**Project Name (working):** majordomo
 **Goal:** Gamify household tasks and chores by turning them into RPG-style quests. Users gain XP, loot, and achievements, creating a dopamine loop similar to gaming experiences.
 **Audience:** Initially personal/self-hosted, possibly extended later.
 
@@ -101,7 +101,7 @@
 ## 5. Suggested Project Structure
 
 ```
-grindstone/
+majordomo/
 ├─ backend/
 │  ├─ app/
 │  │  ├─ main.py         # FastAPI app

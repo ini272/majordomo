@@ -110,5 +110,32 @@ export const api = {
       if (!res.ok) throw new Error('Failed to trigger quest');
       return res.json();
     }
+  },
+
+  bounty: {
+    getToday: async (token) => {
+      const res = await fetch(`${API_URL}/bounty/today`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to fetch daily bounty');
+      return res.json();
+    },
+
+    refresh: async (token) => {
+      const res = await fetch(`${API_URL}/bounty/refresh`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to refresh daily bounty');
+      return res.json();
+    },
+
+    checkTemplate: async (templateId, token) => {
+      const res = await fetch(`${API_URL}/bounty/check/${templateId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to check bounty status');
+      return res.json();
+    }
   }
 };

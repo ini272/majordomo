@@ -2,7 +2,7 @@
 
 ## Overview
 
-Grindstone uses Docker Compose to orchestrate the backend (FastAPI) and frontend (React/Vite) services. This setup works seamlessly on WSL, local development, and production servers.
+majordomo uses Docker Compose to orchestrate the backend (FastAPI) and frontend (React/Vite) services. This setup works seamlessly on WSL, local development, and production servers.
 
 ## Prerequisites
 
@@ -60,7 +60,7 @@ Defined in `docker-compose.yml`:
 ```yaml
 environment:
   - NODE_ENV=development
-  - DATABASE_URL=sqlite:///./grindstone.db
+  - DATABASE_URL=sqlite:///./majordomo.db
 ```
 
 ## Volume Mounts
@@ -77,11 +77,11 @@ Changes to source files reflect immediately in running containers (for Python, N
 
 ## Database Persistence
 
-SQLite database is stored at `./grindstone.db` in the project root. It persists across container restarts.
+SQLite database is stored at `./majordomo.db` in the project root. It persists across container restarts.
 
 ## Networking
 
-Services communicate via Docker bridge network named `grindstone`:
+Services communicate via Docker bridge network named `majordomo`:
 - Frontend can call `http://backend:8000/api` (internal)
 - External clients call `http://<host-ip>:8000/api`
 
@@ -158,13 +158,13 @@ For deploying to a home server or NAS:
 Example for production:
 ```yaml
 backend:
-  image: grindstone-backend:1.0.0
+  image: majordomo-backend:1.0.0
   restart: always
   environment:
     - NODE_ENV=production
-    - DATABASE_URL=/data/grindstone.db
+    - DATABASE_URL=/data/majordomo.db
   volumes:
-    - /mnt/storage/grindstone:/data
+    - /mnt/storage/majordomo:/data
 ```
 
 ## NFC Setup
@@ -175,7 +175,7 @@ https://<your-hostname>:3000/trigger/quest/6
 ```
 
 Examples:
-- `https://grindstone.local:3000/trigger/quest/6` (mDNS)
+- `https://majordomo.local:3000/trigger/quest/6` (mDNS)
 - `https://192.168.178.33:3000/trigger/quest/6` (IP)
 - `https://your-domain.com:3000/trigger/quest/6` (domain)
 

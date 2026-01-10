@@ -2,7 +2,7 @@ import os
 from sqlalchemy import create_engine
 from sqlmodel import SQLModel, Session
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./grindstone.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./majordomo.db")
 
 # Create engine with SQLite-specific settings
 engine = create_engine(

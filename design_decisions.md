@@ -72,7 +72,7 @@ The user interface is designed to feel like a game dashboard, not a to-do list.
 
 These technical pillars are designed to create a seamless and magical user experience.
 
--   **NFC Integration ("Arcane Sigils"):** Cheap NFC tags are programmed with a URL pointing to a zone (e.g., `https://grindstone.local/trigger/zone/kitchen`). Each physical location has a 1:1 zone mapping to a quest template, which can be rotated/updated without rewriting the tag. When scanned, the app triggers quest completion for the authenticated user, immediately awarding XP/Gold and providing visual feedback. This provides a tactile bridge between the real world and the game.
+-   **NFC Integration ("Arcane Sigils"):** Cheap NFC tags are programmed with a URL pointing to a zone (e.g., `https://majordomo.local/trigger/zone/kitchen`). Each physical location has a 1:1 zone mapping to a quest template, which can be rotated/updated without rewriting the tag. When scanned, the app triggers quest completion for the authenticated user, immediately awarding XP/Gold and providing visual feedback. This provides a tactile bridge between the real world and the game.
 -   **The Asynchronous Scribe (AI Descriptions):** A FastAPI `BackgroundTask` calls a free-tier LLM API (e.g., Google Gemini Pro, Groq) to pre-populate a database with witty, thematic quest descriptions. This provides endless variety without sacrificing speed at the moment of quest creation.
 -   **Immersive Feedback (Sound & Animation):** The app will make heavy use of "juice" to feel satisfying.
     -   **Sound:** A custom `useSound` hook will manage sound effects for quest completions, level-ups, UI clicks, and rewards.

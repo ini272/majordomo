@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../services/api';
 import { COLORS } from '../constants/colors';
+import { getRandomSampleQuest } from '../constants/sampleQuests';
 import EditQuestModal from './EditQuestModal';
 import StewardImage from '../assets/thesteward.png';
 
@@ -64,6 +65,55 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
       setSelectedTags([]);
       setSkipAI(false);
       // Note: onQuestCreated will be called after edit modal saves
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRandomQuest = async () => {
+    const userId = parseInt(localStorage.getItem('userId'));
+    if (!userId) {
+      setError('User ID not found in session');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const sample = getRandomSampleQuest();
+      const xpReward = (sample.time + sample.effort + sample.dread) * 2;
+      const goldReward = Math.floor(xpReward / 2);
+
+      const newTemplate = await api.quests.createTemplate(
+        {
+          title: sample.title,
+          display_name: sample.display_name,
+          description: sample.description,
+          tags: sample.tags,
+          xp_reward: xpReward,
+          gold_reward: goldReward,
+          quest_type: 'standard',
+          recurrence: 'one-off',
+        },
+        token,
+        userId,
+        true // skipAI - content already provided
+      );
+
+      // Create quest instance from template
+      await api.quests.create(
+        { quest_template_id: newTemplate.id },
+        token,
+        userId
+      );
+
+      // Open edit modal to review/adjust
+      setCreatedTemplateId(newTemplate.id);
+      setShowEditModal(true);
+      setSkipAI(true);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -176,21 +226,40 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
             </label>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading || !title.trim()}
-            className="w-full py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
-            style={{
-              backgroundColor: loading || !title.trim() ? `rgba(212, 175, 55, 0.1)` : `rgba(212, 175, 55, 0.2)`,
-              borderColor: COLORS.gold,
-              borderWidth: '2px',
-              color: COLORS.gold,
-              cursor: loading || !title.trim() ? 'not-allowed' : 'pointer',
-              opacity: loading || !title.trim() ? 0.5 : 1,
-            }}
-          >
-            {loading ? 'Creating...' : 'Create Quest'}
-          </button>
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={loading || !title.trim()}
+              className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
+              style={{
+                backgroundColor: loading || !title.trim() ? `rgba(212, 175, 55, 0.1)` : `rgba(212, 175, 55, 0.2)`,
+                borderColor: COLORS.gold,
+                borderWidth: '2px',
+                color: COLORS.gold,
+                cursor: loading || !title.trim() ? 'not-allowed' : 'pointer',
+                opacity: loading || !title.trim() ? 0.5 : 1,
+              }}
+            >
+              {loading ? 'Creating...' : 'Create Quest'}
+            </button>
+            <button
+              type="button"
+              onClick={handleRandomQuest}
+              disabled={loading}
+              className="py-3 px-4 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
+              style={{
+                backgroundColor: loading ? `rgba(107, 95, 183, 0.1)` : `rgba(107, 95, 183, 0.3)`,
+                borderColor: '#6b5fb7',
+                borderWidth: '2px',
+                color: '#9d84ff',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.5 : 1,
+              }}
+              title="Create a random test quest with pre-filled content"
+            >
+              Random
+            </button>
+          </div>
         </form>
         </div>
 

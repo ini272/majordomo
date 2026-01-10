@@ -5,23 +5,23 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: grindstone-backend
+    container_name: majordomo-backend
     ports:
       - "8000:8000"
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=sqlite:///./grindstone.db
+      - DATABASE_URL=sqlite:///./majordomo.db
     volumes:
       - ./backend:/app
       - /app/venv
     networks:
-      - grindstone
+      - majordomo
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: grindstone-frontend
+    container_name: majordomo-frontend
     ports:
       - "3000:3000"
     environment:
@@ -29,8 +29,8 @@ services:
     depends_on:
       - backend
     networks:
-      - grindstone
+      - majordomo
 
 networks:
-  grindstone:
+  majordomo:
     driver: bridge
