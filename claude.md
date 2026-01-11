@@ -51,15 +51,32 @@ Gamified household chore management system. Transform chores into quests with re
 
 ## Development
 
+### Local Development (Primary)
+
+**Backend** (using uv - fast Python package manager):
 ```bash
-# Docker
+# Install uv (one-time setup)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Setup and run
+cd backend
+uv sync                # Install dependencies
+uv run python main.py  # Run server
+
+# Run tests
+uv run pytest
+```
+
+**Frontend**:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### Docker (Optional - for production deployment)
+```bash
 docker-compose up
-
-# Local backend
-cd backend && python main.py
-
-# Local frontend
-cd frontend && npm run dev
 ```
 
 ## API

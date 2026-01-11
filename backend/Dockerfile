@@ -2,16 +2,14 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+# Install uv for fast dependency installation
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Copy requirements
-COPY requirements.txt .
+# Copy dependency files
+COPY pyproject.toml uv.lock* ./
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies using uv (much faster than pip)
+RUN uv sync --frozen --no-dev
 
 # Copy application
 COPY . .
@@ -19,5 +17,5 @@ COPY . .
 # Expose port
 EXPOSE 8000
 
-# Run application
-CMD ["python", "main.py"]
+# Run application using uv
+CMD ["uv", "run", "python", "main.py"]
