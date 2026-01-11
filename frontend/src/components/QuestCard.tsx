@@ -40,11 +40,7 @@ interface QuestCardProps {
   isDailyBounty?: boolean;
 }
 
-export default function QuestCard({
-  quest,
-  onComplete,
-  isDailyBounty = false,
-}: QuestCardProps) {
+export default function QuestCard({ quest, onComplete, isDailyBounty = false }: QuestCardProps) {
   const typeStyles = getQuestTypeStyles(quest.template.quest_type);
 
   return (
@@ -106,7 +102,7 @@ export default function QuestCard({
       {/* Tags */}
       {quest.template.tags && (
         <div className="flex flex-wrap gap-2 mb-6 md:mb-8">
-          {quest.template.tags.split(",").map((tag) => (
+          {quest.template.tags.split(",").map(tag => (
             <span
               key={tag}
               className="px-2 py-1 text-xs uppercase font-serif rounded"
@@ -134,10 +130,7 @@ export default function QuestCard({
           >
             XP Reward
           </div>
-          <div
-            className="text-2xl md:text-3xl font-serif font-bold"
-            style={{ color: COLORS.gold }}
-          >
+          <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
             {quest.template.xp_reward || 0}
           </div>
         </div>
@@ -148,10 +141,7 @@ export default function QuestCard({
           >
             Gold Reward
           </div>
-          <div
-            className="text-2xl md:text-3xl font-serif font-bold"
-            style={{ color: COLORS.gold }}
-          >
+          <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
             {quest.template.gold_reward || 0}
           </div>
         </div>
@@ -162,10 +152,7 @@ export default function QuestCard({
           >
             Status
           </div>
-          <div
-            className="text-2xl md:text-3xl font-serif font-bold"
-            style={{ color: COLORS.gold }}
-          >
+          <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
             {quest.completed ? "COMPLETED" : "ACTIVE"}
           </div>
         </div>

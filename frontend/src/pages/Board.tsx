@@ -44,7 +44,7 @@ export default function Board({ token, onQuestUpdate }: BoardProps) {
       const result = await api.quests.complete(questId, token);
       // Response now includes { quest, rewards }
       const updatedQuest = result.quest;
-      setQuests(quests.map((q) => (q.id === questId ? updatedQuest : q)));
+      setQuests(quests.map(q => (q.id === questId ? updatedQuest : q)));
       setError(null);
       // Notify parent to update hero stats
       onQuestUpdate?.();
@@ -86,10 +86,7 @@ export default function Board({ token, onQuestUpdate }: BoardProps) {
 
       {/* Loading */}
       {loading && (
-        <div
-          className="text-center py-12 md:py-16 font-serif"
-          style={{ color: COLORS.brown }}
-        >
+        <div className="text-center py-12 md:py-16 font-serif" style={{ color: COLORS.brown }}>
           Loading quests...
         </div>
       )}
@@ -127,21 +124,13 @@ export default function Board({ token, onQuestUpdate }: BoardProps) {
             >
               {dailyBounty.template.display_name || dailyBounty.template.title}
             </h3>
-            <p
-              className="font-serif italic mb-4"
-              style={{ color: COLORS.parchment }}
-            >
-              {dailyBounty.template.description ||
-                "Complete this quest for double rewards!"}
+            <p className="font-serif italic mb-4" style={{ color: COLORS.parchment }}>
+              {dailyBounty.template.description || "Complete this quest for double rewards!"}
             </p>
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div
-                className="flex gap-6 text-sm font-serif"
-                style={{ color: COLORS.gold }}
-              >
+              <div className="flex gap-6 text-sm font-serif" style={{ color: COLORS.gold }}>
                 <span>
-                  XP: {dailyBounty.template.xp_reward} x2 ={" "}
-                  {dailyBounty.template.xp_reward * 2}
+                  XP: {dailyBounty.template.xp_reward} x2 = {dailyBounty.template.xp_reward * 2}
                 </span>
                 <span>
                   Gold: {dailyBounty.template.gold_reward} x2 ={" "}
@@ -151,9 +140,7 @@ export default function Board({ token, onQuestUpdate }: BoardProps) {
               <button
                 onClick={async () => {
                   try {
-                    const userId = parseInt(
-                      localStorage.getItem("userId") || ""
-                    );
+                    const userId = parseInt(localStorage.getItem("userId") || "");
                     await api.quests.create(
                       { quest_template_id: dailyBounty.template.id },
                       token,
@@ -163,9 +150,7 @@ export default function Board({ token, onQuestUpdate }: BoardProps) {
                     const data = await api.quests.getAll(token);
                     setQuests(data);
                   } catch (err) {
-                    setError(
-                      err instanceof Error ? err.message : "Failed to accept bounty"
-                    );
+                    setError(err instanceof Error ? err.message : "Failed to accept bounty");
                   }
                 }}
                 className="px-4 py-2 font-serif font-semibold text-sm uppercase tracking-wider rounded transition-all"
@@ -185,23 +170,18 @@ export default function Board({ token, onQuestUpdate }: BoardProps) {
       {/* Quests List */}
       {quests.length > 0 ? (
         <div>
-          {quests.map((quest) => (
+          {quests.map(quest => (
             <QuestCard
               key={quest.id}
               quest={quest}
               onComplete={handleCompleteQuest}
-              isDailyBounty={
-                dailyBounty?.template?.id === quest.quest_template_id
-              }
+              isDailyBounty={dailyBounty?.template?.id === quest.quest_template_id}
             />
           ))}
         </div>
       ) : (
         !loading && (
-          <div
-            className="text-center py-12 md:py-16 font-serif"
-            style={{ color: COLORS.brown }}
-          >
+          <div className="text-center py-12 md:py-16 font-serif" style={{ color: COLORS.brown }}>
             No quests found
           </div>
         )

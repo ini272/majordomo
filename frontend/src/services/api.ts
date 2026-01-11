@@ -27,11 +27,7 @@ const API_URL = getAPIURL();
 
 export const api = {
   auth: {
-    login: async (
-      homeId: number,
-      username: string,
-      password: string
-    ): Promise<LoginResponse> => {
+    login: async (homeId: number, username: string, password: string): Promise<LoginResponse> => {
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -61,10 +57,7 @@ export const api = {
       return res.json();
     },
 
-    getTemplate: async (
-      templateId: number,
-      token: string
-    ): Promise<QuestTemplate> => {
+    getTemplate: async (templateId: number, token: string): Promise<QuestTemplate> => {
       const res = await fetch(`${API_URL}/quests/templates/${templateId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -89,10 +82,7 @@ export const api = {
       return res.json();
     },
 
-    complete: async (
-      questId: number,
-      token: string
-    ): Promise<QuestCompleteResponse> => {
+    complete: async (questId: number, token: string): Promise<QuestCompleteResponse> => {
       const res = await fetch(`${API_URL}/quests/${questId}/complete`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -144,7 +134,9 @@ export const api = {
     quest: async (
       questTemplateId: number,
       token: string
-    ): Promise<QuestCompleteResponse & { user_stats: { level: number; xp: number; gold: number } }> => {
+    ): Promise<
+      QuestCompleteResponse & { user_stats: { level: number; xp: number; gold: number } }
+    > => {
       const res = await fetch(`${API_URL}/triggers/quest/${questTemplateId}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -172,10 +164,7 @@ export const api = {
       return res.json();
     },
 
-    checkTemplate: async (
-      templateId: number,
-      token: string
-    ): Promise<BountyCheckResponse> => {
+    checkTemplate: async (templateId: number, token: string): Promise<BountyCheckResponse> => {
       const res = await fetch(`${API_URL}/bounty/check/${templateId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });

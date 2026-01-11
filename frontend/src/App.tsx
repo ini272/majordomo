@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./components/Login";
 import HeroStatusBar from "./components/HeroStatusBar";
 import BottomNav from "./components/BottomNav";
@@ -16,12 +11,8 @@ import NFCTrigger from "./pages/NFCTrigger";
 import { COLORS } from "./constants/colors";
 
 function App() {
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem("token")
-  );
-  const [username, setUsername] = useState<string | null>(
-    localStorage.getItem("username")
-  );
+  const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
+  const [username, setUsername] = useState<string | null>(localStorage.getItem("username"));
   const [refreshStats, setRefreshStats] = useState(0);
 
   const handleLogout = () => {
@@ -34,7 +25,7 @@ function App() {
   };
 
   const handleQuestUpdate = () => {
-    setRefreshStats((prev) => prev + 1);
+    setRefreshStats(prev => prev + 1);
   };
 
   if (!token) {
@@ -51,15 +42,12 @@ function App() {
             >
               MAJORDOMO
             </h1>
-            <p
-              className="text-sm md:text-base italic font-serif"
-              style={{ color: COLORS.brown }}
-            >
+            <p className="text-sm md:text-base italic font-serif" style={{ color: COLORS.brown }}>
               Gamified Family Quests
             </p>
           </header>
           <Login
-            onLoginSuccess={(token) => {
+            onLoginSuccess={token => {
               setToken(token);
               const username = localStorage.getItem("username");
               setUsername(username);
@@ -101,11 +89,7 @@ function App() {
         </header>
 
         {/* Hero Status Bar */}
-        <HeroStatusBar
-          username={username || ""}
-          token={token}
-          refreshTrigger={refreshStats}
-        />
+        <HeroStatusBar username={username || ""} token={token} refreshTrigger={refreshStats} />
 
         {/* Page Content */}
         <Routes>
@@ -116,10 +100,7 @@ function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/market" element={<Market />} />
           <Route path="/heroes" element={<Heroes />} />
-          <Route
-            path="/trigger/quest/:questTemplateId"
-            element={<NFCTrigger />}
-          />
+          <Route path="/trigger/quest/:questTemplateId" element={<NFCTrigger />} />
           <Route path="/" element={<Navigate to="/board" replace />} />
         </Routes>
 

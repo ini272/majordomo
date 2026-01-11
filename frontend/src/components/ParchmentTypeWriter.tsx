@@ -57,13 +57,7 @@ export default function ParchmentTypeWriter({
           textShadow: "0 1px 2px rgba(0, 0, 0, 0.5)",
         }}
       >
-        <TypeWriter
-          text={text}
-          speed={speed}
-          delay={delay}
-          onComplete={onComplete}
-          hideCursor
-        />
+        <TypeWriter text={text} speed={speed} delay={delay} onComplete={onComplete} hideCursor />
         {/* Quill cursor - only shown while typing */}
         <motion.span
           initial={{ opacity: 0 }}

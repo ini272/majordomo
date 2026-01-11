@@ -5,13 +5,7 @@ import { getRandomSampleQuest } from "../constants/sampleQuests";
 import EditQuestModal from "./EditQuestModal";
 import StewardImage from "../assets/thesteward.png";
 
-const AVAILABLE_TAGS = [
-  "Chores",
-  "Learning",
-  "Exercise",
-  "Health",
-  "Organization",
-];
+const AVAILABLE_TAGS = ["Chores", "Learning", "Exercise", "Health", "Organization"];
 
 interface CreateQuestFormProps {
   token: string;
@@ -19,20 +13,14 @@ interface CreateQuestFormProps {
   onClose: () => void;
 }
 
-export default function CreateQuestForm({
-  token,
-  onQuestCreated,
-  onClose,
-}: CreateQuestFormProps) {
+export default function CreateQuestForm({ token, onQuestCreated, onClose }: CreateQuestFormProps) {
   const [title, setTitle] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [skipAI, setSkipAI] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [createdTemplateId, setCreatedTemplateId] = useState<number | null>(
-    null
-  );
+  const [createdTemplateId, setCreatedTemplateId] = useState<number | null>(null);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -120,11 +108,7 @@ export default function CreateQuestForm({
       );
 
       // Create quest instance from template
-      await api.quests.create(
-        { quest_template_id: newTemplate.id },
-        token,
-        userId
-      );
+      await api.quests.create({ quest_template_id: newTemplate.id }, token, userId);
 
       // Open edit modal to review/adjust
       setCreatedTemplateId(newTemplate.id);
@@ -150,10 +134,7 @@ export default function CreateQuestForm({
         {/* Form Content */}
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-center mb-6">
-            <h2
-              className="text-xl font-serif font-bold"
-              style={{ color: COLORS.gold }}
-            >
+            <h2 className="text-xl font-serif font-bold" style={{ color: COLORS.gold }}>
               Create Quest
             </h2>
             <button
@@ -190,7 +171,7 @@ export default function CreateQuestForm({
               <input
                 type="text"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={e => setTitle(e.target.value)}
                 placeholder="e.g., Clean Kitchen"
                 className="w-full px-3 py-2 font-serif focus:outline-none focus:shadow-lg transition-all"
                 style={{
@@ -211,13 +192,13 @@ export default function CreateQuestForm({
                 Tags (Optional)
               </label>
               <div className="flex flex-wrap gap-2">
-                {AVAILABLE_TAGS.map((tag) => (
+                {AVAILABLE_TAGS.map(tag => (
                   <button
                     key={tag}
                     type="button"
                     onClick={() => {
                       if (selectedTags.includes(tag)) {
-                        setSelectedTags(selectedTags.filter((t) => t !== tag));
+                        setSelectedTags(selectedTags.filter(t => t !== tag));
                       } else {
                         setSelectedTags([...selectedTags, tag]);
                       }
@@ -227,9 +208,7 @@ export default function CreateQuestForm({
                       backgroundColor: selectedTags.includes(tag)
                         ? COLORS.gold
                         : `rgba(212, 175, 55, 0.2)`,
-                      color: selectedTags.includes(tag)
-                        ? COLORS.darkPanel
-                        : COLORS.gold,
+                      color: selectedTags.includes(tag) ? COLORS.darkPanel : COLORS.gold,
                       border: `1px solid ${COLORS.gold}`,
                       cursor: loading ? "not-allowed" : "pointer",
                     }}
@@ -247,7 +226,7 @@ export default function CreateQuestForm({
                 type="checkbox"
                 id="skipAI"
                 checked={skipAI}
-                onChange={(e) => setSkipAI(e.target.checked)}
+                onChange={e => setSkipAI(e.target.checked)}
                 className="w-4 h-4"
                 style={{ accentColor: COLORS.gold }}
                 disabled={loading}
@@ -289,9 +268,7 @@ export default function CreateQuestForm({
                 disabled={loading}
                 className="py-3 px-4 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
                 style={{
-                  backgroundColor: loading
-                    ? `rgba(107, 95, 183, 0.1)`
-                    : `rgba(107, 95, 183, 0.3)`,
+                  backgroundColor: loading ? `rgba(107, 95, 183, 0.1)` : `rgba(107, 95, 183, 0.3)`,
                   borderColor: "#6b5fb7",
                   borderWidth: "2px",
                   color: "#9d84ff",

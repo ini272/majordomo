@@ -53,11 +53,7 @@ export default function TypeWriter({
   }, [text, speed, delay]);
 
   return (
-    <motion.span
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
+    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       {displayedText}
       {!isComplete && !hideCursor && (
         <motion.span

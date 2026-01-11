@@ -144,9 +144,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         disabled={loading}
         className="w-full py-3 md:py-4 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300 hover:shadow-lg"
         style={{
-          backgroundColor: loading
-            ? `rgba(212, 175, 55, 0.1)`
-            : `rgba(212, 175, 55, 0.2)`,
+          backgroundColor: loading ? `rgba(212, 175, 55, 0.1)` : `rgba(212, 175, 55, 0.2)`,
           borderColor: COLORS.gold,
           borderWidth: "2px",
           color: COLORS.gold,

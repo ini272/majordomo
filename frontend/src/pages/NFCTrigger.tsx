@@ -38,9 +38,7 @@ export default function NFCTrigger() {
         // Auto-return to board after 3 seconds
         setTimeout(() => navigate("/board"), 3000);
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to trigger quest"
-        );
+        setError(err instanceof Error ? err.message : "Failed to trigger quest");
         setLoading(false);
       }
     };
@@ -101,10 +99,7 @@ export default function NFCTrigger() {
         >
           Quest Complete!
         </h2>
-        <p
-          className="text-lg md:text-2xl font-serif mb-8"
-          style={{ color: COLORS.gold }}
-        >
+        <p className="text-lg md:text-2xl font-serif mb-8" style={{ color: COLORS.gold }}>
           {result.quest.template.display_name || result.quest.template.title}
         </p>
 
@@ -131,30 +126,21 @@ export default function NFCTrigger() {
             >
               Gold Gained
             </p>
-            <p
-              className="text-3xl md:text-4xl font-serif font-bold"
-              style={{ color: COLORS.gold }}
-            >
+            <p className="text-3xl md:text-4xl font-serif font-bold" style={{ color: COLORS.gold }}>
               +{result.rewards.gold}
             </p>
           </div>
         </div>
 
         {/* Updated Stats */}
-        <div
-          className="text-sm md:text-base font-serif mb-6"
-          style={{ color: COLORS.parchment }}
-        >
+        <div className="text-sm md:text-base font-serif mb-6" style={{ color: COLORS.parchment }}>
           <p>
-            Level {result.user_stats.level} • {result.user_stats.xp} XP •{" "}
-            {result.user_stats.gold} Gold
+            Level {result.user_stats.level} • {result.user_stats.xp} XP • {result.user_stats.gold}{" "}
+            Gold
           </p>
         </div>
 
-        <p
-          className="text-xs md:text-sm font-serif italic"
-          style={{ color: COLORS.brown }}
-        >
+        <p className="text-xs md:text-sm font-serif italic" style={{ color: COLORS.brown }}>
           Returning to board...
         </p>
       </div>

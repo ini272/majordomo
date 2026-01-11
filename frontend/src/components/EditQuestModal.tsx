@@ -5,13 +5,7 @@ import type { QuestTemplate, QuestTemplateUpdateRequest } from "../types/api";
 import StewardImage from "../assets/thesteward.png";
 import ParchmentTypeWriter from "./ParchmentTypeWriter";
 
-const AVAILABLE_TAGS = [
-  "Chores",
-  "Learning",
-  "Exercise",
-  "Health",
-  "Organization",
-];
+const AVAILABLE_TAGS = ["Chores", "Learning", "Exercise", "Health", "Organization"];
 
 interface EditQuestModalProps {
   templateId: number;
@@ -46,7 +40,7 @@ export default function EditQuestModal({
       try {
         // Wait for Groq background task to complete (unless skipping AI)
         if (!skipAI) {
-          await new Promise((resolve) => setTimeout(resolve, 1500));
+          await new Promise(resolve => setTimeout(resolve, 1500));
         }
 
         // Fetch the template
@@ -58,7 +52,7 @@ export default function EditQuestModal({
 
         // Parse tags
         if (response.tags) {
-          const tags = response.tags.split(",").map((t) => {
+          const tags = response.tags.split(",").map(t => {
             const trimmed = t.trim();
             // Capitalize first letter to match AVAILABLE_TAGS
             return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
@@ -99,11 +93,7 @@ export default function EditQuestModal({
         gold_reward: baseGold,
       };
 
-      const updated = await api.quests.updateTemplate(
-        templateId,
-        updateData,
-        token
-      );
+      const updated = await api.quests.updateTemplate(templateId, updateData, token);
       onSave?.(updated);
       onClose?.();
     } catch (err) {
@@ -142,10 +132,7 @@ export default function EditQuestModal({
           {/* Header */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-4">
-              <h2
-                className="text-2xl font-serif font-bold"
-                style={{ color: COLORS.gold }}
-              >
+              <h2 className="text-2xl font-serif font-bold" style={{ color: COLORS.gold }}>
                 Scribe Quest Details
               </h2>
               <button
@@ -186,10 +173,7 @@ export default function EditQuestModal({
                   }}
                 />
               </div>
-              <p
-                className="text-center font-serif"
-                style={{ color: COLORS.brown }}
-              >
+              <p className="text-center font-serif" style={{ color: COLORS.brown }}>
                 The Scribe is weaving your quest...
               </p>
             </div>
@@ -229,7 +213,7 @@ export default function EditQuestModal({
                     <input
                       type="text"
                       value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
+                      onChange={e => setDisplayName(e.target.value)}
                       placeholder="e.g., The Cookery Cleanup"
                       className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
                       style={{
@@ -288,7 +272,7 @@ export default function EditQuestModal({
                   >
                     <textarea
                       value={description}
-                      onChange={(e) => setDescription(e.target.value)}
+                      onChange={e => setDescription(e.target.value)}
                       placeholder="e.g., Vanquish the grimy counters and slay the sink dragon."
                       rows={3}
                       className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
@@ -314,15 +298,13 @@ export default function EditQuestModal({
                   Tags (Optional)
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {AVAILABLE_TAGS.map((tag) => (
+                  {AVAILABLE_TAGS.map(tag => (
                     <button
                       key={tag}
                       type="button"
                       onClick={() => {
                         if (selectedTags.includes(tag)) {
-                          setSelectedTags(
-                            selectedTags.filter((t) => t !== tag)
-                          );
+                          setSelectedTags(selectedTags.filter(t => t !== tag));
                         } else {
                           setSelectedTags([...selectedTags, tag]);
                         }
@@ -332,9 +314,7 @@ export default function EditQuestModal({
                         backgroundColor: selectedTags.includes(tag)
                           ? COLORS.gold
                           : `rgba(212, 175, 55, 0.2)`,
-                        color: selectedTags.includes(tag)
-                          ? COLORS.darkPanel
-                          : COLORS.gold,
+                        color: selectedTags.includes(tag) ? COLORS.darkPanel : COLORS.gold,
                         border: `1px solid ${COLORS.gold}`,
                         cursor: saving ? "not-allowed" : "pointer",
                       }}
@@ -441,10 +421,7 @@ export default function EditQuestModal({
                   >
                     XP Reward
                   </div>
-                  <div
-                    className="text-2xl font-serif font-bold"
-                    style={{ color: COLORS.gold }}
-                  >
+                  <div className="text-2xl font-serif font-bold" style={{ color: COLORS.gold }}>
                     {xp}
                   </div>
                 </div>
@@ -455,10 +432,7 @@ export default function EditQuestModal({
                   >
                     Gold Reward
                   </div>
-                  <div
-                    className="text-2xl font-serif font-bold"
-                    style={{ color: COLORS.gold }}
-                  >
+                  <div className="text-2xl font-serif font-bold" style={{ color: COLORS.gold }}>
                     {gold}
                   </div>
                 </div>
@@ -486,9 +460,7 @@ export default function EditQuestModal({
                   disabled={saving}
                   className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all"
                   style={{
-                    backgroundColor: saving
-                      ? `rgba(212, 175, 55, 0.1)`
-                      : `rgba(212, 175, 55, 0.2)`,
+                    backgroundColor: saving ? `rgba(212, 175, 55, 0.1)` : `rgba(212, 175, 55, 0.2)`,
                     borderColor: COLORS.gold,
                     borderWidth: "2px",
                     color: COLORS.gold,

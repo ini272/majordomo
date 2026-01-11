@@ -8,11 +8,7 @@ interface HeroStatusBarProps {
   refreshTrigger?: number;
 }
 
-export default function HeroStatusBar({
-  username,
-  token,
-  refreshTrigger,
-}: HeroStatusBarProps) {
+export default function HeroStatusBar({ username, token, refreshTrigger }: HeroStatusBarProps) {
   const [userStats, setUserStats] = useState({
     level: 1,
     xp: 0,
@@ -46,19 +42,11 @@ export default function HeroStatusBar({
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         {/* Username */}
         <div>
-          <p
-            className="text-xs uppercase tracking-widest"
-            style={{ color: COLORS.brown }}
-          >
+          <p className="text-xs uppercase tracking-widest" style={{ color: COLORS.brown }}>
             Hero
           </p>
-          <p
-            className="text-lg md:text-xl font-bold"
-            style={{ color: COLORS.gold }}
-          >
-            {username
-              ? username.charAt(0).toUpperCase() + username.slice(1)
-              : "Unknown"}
+          <p className="text-lg md:text-xl font-bold" style={{ color: COLORS.gold }}>
+            {username ? username.charAt(0).toUpperCase() + username.slice(1) : "Unknown"}
           </p>
         </div>
 
@@ -66,48 +54,30 @@ export default function HeroStatusBar({
         <div className="flex gap-8 md:gap-12">
           {/* Level */}
           <div className="text-center">
-            <p
-              className="text-xs uppercase tracking-widest"
-              style={{ color: COLORS.brown }}
-            >
+            <p className="text-xs uppercase tracking-widest" style={{ color: COLORS.brown }}>
               Level
             </p>
-            <p
-              className="text-2xl md:text-3xl font-bold"
-              style={{ color: COLORS.gold }}
-            >
+            <p className="text-2xl md:text-3xl font-bold" style={{ color: COLORS.gold }}>
               {userStats.level ?? 1}
             </p>
           </div>
 
           {/* XP */}
           <div className="text-center">
-            <p
-              className="text-xs uppercase tracking-widest"
-              style={{ color: COLORS.brown }}
-            >
+            <p className="text-xs uppercase tracking-widest" style={{ color: COLORS.brown }}>
               XP
             </p>
-            <p
-              className="text-2xl md:text-3xl font-bold"
-              style={{ color: COLORS.gold }}
-            >
+            <p className="text-2xl md:text-3xl font-bold" style={{ color: COLORS.gold }}>
               {userStats.xp ?? 0}
             </p>
           </div>
 
           {/* Gold */}
           <div className="text-center">
-            <p
-              className="text-xs uppercase tracking-widest"
-              style={{ color: COLORS.brown }}
-            >
+            <p className="text-xs uppercase tracking-widest" style={{ color: COLORS.brown }}>
               Gold
             </p>
-            <p
-              className="text-2xl md:text-3xl font-bold"
-              style={{ color: COLORS.gold }}
-            >
+            <p className="text-2xl md:text-3xl font-bold" style={{ color: COLORS.gold }}>
               {userStats.gold_balance ?? 0}
             </p>
           </div>

@@ -28,7 +28,7 @@ export default function BottomNav() {
         borderTopWidth: "2px",
       }}
     >
-      {navItems.map((item) => (
+      {navItems.map(item => (
         <Link
           key={item.path}
           to={item.path}
@@ -36,16 +36,12 @@ export default function BottomNav() {
           style={{
             color: isActive(item.path) ? COLORS.gold : COLORS.brown,
             textDecoration: "none",
-            borderBottomColor: isActive(item.path)
-              ? COLORS.gold
-              : "transparent",
+            borderBottomColor: isActive(item.path) ? COLORS.gold : "transparent",
             borderBottomWidth: isActive(item.path) ? "2px" : "0px",
           }}
         >
           <span className="text-xl md:text-2xl">{item.icon}</span>
-          <span className="text-xs uppercase tracking-widest font-serif">
-            {item.label}
-          </span>
+          <span className="text-xs uppercase tracking-widest font-serif">{item.label}</span>
         </Link>
       ))}
     </nav>
