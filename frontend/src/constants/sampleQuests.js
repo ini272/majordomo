@@ -75,8 +75,7 @@ export const SAMPLE_QUESTS = [
   {
     title: "Exercise 30 Minutes",
     display_name: "The Trial of Endurance",
-    description:
-      "Steel your body through movement and sweat. Emerge stronger than you began.",
+    description: "Steel your body through movement and sweat. Emerge stronger than you began.",
     tags: "exercise,health",
     time: 3,
     effort: 4,
@@ -105,8 +104,7 @@ export const SAMPLE_QUESTS = [
   {
     title: "Water Plants",
     display_name: "Tending the Grove",
-    description:
-      "Your leafy companions thirst for the essence of life. Do not let them wither.",
+    description: "Your leafy companions thirst for the essence of life. Do not let them wither.",
     tags: "chores",
     time: 1,
     effort: 1,
@@ -115,8 +113,7 @@ export const SAMPLE_QUESTS = [
   {
     title: "Read for 30 Minutes",
     display_name: "Communion with the Tomes",
-    description:
-      "Seek wisdom within the bound pages. Knowledge awaits those who are patient.",
+    description: "Seek wisdom within the bound pages. Knowledge awaits those who are patient.",
     tags: "learning",
     time: 3,
     effort: 1,
@@ -145,8 +142,7 @@ export const SAMPLE_QUESTS = [
   {
     title: "Change Bed Sheets",
     display_name: "Refreshing the Resting Chamber",
-    description:
-      "The sleeping quarters demand fresh linens. A hero rests best on clean fabric.",
+    description: "The sleeping quarters demand fresh linens. A hero rests best on clean fabric.",
     tags: "chores",
     time: 2,
     effort: 2,
@@ -165,8 +161,7 @@ export const SAMPLE_QUESTS = [
   {
     title: "Meditate",
     display_name: "The Inner Stillness",
-    description:
-      "Quiet the chaos of thought. Find peace in the silence between heartbeats.",
+    description: "Quiet the chaos of thought. Find peace in the silence between heartbeats.",
     tags: "health",
     time: 2,
     effort: 1,
@@ -175,8 +170,7 @@ export const SAMPLE_QUESTS = [
   {
     title: "Wipe Down Surfaces",
     display_name: "Banishing the Surface Dwellers",
-    description:
-      "Crumbs and smudges have colonized every flat surface. Reclaim your territory.",
+    description: "Crumbs and smudges have colonized every flat surface. Reclaim your territory.",
     tags: "chores,cleaning",
     time: 2,
     effort: 1,

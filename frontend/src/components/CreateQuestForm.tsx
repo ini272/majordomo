@@ -1,35 +1,35 @@
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
 import { getRandomSampleQuest } from "../constants/sampleQuests";
 import EditQuestModal from "./EditQuestModal";
 import StewardImage from "../assets/thesteward.png";
 
-const AVAILABLE_TAGS = [
-  "Chores",
-  "Learning",
-  "Exercise",
-  "Health",
-  "Organization",
-];
+const AVAILABLE_TAGS = ["Chores", "Learning", "Exercise", "Health", "Organization"];
 
-export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
+interface CreateQuestFormProps {
+  token: string;
+  onQuestCreated: () => void;
+  onClose: () => void;
+}
+
+export default function CreateQuestForm({ token, onQuestCreated, onClose }: CreateQuestFormProps) {
   const [title, setTitle] = useState("");
-  const [selectedTags, setSelectedTags] = useState([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [skipAI, setSkipAI] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [createdTemplateId, setCreatedTemplateId] = useState(null);
+  const [createdTemplateId, setCreatedTemplateId] = useState<number | null>(null);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!title.trim()) {
       setError("Title is required");
       return;
     }
 
-    const userId = parseInt(localStorage.getItem("userId"));
+    const userId = parseInt(localStorage.getItem("userId") || "");
     if (!userId) {
       setError("User ID not found in session");
       return;
@@ -42,9 +42,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
       const newTemplate = await api.quests.createTemplate(
         {
           title: title.trim(),
-          display_name: null,
-          description: null,
-          tags: selectedTags.length > 0 ? selectedTags.join(",") : null,
+          ...(selectedTags.length > 0 && { tags: selectedTags.join(",") }),
           xp_reward: 25,
           gold_reward: 15,
           quest_type: "standard",
@@ -52,16 +50,16 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
         },
         token,
         userId,
-        skipAI,
+        skipAI
       );
 
       // Create quest instance from template
-      const newQuest = await api.quests.create(
+      await api.quests.create(
         {
           quest_template_id: newTemplate.id,
         },
         token,
-        userId,
+        userId
       );
 
       // Open edit modal instead of closing immediately
@@ -72,14 +70,14 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
       setSkipAI(false);
       // Note: onQuestCreated will be called after edit modal saves
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : "Failed to create quest");
     } finally {
       setLoading(false);
     }
   };
 
   const handleRandomQuest = async () => {
-    const userId = parseInt(localStorage.getItem("userId"));
+    const userId = parseInt(localStorage.getItem("userId") || "");
     if (!userId) {
       setError("User ID not found in session");
       return;
@@ -106,22 +104,18 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
         },
         token,
         userId,
-        true, // skipAI - content already provided
+        true // skipAI - content already provided
       );
 
       // Create quest instance from template
-      await api.quests.create(
-        { quest_template_id: newTemplate.id },
-        token,
-        userId,
-      );
+      await api.quests.create({ quest_template_id: newTemplate.id }, token, userId);
 
       // Open edit modal to review/adjust
       setCreatedTemplateId(newTemplate.id);
       setShowEditModal(true);
       setSkipAI(true);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : "Failed to create quest");
     } finally {
       setLoading(false);
     }
@@ -140,10 +134,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
         {/* Form Content */}
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-center mb-6">
-            <h2
-              className="text-xl font-serif font-bold"
-              style={{ color: COLORS.gold }}
-            >
+            <h2 className="text-xl font-serif font-bold" style={{ color: COLORS.gold }}>
               Create Quest
             </h2>
             <button
@@ -180,7 +171,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
               <input
                 type="text"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={e => setTitle(e.target.value)}
                 placeholder="e.g., Clean Kitchen"
                 className="w-full px-3 py-2 font-serif focus:outline-none focus:shadow-lg transition-all"
                 style={{
@@ -201,13 +192,13 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
                 Tags (Optional)
               </label>
               <div className="flex flex-wrap gap-2">
-                {AVAILABLE_TAGS.map((tag) => (
+                {AVAILABLE_TAGS.map(tag => (
                   <button
                     key={tag}
                     type="button"
                     onClick={() => {
                       if (selectedTags.includes(tag)) {
-                        setSelectedTags(selectedTags.filter((t) => t !== tag));
+                        setSelectedTags(selectedTags.filter(t => t !== tag));
                       } else {
                         setSelectedTags([...selectedTags, tag]);
                       }
@@ -217,9 +208,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
                       backgroundColor: selectedTags.includes(tag)
                         ? COLORS.gold
                         : `rgba(212, 175, 55, 0.2)`,
-                      color: selectedTags.includes(tag)
-                        ? COLORS.darkPanel
-                        : COLORS.gold,
+                      color: selectedTags.includes(tag) ? COLORS.darkPanel : COLORS.gold,
                       border: `1px solid ${COLORS.gold}`,
                       cursor: loading ? "not-allowed" : "pointer",
                     }}
@@ -237,7 +226,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
                 type="checkbox"
                 id="skipAI"
                 checked={skipAI}
-                onChange={(e) => setSkipAI(e.target.checked)}
+                onChange={e => setSkipAI(e.target.checked)}
                 className="w-4 h-4"
                 style={{ accentColor: COLORS.gold }}
                 disabled={loading}
@@ -279,9 +268,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
                 disabled={loading}
                 className="py-3 px-4 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
                 style={{
-                  backgroundColor: loading
-                    ? `rgba(107, 95, 183, 0.1)`
-                    : `rgba(107, 95, 183, 0.3)`,
+                  backgroundColor: loading ? `rgba(107, 95, 183, 0.1)` : `rgba(107, 95, 183, 0.3)`,
                   borderColor: "#6b5fb7",
                   borderWidth: "2px",
                   color: "#9d84ff",
@@ -314,13 +301,15 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
           token={token}
           skipAI={skipAI}
           onSave={() => {
-            // After save, just close and let parent refetch quests
+            // After save, close and notify parent to refetch quests
             setShowEditModal(false);
-            onClose?.();
+            onQuestCreated();
+            onClose();
           }}
           onClose={() => {
             setShowEditModal(false);
-            onClose?.();
+            onQuestCreated();
+            onClose();
           }}
         />
       )}

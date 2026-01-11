@@ -1,12 +1,18 @@
 import { Link, useLocation } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 
+interface NavItem {
+  path: string;
+  label: string;
+  icon: string;
+}
+
 export default function BottomNav() {
   const location = useLocation();
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path: string) => location.pathname === path;
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { path: "/board", label: "Board", icon: "📜" },
     { path: "/profile", label: "Profile", icon: "👤" },
     { path: "/market", label: "Market", icon: "💰" },
@@ -22,7 +28,7 @@ export default function BottomNav() {
         borderTopWidth: "2px",
       }}
     >
-      {navItems.map((item) => (
+      {navItems.map(item => (
         <Link
           key={item.path}
           to={item.path}
@@ -30,16 +36,12 @@ export default function BottomNav() {
           style={{
             color: isActive(item.path) ? COLORS.gold : COLORS.brown,
             textDecoration: "none",
-            borderBottomColor: isActive(item.path)
-              ? COLORS.gold
-              : "transparent",
+            borderBottomColor: isActive(item.path) ? COLORS.gold : "transparent",
             borderBottomWidth: isActive(item.path) ? "2px" : "0px",
           }}
         >
           <span className="text-xl md:text-2xl">{item.icon}</span>
-          <span className="text-xs uppercase tracking-widest font-serif">
-            {item.label}
-          </span>
+          <span className="text-xs uppercase tracking-widest font-serif">{item.label}</span>
         </Link>
       ))}
     </nav>

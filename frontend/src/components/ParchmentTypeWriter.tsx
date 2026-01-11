@@ -2,12 +2,19 @@ import { motion } from "framer-motion";
 import TypeWriter from "./TypeWriter";
 import { PARCHMENT_STYLES } from "../constants/colors";
 
+interface ParchmentTypeWriterProps {
+  text: string;
+  speed?: number;
+  delay?: number;
+  onComplete?: () => void;
+}
+
 export default function ParchmentTypeWriter({
   text,
   speed = 50,
   delay = 0,
   onComplete,
-}) {
+}: ParchmentTypeWriterProps) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -50,13 +57,7 @@ export default function ParchmentTypeWriter({
           textShadow: "0 1px 2px rgba(0, 0, 0, 0.5)",
         }}
       >
-        <TypeWriter
-          text={text}
-          speed={speed}
-          delay={delay}
-          onComplete={onComplete}
-          hideCursor
-        />
+        <TypeWriter text={text} speed={speed} delay={delay} onComplete={onComplete} hideCursor />
         {/* Quill cursor - only shown while typing */}
         <motion.span
           initial={{ opacity: 0 }}

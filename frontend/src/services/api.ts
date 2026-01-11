@@ -1,8 +1,20 @@
-//const API_URL = 'http://localhost:8000/api';
+import type {
+  LoginResponse,
+  User,
+  Quest,
+  QuestTemplate,
+  QuestCompleteResponse,
+  QuestTemplateCreateRequest,
+  QuestTemplateUpdateRequest,
+  QuestCreateRequest,
+  DailyBounty,
+  BountyCheckResponse,
+} from "../types/api";
+
 // Detect API URL at runtime
 // If VITE_API_URL env var is set (from docker-compose or build), use it
 // Otherwise, construct from current hostname (replace port 3000 with 8000)
-const getAPIURL = () => {
+const getAPIURL = (): string => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
@@ -12,9 +24,10 @@ const getAPIURL = () => {
 };
 
 const API_URL = getAPIURL();
+
 export const api = {
   auth: {
-    login: async (homeId, username, password) => {
+    login: async (homeId: number, username: string, password: string): Promise<LoginResponse> => {
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -26,7 +39,7 @@ export const api = {
   },
 
   user: {
-    getStats: async (token) => {
+    getStats: async (token: string): Promise<User> => {
       const res = await fetch(`${API_URL}/users/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -36,7 +49,7 @@ export const api = {
   },
 
   quests: {
-    getAll: async (token) => {
+    getAll: async (token: string): Promise<Quest[]> => {
       const res = await fetch(`${API_URL}/quests`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -44,7 +57,7 @@ export const api = {
       return res.json();
     },
 
-    getTemplate: async (templateId, token) => {
+    getTemplate: async (templateId: number, token: string): Promise<QuestTemplate> => {
       const res = await fetch(`${API_URL}/quests/templates/${templateId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -52,7 +65,11 @@ export const api = {
       return res.json();
     },
 
-    updateTemplate: async (templateId, templateData, token) => {
+    updateTemplate: async (
+      templateId: number,
+      templateData: QuestTemplateUpdateRequest,
+      token: string
+    ): Promise<QuestTemplate> => {
       const res = await fetch(`${API_URL}/quests/templates/${templateId}`, {
         method: "PUT",
         headers: {
@@ -65,7 +82,7 @@ export const api = {
       return res.json();
     },
 
-    complete: async (questId, token) => {
+    complete: async (questId: number, token: string): Promise<QuestCompleteResponse> => {
       const res = await fetch(`${API_URL}/quests/${questId}/complete`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -74,7 +91,12 @@ export const api = {
       return res.json();
     },
 
-    createTemplate: async (templateData, token, createdBy, skipAI = false) => {
+    createTemplate: async (
+      templateData: QuestTemplateCreateRequest,
+      token: string,
+      createdBy: number,
+      skipAI: boolean = false
+    ): Promise<QuestTemplate> => {
       const res = await fetch(
         `${API_URL}/quests/templates?created_by=${createdBy}&skip_ai=${skipAI}`,
         {
@@ -84,13 +106,17 @@ export const api = {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(templateData),
-        },
+        }
       );
       if (!res.ok) throw new Error("Failed to create quest template");
       return res.json();
     },
 
-    create: async (questData, token, userId) => {
+    create: async (
+      questData: QuestCreateRequest,
+      token: string,
+      userId: number
+    ): Promise<Quest> => {
       const res = await fetch(`${API_URL}/quests?user_id=${userId}`, {
         method: "POST",
         headers: {
@@ -105,7 +131,12 @@ export const api = {
   },
 
   triggers: {
-    quest: async (questTemplateId, token) => {
+    quest: async (
+      questTemplateId: number,
+      token: string
+    ): Promise<
+      QuestCompleteResponse & { user_stats: { level: number; xp: number; gold: number } }
+    > => {
       const res = await fetch(`${API_URL}/triggers/quest/${questTemplateId}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -116,7 +147,7 @@ export const api = {
   },
 
   bounty: {
-    getToday: async (token) => {
+    getToday: async (token: string): Promise<DailyBounty | null> => {
       const res = await fetch(`${API_URL}/bounty/today`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -124,7 +155,7 @@ export const api = {
       return res.json();
     },
 
-    refresh: async (token) => {
+    refresh: async (token: string): Promise<DailyBounty> => {
       const res = await fetch(`${API_URL}/bounty/refresh`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -133,7 +164,7 @@ export const api = {
       return res.json();
     },
 
-    checkTemplate: async (templateId, token) => {
+    checkTemplate: async (templateId: number, token: string): Promise<BountyCheckResponse> => {
       const res = await fetch(`${API_URL}/bounty/check/${templateId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });

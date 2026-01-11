@@ -1,13 +1,21 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 
+interface TypeWriterProps {
+  text: string;
+  speed?: number;
+  delay?: number;
+  onComplete?: () => void;
+  hideCursor?: boolean;
+}
+
 export default function TypeWriter({
   text,
   speed = 50,
   delay = 0,
   onComplete,
   hideCursor = false,
-}) {
+}: TypeWriterProps) {
   const [displayedText, setDisplayedText] = useState("");
   const [isComplete, setIsComplete] = useState(false);
 
@@ -19,7 +27,7 @@ export default function TypeWriter({
     if (!text) return;
 
     let index = 0;
-    let timeoutId;
+    let timeoutId: NodeJS.Timeout;
     let isMounted = true;
 
     const typeNextChar = () => {
@@ -45,11 +53,7 @@ export default function TypeWriter({
   }, [text, speed, delay]);
 
   return (
-    <motion.span
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
+    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       {displayedText}
       {!isComplete && !hideCursor && (
         <motion.span

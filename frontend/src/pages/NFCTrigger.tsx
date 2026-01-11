@@ -2,12 +2,21 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
+import type { QuestCompleteResponse } from "../types/api";
+
+interface NFCTriggerResult extends QuestCompleteResponse {
+  user_stats: {
+    level: number;
+    xp: number;
+    gold: number;
+  };
+}
 
 export default function NFCTrigger() {
-  const { questTemplateId } = useParams();
+  const { questTemplateId } = useParams<{ questTemplateId: string }>();
   const navigate = useNavigate();
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+  const [result, setResult] = useState<NFCTriggerResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const token = localStorage.getItem("token");
 
@@ -22,13 +31,14 @@ export default function NFCTrigger() {
     // Logged in, trigger the quest
     const triggerQuest = async () => {
       try {
-        const data = await api.triggers.quest(questTemplateId, token);
+        const templateId = parseInt(questTemplateId || "0");
+        const data = await api.triggers.quest(templateId, token);
         setResult(data);
         setError(null);
         // Auto-return to board after 3 seconds
         setTimeout(() => navigate("/board"), 3000);
       } catch (err) {
-        setError(err.message);
+        setError(err instanceof Error ? err.message : "Failed to trigger quest");
         setLoading(false);
       }
     };
@@ -89,10 +99,7 @@ export default function NFCTrigger() {
         >
           Quest Complete!
         </h2>
-        <p
-          className="text-lg md:text-2xl font-serif mb-8"
-          style={{ color: COLORS.gold }}
-        >
+        <p className="text-lg md:text-2xl font-serif mb-8" style={{ color: COLORS.gold }}>
           {result.quest.template.display_name || result.quest.template.title}
         </p>
 
@@ -119,30 +126,21 @@ export default function NFCTrigger() {
             >
               Gold Gained
             </p>
-            <p
-              className="text-3xl md:text-4xl font-serif font-bold"
-              style={{ color: COLORS.gold }}
-            >
+            <p className="text-3xl md:text-4xl font-serif font-bold" style={{ color: COLORS.gold }}>
               +{result.rewards.gold}
             </p>
           </div>
         </div>
 
         {/* Updated Stats */}
-        <div
-          className="text-sm md:text-base font-serif mb-6"
-          style={{ color: COLORS.parchment }}
-        >
+        <div className="text-sm md:text-base font-serif mb-6" style={{ color: COLORS.parchment }}>
           <p>
-            Level {result.user_stats.level} • {result.user_stats.xp} XP •{" "}
-            {result.user_stats.gold} Gold
+            Level {result.user_stats.level} • {result.user_stats.xp} XP • {result.user_stats.gold}{" "}
+            Gold
           </p>
         </div>
 
-        <p
-          className="text-xs md:text-sm font-serif italic"
-          style={{ color: COLORS.brown }}
-        >
+        <p className="text-xs md:text-sm font-serif italic" style={{ color: COLORS.brown }}>
           Returning to board...
         </p>
       </div>
