@@ -22,7 +22,12 @@ def get_all_quest_templates(db: Session = Depends(get_db), auth: Dict = Depends(
 
 @router.get("", response_model=List[QuestRead])
 def get_all_quests(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
-    """Get all quests in authenticated user's home"""
+    """
+    Get all quest instances in the authenticated user's home.
+
+    Returns all active and completed quests for the household.
+    Results are sorted by creation date (newest first).
+    """
     return crud_quest.get_quests_by_home(db, auth["home_id"])
 
 
@@ -83,7 +88,16 @@ def create_quest(quest: QuestCreate, user_id: int = Query(...), db: Session = De
 
 @router.post("/{quest_id}/complete")
 def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
-    """Mark quest as completed and award XP/gold to user (2x if daily bounty)"""
+    """
+    Complete a quest and award rewards to the user.
+
+    - **quest_id**: Quest instance ID to complete
+
+    Automatically awards XP and gold from the quest template.
+    **Daily Bounty Bonus**: If this quest matches today's daily bounty, rewards are doubled (2x multiplier).
+
+    Returns quest details and reward breakdown including XP, gold, and bounty status.
+    """
     quest = crud_quest.get_quest(db, quest_id)
     if not quest or quest.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="Quest not found")
@@ -168,7 +182,22 @@ def create_quest_template(
     auth: Dict = Depends(get_current_user),
     background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
-    """Create a new quest template and generate content asynchronously"""
+    """
+    Create a new quest template (reusable quest definition).
+
+    - **created_by**: User ID creating this template
+    - **skip_ai**: Set to `true` to skip AI-generated description (default: false)
+    - **template**: Quest template data (title, description, rewards, etc.)
+
+    **AI Generation**: If `skip_ai=false` and GROQ_API_KEY is configured,
+    the Scribe service will asynchronously generate:
+    - Fantasy display name
+    - Engaging description
+    - Appropriate tags
+    - Calculated XP/gold rewards based on time/effort/dread ratings
+
+    Template is created immediately; AI content is populated in the background.
+    """
     home_id = auth["home_id"]
 
     # Verify user exists in home
