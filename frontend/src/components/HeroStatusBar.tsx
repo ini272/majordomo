@@ -2,12 +2,21 @@ import { useState, useEffect } from "react";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
 
-export default function HeroStatusBar({ username, token, refreshTrigger }) {
+interface HeroStatusBarProps {
+  username: string;
+  token: string;
+  refreshTrigger?: number;
+}
+
+export default function HeroStatusBar({
+  username,
+  token,
+  refreshTrigger,
+}: HeroStatusBarProps) {
   const [userStats, setUserStats] = useState({
     level: 1,
     xp: 0,
-    gold: 0,
-    total_xp: 0,
+    gold_balance: 0,
   });
 
   useEffect(() => {
@@ -99,7 +108,7 @@ export default function HeroStatusBar({ username, token, refreshTrigger }) {
               className="text-2xl md:text-3xl font-bold"
               style={{ color: COLORS.gold }}
             >
-              {userStats.gold ?? 0}
+              {userStats.gold_balance ?? 0}
             </p>
           </div>
         </div>

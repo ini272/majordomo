@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
 import { getRandomSampleQuest } from "../constants/sampleQuests";
@@ -13,23 +13,35 @@ const AVAILABLE_TAGS = [
   "Organization",
 ];
 
-export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
+interface CreateQuestFormProps {
+  token: string;
+  onQuestCreated: () => void;
+  onClose: () => void;
+}
+
+export default function CreateQuestForm({
+  token,
+  onQuestCreated,
+  onClose,
+}: CreateQuestFormProps) {
   const [title, setTitle] = useState("");
-  const [selectedTags, setSelectedTags] = useState([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [skipAI, setSkipAI] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [createdTemplateId, setCreatedTemplateId] = useState(null);
+  const [createdTemplateId, setCreatedTemplateId] = useState<number | null>(
+    null
+  );
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!title.trim()) {
       setError("Title is required");
       return;
     }
 
-    const userId = parseInt(localStorage.getItem("userId"));
+    const userId = parseInt(localStorage.getItem("userId") || "");
     if (!userId) {
       setError("User ID not found in session");
       return;
@@ -42,9 +54,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
       const newTemplate = await api.quests.createTemplate(
         {
           title: title.trim(),
-          display_name: null,
-          description: null,
-          tags: selectedTags.length > 0 ? selectedTags.join(",") : null,
+          ...(selectedTags.length > 0 && { tags: selectedTags.join(",") }),
           xp_reward: 25,
           gold_reward: 15,
           quest_type: "standard",
@@ -52,16 +62,16 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
         },
         token,
         userId,
-        skipAI,
+        skipAI
       );
 
       // Create quest instance from template
-      const newQuest = await api.quests.create(
+      await api.quests.create(
         {
           quest_template_id: newTemplate.id,
         },
         token,
-        userId,
+        userId
       );
 
       // Open edit modal instead of closing immediately
@@ -72,14 +82,14 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
       setSkipAI(false);
       // Note: onQuestCreated will be called after edit modal saves
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : "Failed to create quest");
     } finally {
       setLoading(false);
     }
   };
 
   const handleRandomQuest = async () => {
-    const userId = parseInt(localStorage.getItem("userId"));
+    const userId = parseInt(localStorage.getItem("userId") || "");
     if (!userId) {
       setError("User ID not found in session");
       return;
@@ -106,14 +116,14 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
         },
         token,
         userId,
-        true, // skipAI - content already provided
+        true // skipAI - content already provided
       );
 
       // Create quest instance from template
       await api.quests.create(
         { quest_template_id: newTemplate.id },
         token,
-        userId,
+        userId
       );
 
       // Open edit modal to review/adjust
@@ -121,7 +131,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
       setShowEditModal(true);
       setSkipAI(true);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : "Failed to create quest");
     } finally {
       setLoading(false);
     }
@@ -314,13 +324,15 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }) {
           token={token}
           skipAI={skipAI}
           onSave={() => {
-            // After save, just close and let parent refetch quests
+            // After save, close and notify parent to refetch quests
             setShowEditModal(false);
-            onClose?.();
+            onQuestCreated();
+            onClose();
           }}
           onClose={() => {
             setShowEditModal(false);
-            onClose?.();
+            onQuestCreated();
+            onClose();
           }}
         />
       )}

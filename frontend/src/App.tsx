@@ -16,8 +16,12 @@ import NFCTrigger from "./pages/NFCTrigger";
 import { COLORS } from "./constants/colors";
 
 function App() {
-  const [token, setToken] = useState(localStorage.getItem("token"));
-  const [username, setUsername] = useState(localStorage.getItem("username"));
+  const [token, setToken] = useState<string | null>(
+    localStorage.getItem("token")
+  );
+  const [username, setUsername] = useState<string | null>(
+    localStorage.getItem("username")
+  );
   const [refreshStats, setRefreshStats] = useState(0);
 
   const handleLogout = () => {
@@ -98,7 +102,7 @@ function App() {
 
         {/* Hero Status Bar */}
         <HeroStatusBar
-          username={username}
+          username={username || ""}
           token={token}
           refreshTrigger={refreshStats}
         />

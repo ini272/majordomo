@@ -144,7 +144,7 @@ export const api = {
     quest: async (
       questTemplateId: number,
       token: string
-    ): Promise<Quest> => {
+    ): Promise<QuestCompleteResponse & { user_stats: { level: number; xp: number; gold: number } }> => {
       const res = await fetch(`${API_URL}/triggers/quest/${questTemplateId}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },

@@ -1,22 +1,26 @@
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
 
-export default function Login({ onLoginSuccess }) {
+interface LoginProps {
+  onLoginSuccess: (token: string) => void;
+}
+
+export default function Login({ onLoginSuccess }: LoginProps) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const form = new FormData(e.target);
-    const homeId = parseInt(form.get("homeId"));
-    const username = form.get("username");
-    const password = form.get("password");
+    const form = new FormData(e.currentTarget);
+    const homeId = parseInt(form.get("homeId") as string);
+    const username = form.get("username") as string;
+    const password = form.get("password") as string;
 
     try {
       const data = await api.auth.login(homeId, username, password);
@@ -34,7 +38,7 @@ export default function Login({ onLoginSuccess }) {
         navigate(nextUrl);
       }
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setLoading(false);
     }

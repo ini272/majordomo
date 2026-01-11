@@ -2,12 +2,21 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
+import type { QuestCompleteResponse } from "../types/api";
+
+interface NFCTriggerResult extends QuestCompleteResponse {
+  user_stats: {
+    level: number;
+    xp: number;
+    gold: number;
+  };
+}
 
 export default function NFCTrigger() {
-  const { questTemplateId } = useParams();
+  const { questTemplateId } = useParams<{ questTemplateId: string }>();
   const navigate = useNavigate();
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+  const [result, setResult] = useState<NFCTriggerResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const token = localStorage.getItem("token");
 
@@ -22,13 +31,16 @@ export default function NFCTrigger() {
     // Logged in, trigger the quest
     const triggerQuest = async () => {
       try {
-        const data = await api.triggers.quest(questTemplateId, token);
+        const templateId = parseInt(questTemplateId || "0");
+        const data = await api.triggers.quest(templateId, token);
         setResult(data);
         setError(null);
         // Auto-return to board after 3 seconds
         setTimeout(() => navigate("/board"), 3000);
       } catch (err) {
-        setError(err.message);
+        setError(
+          err instanceof Error ? err.message : "Failed to trigger quest"
+        );
         setLoading(false);
       }
     };

@@ -2,12 +2,19 @@ import { motion } from "framer-motion";
 import TypeWriter from "./TypeWriter";
 import { PARCHMENT_STYLES } from "../constants/colors";
 
+interface ParchmentTypeWriterProps {
+  text: string;
+  speed?: number;
+  delay?: number;
+  onComplete?: () => void;
+}
+
 export default function ParchmentTypeWriter({
   text,
   speed = 50,
   delay = 0,
   onComplete,
-}) {
+}: ParchmentTypeWriterProps) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}

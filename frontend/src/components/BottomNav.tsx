@@ -1,12 +1,18 @@
 import { Link, useLocation } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 
+interface NavItem {
+  path: string;
+  label: string;
+  icon: string;
+}
+
 export default function BottomNav() {
   const location = useLocation();
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path: string) => location.pathname === path;
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { path: "/board", label: "Board", icon: "📜" },
     { path: "/profile", label: "Profile", icon: "👤" },
     { path: "/market", label: "Market", icon: "💰" },

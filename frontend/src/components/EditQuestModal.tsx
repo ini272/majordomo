@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { api } from "../services/api";
 import { COLORS, PARCHMENT_STYLES } from "../constants/colors";
+import type { QuestTemplate, QuestTemplateUpdateRequest } from "../types/api";
 import StewardImage from "../assets/thesteward.png";
 import ParchmentTypeWriter from "./ParchmentTypeWriter";
 
@@ -12,21 +13,27 @@ const AVAILABLE_TAGS = [
   "Organization",
 ];
 
+interface EditQuestModalProps {
+  templateId: number;
+  token: string;
+  skipAI: boolean;
+  onSave?: (updated: QuestTemplate) => void;
+  onClose?: () => void;
+}
+
 export default function EditQuestModal({
   templateId,
   token,
   skipAI,
   onSave,
   onClose,
-}) {
+}: EditQuestModalProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-
-  const [template, setTemplate] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedTags, setSelectedTags] = useState([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [time, setTime] = useState(2);
   const [effort, setEffort] = useState(2);
   const [dread, setDread] = useState(2);
@@ -44,7 +51,6 @@ export default function EditQuestModal({
 
         // Fetch the template
         const response = await api.quests.getTemplate(templateId, token);
-        setTemplate(response);
 
         // Set form values from template
         setDisplayName(response.display_name || "");
@@ -66,7 +72,7 @@ export default function EditQuestModal({
           setShowTypeWriter(true);
         }
       } catch (err) {
-        setError(err.message);
+        setError(err instanceof Error ? err.message : "Failed to load template");
         setLoading(false);
       }
     };
@@ -83,11 +89,12 @@ export default function EditQuestModal({
       const baseXP = (time + effort + dread) * 2;
       const baseGold = Math.floor(baseXP / 2);
 
-      const updateData = {
-        display_name: displayName.trim() || null,
-        description: description.trim() || null,
-        tags:
-          selectedTags.length > 0 ? selectedTags.join(",").toLowerCase() : null,
+      const updateData: QuestTemplateUpdateRequest = {
+        ...(displayName.trim() && { display_name: displayName.trim() }),
+        ...(description.trim() && { description: description.trim() }),
+        ...(selectedTags.length > 0 && {
+          tags: selectedTags.join(",").toLowerCase(),
+        }),
         xp_reward: baseXP,
         gold_reward: baseGold,
       };
@@ -95,12 +102,12 @@ export default function EditQuestModal({
       const updated = await api.quests.updateTemplate(
         templateId,
         updateData,
-        token,
+        token
       );
       onSave?.(updated);
       onClose?.();
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : "Failed to save template");
     } finally {
       setSaving(false);
     }
@@ -283,7 +290,7 @@ export default function EditQuestModal({
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="e.g., Vanquish the grimy counters and slay the sink dragon."
-                      rows="3"
+                      rows={3}
                       className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
                       style={{
                         backgroundColor: "transparent",
@@ -314,7 +321,7 @@ export default function EditQuestModal({
                       onClick={() => {
                         if (selectedTags.includes(tag)) {
                           setSelectedTags(
-                            selectedTags.filter((t) => t !== tag),
+                            selectedTags.filter((t) => t !== tag)
                           );
                         } else {
                           setSelectedTags([...selectedTags, tag]);
@@ -368,7 +375,9 @@ export default function EditQuestModal({
                     min="1"
                     max="5"
                     value={time}
-                    onChange={(e) => setTime(parseInt(e.target.value))}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      setTime(parseInt(e.target.value))
+                    }
                     className="w-full"
                     disabled={saving}
                     style={{ accentColor: COLORS.gold }}
@@ -388,7 +397,9 @@ export default function EditQuestModal({
                     min="1"
                     max="5"
                     value={effort}
-                    onChange={(e) => setEffort(parseInt(e.target.value))}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      setEffort(parseInt(e.target.value))
+                    }
                     className="w-full"
                     disabled={saving}
                     style={{ accentColor: COLORS.gold }}
@@ -408,7 +419,9 @@ export default function EditQuestModal({
                     min="1"
                     max="5"
                     value={dread}
-                    onChange={(e) => setDread(parseInt(e.target.value))}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      setDread(parseInt(e.target.value))
+                    }
                     className="w-full"
                     disabled={saving}
                     style={{ accentColor: COLORS.gold }}

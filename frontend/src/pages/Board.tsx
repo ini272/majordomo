@@ -3,13 +3,19 @@ import QuestCard from "../components/QuestCard";
 import CreateQuestForm from "../components/CreateQuestForm";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
+import type { Quest, DailyBounty } from "../types/api";
 
-export default function Board({ token, onQuestUpdate }) {
-  const [quests, setQuests] = useState([]);
+interface BoardProps {
+  token: string;
+  onQuestUpdate: () => void;
+}
+
+export default function Board({ token, onQuestUpdate }: BoardProps) {
+  const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [dailyBounty, setDailyBounty] = useState(null);
+  const [dailyBounty, setDailyBounty] = useState<DailyBounty | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -24,7 +30,7 @@ export default function Board({ token, onQuestUpdate }) {
         setDailyBounty(bountyData);
         setError(null);
       } catch (err) {
-        setError(err.message);
+        setError(err instanceof Error ? err.message : "Failed to fetch data");
       } finally {
         setLoading(false);
       }
@@ -33,7 +39,7 @@ export default function Board({ token, onQuestUpdate }) {
     fetchData();
   }, [token]);
 
-  const handleCompleteQuest = async (questId) => {
+  const handleCompleteQuest = async (questId: number) => {
     try {
       const result = await api.quests.complete(questId, token);
       // Response now includes { quest, rewards }
@@ -43,12 +49,11 @@ export default function Board({ token, onQuestUpdate }) {
       // Notify parent to update hero stats
       onQuestUpdate?.();
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : "Failed to complete quest");
     }
   };
 
-  const handleQuestCreated = (newQuest) => {
-    setQuests([newQuest, ...quests]);
+  const handleQuestCreated = () => {
     onQuestUpdate?.();
   };
 
@@ -146,17 +151,21 @@ export default function Board({ token, onQuestUpdate }) {
               <button
                 onClick={async () => {
                   try {
-                    const userId = parseInt(localStorage.getItem("userId"));
+                    const userId = parseInt(
+                      localStorage.getItem("userId") || ""
+                    );
                     await api.quests.create(
                       { quest_template_id: dailyBounty.template.id },
                       token,
-                      userId,
+                      userId
                     );
                     // Refresh quests
                     const data = await api.quests.getAll(token);
                     setQuests(data);
                   } catch (err) {
-                    setError(err.message);
+                    setError(
+                      err instanceof Error ? err.message : "Failed to accept bounty"
+                    );
                   }
                 }}
                 className="px-4 py-2 font-serif font-semibold text-sm uppercase tracking-wider rounded transition-all"
