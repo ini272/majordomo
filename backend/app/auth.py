@@ -1,11 +1,12 @@
 """Authentication utilities for JWT and password hashing"""
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional
-import bcrypt
-from jose import JWTError, jwt
-from fastapi import Depends, HTTPException, Header
 
 import os
+from datetime import datetime, timedelta, timezone
+from typing import Dict, Optional
+
+import bcrypt
+from fastapi import Header, HTTPException
+from jose import JWTError, jwt
 
 # Load from environment variables, fail fast if missing in production
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -52,21 +53,21 @@ async def get_current_user(authorization: str = Header(None)) -> Dict:
     """Dependency to get current authenticated user from JWT token"""
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing authorization header")
-    
+
     parts = authorization.split()
     if len(parts) != 2 or parts[0].lower() != "bearer":
         raise HTTPException(status_code=401, detail="Invalid authorization header")
-    
+
     token = parts[1]
     payload = verify_token(token)
-    
+
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-    
+
     user_id = payload.get("user_id")
     home_id = payload.get("home_id")
-    
+
     if not user_id or not home_id:
         raise HTTPException(status_code=401, detail="Invalid token payload")
-    
+
     return {"user_id": user_id, "home_id": home_id}

@@ -1,8 +1,10 @@
 """AI Scribe Service - Generates quest content using Groq API"""
+
 import json
 import logging
 import os
-from typing import Optional, Dict
+from typing import Dict, Optional
+
 from groq import Groq
 
 logger = logging.getLogger(__name__)
@@ -92,7 +94,7 @@ Now generate for: {quest_title}"""
             scribe_response = ScribeResponse(data)
             logger.info(f"Scribe generated content for: {quest_title}")
             return scribe_response
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             logger.error(f"Failed to parse Groq JSON response: {response_text[:200]}")
             return None
 

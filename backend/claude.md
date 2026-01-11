@@ -108,6 +108,15 @@ uv add --dev <package-name>
 
 Dependencies are defined in `pyproject.toml`. The `uv.lock` file pins exact versions.
 
+**Code Quality**:
+```bash
+uv run ruff check .        # Lint code
+uv run ruff check --fix .  # Auto-fix issues
+uv run ruff format .       # Format code
+```
+
+Ruff is configured in `pyproject.toml` with sensible defaults for FastAPI projects.
+
 ## Testing
 
 `tests/` directory with pytest:

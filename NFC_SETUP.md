@@ -80,7 +80,7 @@ To allow phone access over LAN:
 
 **Backend:** Already configured for `0.0.0.0:8000` in `backend/main.py`
 
-**Frontend:** 
+**Frontend:**
 - Dev server binds to all interfaces automatically
 - Access via `http://<your-ip>:3000` from any device on LAN
 

@@ -1,12 +1,14 @@
-from typing import List, Dict
+from typing import Dict, List
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
-from app.database import get_db
-from app.models.home import Home, HomeCreate, HomeRead, HomeJoin
-from app.models.user import User, UserCreate, UserRead
+
+from app.auth import get_current_user
 from app.crud import home as crud_home
 from app.crud import user as crud_user
-from app.auth import get_current_user
+from app.database import get_db
+from app.models.home import HomeCreate, HomeRead
+from app.models.user import UserCreate, UserRead
 
 router = APIRouter(prefix="/api/homes", tags=["homes"])
 
@@ -25,11 +27,11 @@ def get_home(home_id: int, db: Session = Depends(get_db), auth: Dict = Depends(g
     # Verify user belongs to this home
     if auth["home_id"] != home_id:
         raise HTTPException(status_code=403, detail="Not authorized to access this home")
-    
+
     home = crud_home.get_home(db, home_id)
     if not home:
         raise HTTPException(status_code=404, detail="Home not found")
-    
+
     return home
 
 
@@ -39,11 +41,11 @@ def get_home_users(home_id: int, db: Session = Depends(get_db), auth: Dict = Dep
     # Verify user belongs to this home
     if auth["home_id"] != home_id:
         raise HTTPException(status_code=403, detail="Not authorized to access this home")
-    
+
     home = crud_home.get_home(db, home_id)
     if not home:
         raise HTTPException(status_code=404, detail="Home not found")
-    
+
     return crud_user.get_home_users(db, home_id)
 
 
@@ -60,12 +62,12 @@ def join_home(home_id: int, user: UserCreate, db: Session = Depends(get_db)):
     home = crud_home.get_home(db, home_id)
     if not home:
         raise HTTPException(status_code=404, detail="Home not found")
-    
+
     # Check if username already exists in this home
     existing_user = crud_user.get_user_by_username(db, home_id, user.username)
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already exists in this home")
-    
+
     return crud_user.create_user(db, home_id, user)
 
 
@@ -76,8 +78,8 @@ def delete_home(home_id: int, db: Session = Depends(get_db), auth: Dict = Depend
     # Verify user belongs to this home
     if auth["home_id"] != home_id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this home")
-    
+
     if not crud_home.delete_home(db, home_id):
         raise HTTPException(status_code=404, detail="Home not found")
-    
+
     return {"detail": "Home deleted"}

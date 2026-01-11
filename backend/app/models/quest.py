@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
-from typing import Optional, List, TYPE_CHECKING
-from sqlmodel import SQLModel, Field, Relationship
+from typing import TYPE_CHECKING, List, Optional
+
+from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from app.models.home import Home
@@ -9,8 +10,9 @@ if TYPE_CHECKING:
 
 class QuestTemplate(SQLModel, table=True):
     """QuestTemplate model representing a reusable quest blueprint"""
+
     __tablename__ = "quest_template"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     home_id: int = Field(foreign_key="home.id", index=True)
     title: str = Field(min_length=1, max_length=200)
@@ -24,7 +26,7 @@ class QuestTemplate(SQLModel, table=True):
     system: bool = Field(default=False)  # true = system default, false = user created
     created_by: int = Field(foreign_key="user.id")  # user who created it
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    
+
     # Relationships
     home: "Home" = Relationship(back_populates="quest_templates")
     quests: List["Quest"] = Relationship(back_populates="template")
@@ -32,6 +34,7 @@ class QuestTemplate(SQLModel, table=True):
 
 class QuestTemplateRead(SQLModel):
     """Schema for reading quest template data"""
+
     id: int
     home_id: int
     title: str
@@ -49,6 +52,7 @@ class QuestTemplateRead(SQLModel):
 
 class QuestTemplateCreate(SQLModel):
     """Schema for creating a quest template"""
+
     title: str = Field(min_length=1, max_length=200)
     display_name: Optional[str] = Field(default=None, max_length=200)
     description: Optional[str] = Field(default=None, max_length=1000)
@@ -61,6 +65,7 @@ class QuestTemplateCreate(SQLModel):
 
 class QuestTemplateUpdate(SQLModel):
     """Schema for updating a quest template"""
+
     display_name: Optional[str] = Field(default=None, max_length=200)
     description: Optional[str] = Field(default=None, max_length=1000)
     tags: Optional[str] = Field(default=None, max_length=500)
@@ -72,7 +77,7 @@ class QuestTemplateUpdate(SQLModel):
 
 class Quest(SQLModel, table=True):
     """Quest model representing a task instance for a user"""
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     home_id: int = Field(foreign_key="home.id", index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
@@ -80,7 +85,7 @@ class Quest(SQLModel, table=True):
     completed: bool = Field(default=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: Optional[datetime] = None
-    
+
     # Relationships
     home: "Home" = Relationship(back_populates="quests")
     user: "User" = Relationship(back_populates="quests")
@@ -89,6 +94,7 @@ class Quest(SQLModel, table=True):
 
 class QuestRead(SQLModel):
     """Schema for reading quest data"""
+
     id: int
     home_id: int
     user_id: int
@@ -102,9 +108,11 @@ class QuestRead(SQLModel):
 
 class QuestCreate(SQLModel):
     """Schema for creating a quest from a template"""
+
     quest_template_id: int
 
 
 class QuestUpdate(SQLModel):
     """Schema for updating a quest"""
+
     completed: Optional[bool] = None

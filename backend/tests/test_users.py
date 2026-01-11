@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -7,14 +6,11 @@ def test_get_user(client: TestClient):
     # Create home
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
-    
+
     # Create user
-    user_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "testuser", "password": "testpass"}
-    )
+    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
     user_id = user_response.json()["id"]
-    
+
     # Retrieve user
     response = client.get(f"/api/users/{user_id}")
     assert response.status_code == 200
@@ -32,13 +28,10 @@ def test_update_user(client: TestClient):
     # Create home and user
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
-    
-    user_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "testuser", "password": "testpass"}
-    )
+
+    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
     user_id = user_response.json()["id"]
-    
+
     # Update user
     response = client.put(f"/api/users/{user_id}", json={"xp": 100})
     assert response.status_code == 200
@@ -50,13 +43,10 @@ def test_add_xp_to_user(client: TestClient):
     # Create home and user
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
-    
-    user_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "testuser", "password": "testpass"}
-    )
+
+    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
     user_id = user_response.json()["id"]
-    
+
     # Add XP
     response = client.post(f"/api/users/{user_id}/xp?amount=100")
     assert response.status_code == 200
@@ -68,13 +58,10 @@ def test_level_progression(client: TestClient):
     # Create home and user
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
-    
-    user_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "testuser", "password": "testpass"}
-    )
+
+    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
     user_id = user_response.json()["id"]
-    
+
     # Add XP to reach level 2 (requires 100 XP)
     response = client.post(f"/api/users/{user_id}/xp?amount=100")
     assert response.status_code == 200
@@ -87,13 +74,10 @@ def test_add_gold_to_user(client: TestClient):
     # Create home and user
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
-    
-    user_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "testuser", "password": "testpass"}
-    )
+
+    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
     user_id = user_response.json()["id"]
-    
+
     # Add gold
     response = client.post(f"/api/users/{user_id}/gold?amount=50")
     assert response.status_code == 200
@@ -105,17 +89,14 @@ def test_delete_user(client: TestClient):
     # Create home and user
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
-    
-    user_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "testuser", "password": "testpass"}
-    )
+
+    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
     user_id = user_response.json()["id"]
-    
+
     # Delete user
     response = client.delete(f"/api/users/{user_id}")
     assert response.status_code == 200
-    
+
     # Verify user is deleted
     response = client.get(f"/api/users/{user_id}")
     assert response.status_code == 404
@@ -126,11 +107,11 @@ def test_get_home_users(client: TestClient):
     # Create home
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
-    
+
     # Create multiple users
     client.post(f"/api/homes/{home_id}/join", json={"username": "user1", "password": "pass1"})
     client.post(f"/api/homes/{home_id}/join", json={"username": "user2", "password": "pass2"})
-    
+
     # Get users
     response = client.get(f"/api/homes/{home_id}/users")
     assert response.status_code == 200
@@ -142,10 +123,10 @@ def test_duplicate_username_in_home(client: TestClient):
     # Create home
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
-    
+
     # Create first user
     client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
-    
+
     # Try to create duplicate
     response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "different"})
     assert response.status_code == 400
@@ -157,14 +138,14 @@ def test_same_username_different_homes(client: TestClient):
     # Create two homes
     home1_response = client.post("/api/homes", json={"name": "Home 1"})
     home1_id = home1_response.json()["id"]
-    
+
     home2_response = client.post("/api/homes", json={"name": "Home 2"})
     home2_id = home2_response.json()["id"]
-    
+
     # Create same username in each home
     response1 = client.post(f"/api/homes/{home1_id}/join", json={"username": "testuser", "password": "pass1"})
     response2 = client.post(f"/api/homes/{home2_id}/join", json={"username": "testuser", "password": "pass2"})
-    
+
     assert response1.status_code == 200
     assert response2.status_code == 200
     assert response1.json()["id"] != response2.json()["id"]

@@ -1,6 +1,8 @@
-from typing import Optional, List
-from sqlmodel import select, Session
-from app.models.reward import Reward, RewardCreate, UserRewardClaim, UserRewardClaimCreate
+from typing import List, Optional
+
+from sqlmodel import Session, select
+
+from app.models.reward import Reward, RewardCreate, UserRewardClaim
 
 
 def get_reward(db: Session, reward_id: int) -> Optional[Reward]:
@@ -15,9 +17,7 @@ def get_home_rewards(db: Session, home_id: int) -> List[Reward]:
 
 def get_user_reward_claims(db: Session, user_id: int) -> List[UserRewardClaim]:
     """Get all reward claims for a user"""
-    return db.exec(
-        select(UserRewardClaim).where(UserRewardClaim.user_id == user_id)
-    ).all()
+    return db.exec(select(UserRewardClaim).where(UserRewardClaim.user_id == user_id)).all()
 
 
 def create_reward(db: Session, home_id: int, reward_in: RewardCreate) -> Reward:
@@ -34,7 +34,7 @@ def claim_reward(db: Session, user_id: int, reward_id: int) -> Optional[UserRewa
     # Verify reward exists
     if not get_reward(db, reward_id):
         return None
-    
+
     claim = UserRewardClaim(user_id=user_id, reward_id=reward_id)
     db.add(claim)
     db.commit()
@@ -47,7 +47,7 @@ def delete_reward(db: Session, reward_id: int) -> bool:
     db_reward = get_reward(db, reward_id)
     if not db_reward:
         return False
-    
+
     db.delete(db_reward)
     db.commit()
     return True

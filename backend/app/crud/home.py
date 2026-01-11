@@ -1,6 +1,8 @@
-from typing import Optional, List
 import secrets
-from sqlmodel import select, Session
+from typing import List, Optional
+
+from sqlmodel import Session, select
+
 from app.models.home import Home, HomeCreate
 
 
@@ -38,7 +40,7 @@ def delete_home(db: Session, home_id: int) -> bool:
     db_home = get_home(db, home_id)
     if not db_home:
         return False
-    
+
     db.delete(db_home)
     db.commit()
     return True

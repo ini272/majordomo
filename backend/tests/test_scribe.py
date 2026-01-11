@@ -1,6 +1,8 @@
 """Tests for AI Scribe service"""
+
 import pytest
-from app.services.scribe import generate_quest_content, ScribeResponse
+
+from app.services.scribe import ScribeResponse, generate_quest_content
 
 
 def test_scribe_response_xp_calculation():

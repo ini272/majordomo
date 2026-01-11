@@ -1,12 +1,15 @@
-import { COLORS } from '../constants/colors';
+import { COLORS } from "../constants/colors";
 
 export default function Market() {
   return (
     <div className="text-center py-12">
-      <h2 className="text-2xl font-serif font-bold mb-4" style={{color: COLORS.gold}}>
+      <h2
+        className="text-2xl font-serif font-bold mb-4"
+        style={{ color: COLORS.gold }}
+      >
         Market
       </h2>
-      <p className="font-serif" style={{color: COLORS.parchment}}>
+      <p className="font-serif" style={{ color: COLORS.parchment }}>
         Coming soon...
       </p>
     </div>

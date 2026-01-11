@@ -1,8 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 
-export default function TypeWriter({ text, speed = 50, delay = 0, onComplete, hideCursor = false }) {
-  const [displayedText, setDisplayedText] = useState('');
+export default function TypeWriter({
+  text,
+  speed = 50,
+  delay = 0,
+  onComplete,
+  hideCursor = false,
+}) {
+  const [displayedText, setDisplayedText] = useState("");
   const [isComplete, setIsComplete] = useState(false);
 
   // Use ref for callback to avoid effect re-runs when parent re-renders
@@ -49,7 +55,7 @@ export default function TypeWriter({ text, speed = 50, delay = 0, onComplete, hi
         <motion.span
           animate={{ opacity: [1, 0] }}
           transition={{ duration: 0.5, repeat: Infinity }}
-          style={{ marginLeft: '2px' }}
+          style={{ marginLeft: "2px" }}
         >
           |
         </motion.span>

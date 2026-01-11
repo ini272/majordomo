@@ -1,32 +1,32 @@
 export const COLORS = {
   // Gold/Primary
-  gold: '#d4af37',
-  
+  gold: "#d4af37",
+
   // Parchment/Text
-  parchment: '#c9b896',
-  parchmentLight: '#e8dcc8',
-  
+  parchment: "#c9b896",
+  parchmentLight: "#e8dcc8",
+
   // Dark/Backgrounds
-  dark: '#1a1a1a',
-  darkPanel: '#0f0f0f',
-  darkGradient1: '#0a0a0a',
-  darkGradient2: '#1a0a2e',
-  black: '#000000',
-  
+  dark: "#1a1a1a",
+  darkPanel: "#0f0f0f",
+  darkGradient1: "#0a0a0a",
+  darkGradient2: "#1a0a2e",
+  black: "#000000",
+
   // Brown/Muted
-  brown: '#8b7355',
-  brownLight: '#8b7355',
-  
+  brown: "#8b7355",
+  brownLight: "#8b7355",
+
   // Red/Errors
-  redDark: '#8b0000',
-  redDarker: '#4a0000',
-  redLight: '#ff6b6b',
-  redBorder: '#8b0000',
-  
+  redDark: "#8b0000",
+  redDarker: "#4a0000",
+  redLight: "#ff6b6b",
+  redBorder: "#8b0000",
+
   // Green/Success
-  greenSuccess: '#5fb754',
-  greenDark: '#1a3d1a',
-  greenDarker: '#2a5d2a',
+  greenSuccess: "#5fb754",
+  greenDark: "#1a3d1a",
+  greenDarker: "#2a5d2a",
 };
 
 export const GRADIENTS = {
@@ -34,9 +34,9 @@ export const GRADIENTS = {
 };
 
 export const PARCHMENT_STYLES = {
-  backgroundColor: '#2a2418',
-  borderColor: '#d4af37',
-  textColor: '#d4af37',
+  backgroundColor: "#2a2418",
+  borderColor: "#d4af37",
+  textColor: "#d4af37",
   backgroundImage: `
     repeating-linear-gradient(
       0deg,
