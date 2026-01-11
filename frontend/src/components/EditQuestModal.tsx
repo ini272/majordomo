@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, ChangeEvent } from "react";
+import { useState, useEffect, useCallback, ChangeEvent, FormEvent } from "react";
 import { api } from "../services/api";
 import { COLORS, PARCHMENT_STYLES } from "../constants/colors";
 import type { QuestTemplate, QuestTemplateUpdateRequest } from "../types/api";
@@ -117,6 +117,13 @@ export default function EditQuestModal({
   const xp = (time + effort + dread) * 2;
   const gold = Math.floor(xp / 2);
 
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!saving && !loading) {
+      handleSave();
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div
@@ -178,7 +185,7 @@ export default function EditQuestModal({
               </p>
             </div>
           ) : (
-            <>
+            <form onSubmit={handleSubmit}>
               {/* Display Name */}
               <div className="mb-6">
                 <label
@@ -441,6 +448,7 @@ export default function EditQuestModal({
               {/* Buttons */}
               <div className="flex gap-3">
                 <button
+                  type="button"
                   onClick={onClose}
                   disabled={saving}
                   className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all"
@@ -456,7 +464,7 @@ export default function EditQuestModal({
                   Cancel
                 </button>
                 <button
-                  onClick={handleSave}
+                  type="submit"
                   disabled={saving}
                   className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all"
                   style={{
@@ -471,7 +479,7 @@ export default function EditQuestModal({
                   {saving ? "Saving..." : "Save Quest"}
                 </button>
               </div>
-            </>
+            </form>
           )}
         </div>
 
