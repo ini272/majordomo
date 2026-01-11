@@ -53,18 +53,12 @@ Gamified household chore management system. Transform chores into quests with re
 
 ### Local Development (Primary)
 
-**Backend** (using uv - fast Python package manager):
+**Backend** (requires [uv](https://docs.astral.sh/uv/)):
 ```bash
-# Install uv (one-time setup)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Setup and run
 cd backend
 uv sync                # Install dependencies
 uv run python main.py  # Run server
-
-# Run tests
-uv run pytest
+uv run pytest          # Run tests
 ```
 
 **Frontend**:

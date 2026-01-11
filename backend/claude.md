@@ -87,12 +87,9 @@ All routes prefixed with `/api`:
 
 ## Development Setup
 
-**Package Management**: Uses `uv` (fast Python package manager)
+**Package Management**: Uses [uv](https://docs.astral.sh/uv/) for fast dependency management.
 
 ```bash
-# Install uv (one-time)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
 # Install dependencies
 uv sync
 
