@@ -19,7 +19,16 @@ class LoginRequest(BaseModel):
 
 @router.post("/login")
 def login(request: LoginRequest, db: Session = Depends(get_db)):
-    """Login with username and password, returns JWT token"""
+    """
+    Authenticate user and return JWT access token.
+
+    - **username**: User's username (unique within home)
+    - **password**: User's password
+    - **home_id**: Home/household ID the user belongs to
+
+    Returns access token for authenticated API requests.
+    Include token in subsequent requests: `Authorization: Bearer <token>`
+    """
     # Find user by username in the requested home
     user = crud_user.get_user_by_username(db, request.home_id, request.username)
     
@@ -32,7 +41,14 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 
 @router.get("/dev/token")
 def get_dev_token(user_id: int = 1, db: Session = Depends(get_db)):
-    """Dev-only: Get a test token for any user"""
+    """
+    **Development Only**: Generate test JWT token for any user.
+
+    - **user_id**: User ID to generate token for (default: 1)
+
+    ⚠️ This endpoint is disabled in production (NODE_ENV=production).
+    Use for testing and local development only.
+    """
     if os.getenv("NODE_ENV") == "production":
         raise HTTPException(status_code=403, detail="Not available in production")
     
