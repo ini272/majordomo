@@ -43,7 +43,7 @@ docker-compose up --build
 
 This will:
 1. Build backend image (~2 min)
-2. Build frontend image (~3 min, includes npm install)
+2. Build frontend image (~2 min, includes bun install)
 3. Start both services
 4. Output logs
 
@@ -70,7 +70,7 @@ Docker automatically mounts this. Volumes in `docker-compose.yml` work without m
 
 ### Slow Build Times
 
-First build is slow (npm install, pip install). Subsequent builds cache layers and are faster.
+First build is slow (bun install, uv sync). Subsequent builds cache layers and are faster.
 
 ### Port Conflicts on Windows
 

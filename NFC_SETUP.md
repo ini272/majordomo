@@ -50,8 +50,8 @@ Create more templates via the API and note their IDs for new tags.
 ### Without NFC Hardware
 1. Start both servers:
    ```bash
-   cd backend && python main.py
-   cd frontend && npm run dev
+   cd backend && uv run python main.py
+   cd frontend && bun run dev
    ```
 
 2. Manually open the trigger URL:
