@@ -6,11 +6,12 @@ React 19 application with Vite, providing a gamified interface for the Majordomo
 
 - **Framework**: React 19 with hooks
 - **Build Tool**: Vite (fast dev server, HMR)
+- **Package Manager**: Bun (fast installs, runs)
+- **Language**: TypeScript (strict mode)
 - **Styling**: Tailwind CSS + custom fantasy theme
 - **Animations**: Framer Motion (motion components)
-- **Routing**: React Router v6
-- **HTTP Client**: Fetch API (via `services/api.js`)
-- **Language**: JavaScript (no TypeScript despite config)
+- **Routing**: React Router v7
+- **HTTP Client**: Fetch API (via `services/api.ts`)
 
 ## Entry Point
 
@@ -134,19 +135,20 @@ Centralized API communication with backend:
 ## Dev Commands
 
 ```bash
-npm install      # Install dependencies
-npm run dev      # Start Vite dev server (port 3000)
-npm run build    # Production build
-npm run preview  # Preview production build
+bun install      # Install dependencies
+bun run dev      # Start Vite dev server (port 3000)
+bun run build    # Production build (with TypeScript compilation)
+bun run preview  # Preview production build
 ```
 
 ## Code Quality
 
 **Linting & Formatting**:
 ```bash
-npm run lint           # ESLint check
-npm run format         # Format with Prettier
-npm run format:check   # Check formatting
+bun run lint           # ESLint check
+bun run format         # Format with Prettier
+bun run format:check   # Check formatting
+bun run typecheck      # TypeScript type check (no emit)
 ```
 
 - **ESLint**: Configured in `eslint.config.js` with React hooks and Vite optimizations

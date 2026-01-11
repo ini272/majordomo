@@ -61,11 +61,11 @@ uv run python main.py  # Run server
 uv run pytest          # Run tests
 ```
 
-**Frontend**:
+**Frontend** (requires [bun](https://bun.sh)):
 ```bash
 cd frontend
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 ### Docker (Optional - for production deployment)
@@ -101,9 +101,10 @@ uv run ruff format .       # Format code
 **Frontend**:
 ```bash
 cd frontend
-npm run lint               # Check for issues
-npm run format             # Format code
-npm run format:check       # Check formatting
+bun run lint               # Check for issues
+bun run format             # Format code
+bun run format:check       # Check formatting
+bun run typecheck          # TypeScript type check
 ```
 
 ## API
