@@ -85,6 +85,29 @@ All routes prefixed with `/api`:
 - Session dependency: `get_session()` yields async session
 - Used in all route handlers via dependency injection
 
+## Development Setup
+
+**Package Management**: Uses [uv](https://docs.astral.sh/uv/) for fast dependency management.
+
+```bash
+# Install dependencies
+uv sync
+
+# Run server
+uv run python main.py
+
+# Run tests
+uv run pytest
+
+# Add new dependency
+uv add <package-name>
+
+# Add dev dependency
+uv add --dev <package-name>
+```
+
+Dependencies are defined in `pyproject.toml`. The `uv.lock` file pins exact versions.
+
 ## Testing
 
 `tests/` directory with pytest:
@@ -96,7 +119,7 @@ All routes prefixed with `/api`:
 - `test_triggers.py` - NFC trigger handling
 - `test_scribe.py` - AI service integration
 
-Run: `pytest` from backend directory
+Run: `uv run pytest`
 
 ## Key Patterns
 
