@@ -1,6 +1,14 @@
 import { COLORS } from "../constants/colors";
+import type { Quest } from "../types/api";
 
-const getQuestTypeStyles = (questType) => {
+interface QuestTypeStyles {
+  borderColor: string;
+  titleColor: string;
+  badgeBg: string;
+  badgeColor: string;
+}
+
+const getQuestTypeStyles = (questType: string): QuestTypeStyles => {
   switch (questType) {
     case "bounty":
       return {
@@ -26,11 +34,17 @@ const getQuestTypeStyles = (questType) => {
   }
 };
 
+interface QuestCardProps {
+  quest: Quest;
+  onComplete: (questId: number) => void;
+  isDailyBounty?: boolean;
+}
+
 export default function QuestCard({
   quest,
   onComplete,
   isDailyBounty = false,
-}) {
+}: QuestCardProps) {
   const typeStyles = getQuestTypeStyles(quest.template.quest_type);
 
   return (
