@@ -140,6 +140,18 @@ npm run build    # Production build
 npm run preview  # Preview production build
 ```
 
+## Code Quality
+
+**Linting & Formatting**:
+```bash
+npm run lint           # ESLint check
+npm run format         # Format with Prettier
+npm run format:check   # Check formatting
+```
+
+- **ESLint**: Configured in `eslint.config.js` with React hooks and Vite optimizations
+- **Prettier**: Configured in `.prettierrc` for consistent code formatting
+
 ## Key Patterns
 
 - Functional components with hooks (no class components)

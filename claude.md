@@ -73,6 +73,39 @@ npm run dev
 docker-compose up
 ```
 
+## Code Quality
+
+### Pre-commit Hooks
+
+Automated linting and formatting on every commit:
+
+```bash
+# One-time setup
+uv tool install pre-commit
+pre-commit install
+
+# Manual run (optional)
+pre-commit run --all-files
+```
+
+### Manual Linting
+
+**Backend**:
+```bash
+cd backend
+uv run ruff check .        # Check for issues
+uv run ruff check --fix .  # Auto-fix issues
+uv run ruff format .       # Format code
+```
+
+**Frontend**:
+```bash
+cd frontend
+npm run lint               # Check for issues
+npm run format             # Format code
+npm run format:check       # Check formatting
+```
+
 ## API
 
 Base URL: `http://localhost:8000/api`
