@@ -1,12 +1,14 @@
 from typing import Dict
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
-from app.database import get_db
+
 from app.auth import get_current_user
-from app.models.quest import QuestCreate, QuestRead
 from app.crud import quest as crud_quest
 from app.crud import quest_template as crud_quest_template
 from app.crud import user as crud_user
+from app.database import get_db
+from app.models.quest import QuestCreate, QuestRead
 
 router = APIRouter(prefix="/api/triggers", tags=["triggers"])
 

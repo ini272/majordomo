@@ -1,16 +1,14 @@
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel, Session
-from fastapi.testclient import TestClient
+from sqlmodel import Session, SQLModel
 
-# Import models to register them
-from app.models import home, user, quest, reward, daily_bounty
-from app.crud import quest_template
+from app.auth import get_current_user
 from app.database import get_db
 from app.main import app
-from app.auth import get_current_user
 
+# Import models to register them
 
 # Create in-memory SQLite database for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -36,16 +34,17 @@ def db():
 @pytest.fixture(scope="function")
 def client(db):
     """Create a test client with database override."""
+
     def override_get_db():
         try:
             yield db
         finally:
             pass
-    
+
     async def override_get_current_user():
         """Override auth to allow tests without tokens"""
         return {"user_id": 1, "home_id": 1}
-    
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
     with TestClient(app) as c:

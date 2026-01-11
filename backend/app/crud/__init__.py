@@ -1,3 +1,3 @@
-from app.crud import user, quest, reward
+from app.crud import quest, reward, user
 
 __all__ = ["user", "quest", "reward"]

@@ -93,7 +93,7 @@ Edit files normally in your editor.
 
 ### 2. Rebuild (if needed)
 
-Frontend changes auto-reflect (Vite HMR inside container).  
+Frontend changes auto-reflect (Vite HMR inside container).
 Backend changes require container restart:
 
 ```bash

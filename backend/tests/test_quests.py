@@ -7,13 +7,10 @@ def home_with_user(client: TestClient):
     """Create a home with a user for test setup"""
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
-    
-    user_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "testuser", "password": "testpass"}
-    )
+
+    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
     user_id = user_response.json()["id"]
-    
+
     return home_id, user_id
 
 
@@ -22,25 +19,19 @@ def test_create_quest_template(client: TestClient):
     # Create home and user
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
-    
-    user_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
-    )
+
+    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"})
     user_id = user_response.json()["id"]
-    
+
     # Create template
     template_data = {
         "title": "Clean kitchen",
         "description": "Scrub counters and sink",
         "xp_reward": 25,
         "gold_reward": 10,
-        "recurrence": "one-off"
+        "recurrence": "one-off",
     }
-    response = client.post(
-        f"/api/quests/templates?created_by={user_id}",
-        json=template_data
-    )
+    response = client.post(f"/api/quests/templates?created_by={user_id}", json=template_data)
     assert response.status_code == 200
     assert response.json()["title"] == "Clean kitchen"
     assert response.json()["system"] is False
@@ -51,13 +42,10 @@ def test_create_quest_template_with_tags(client: TestClient):
     # Create home and user
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
-    
-    user_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
-    )
+
+    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"})
     user_id = user_response.json()["id"]
-    
+
     # Create template with tags
     template_data = {
         "title": "Clean kitchen",
@@ -65,12 +53,9 @@ def test_create_quest_template_with_tags(client: TestClient):
         "tags": "chores,cleaning,kitchen",
         "xp_reward": 25,
         "gold_reward": 10,
-        "recurrence": "one-off"
+        "recurrence": "one-off",
     }
-    response = client.post(
-        f"/api/quests/templates?created_by={user_id}",
-        json=template_data
-    )
+    response = client.post(f"/api/quests/templates?created_by={user_id}", json=template_data)
     assert response.status_code == 200
     assert response.json()["title"] == "Clean kitchen"
     assert response.json()["tags"] == "chores,cleaning,kitchen"
@@ -81,23 +66,17 @@ def test_create_quest_template_without_tags(client: TestClient):
     # Create home and user
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
-    
-    user_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
-    )
+
+    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"})
     user_id = user_response.json()["id"]
-    
+
     # Create template without tags
     template_data = {
         "title": "Clean kitchen",
         "xp_reward": 25,
         "gold_reward": 10,
     }
-    response = client.post(
-        f"/api/quests/templates?created_by={user_id}",
-        json=template_data
-    )
+    response = client.post(f"/api/quests/templates?created_by={user_id}", json=template_data)
     assert response.status_code == 200
     assert response.json()["tags"] is None
 
@@ -107,20 +86,16 @@ def test_get_quest_template(client: TestClient):
     # Setup
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
-    
-    user_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
-    )
+
+    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"})
     user_id = user_response.json()["id"]
-    
+
     # Create template
     template_response = client.post(
-        f"/api/quests/templates?created_by={user_id}",
-        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5}
+        f"/api/quests/templates?created_by={user_id}", json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5}
     )
     template_id = template_response.json()["id"]
-    
+
     # Retrieve template
     response = client.get(f"/api/quests/templates/{template_id}")
     assert response.status_code == 200
@@ -132,20 +107,17 @@ def test_get_home_quest_templates(client: TestClient):
     # Setup
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
-    
-    user_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
-    )
+
+    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"})
     user_id = user_response.json()["id"]
-    
+
     # Create templates
     for i in range(2):
         client.post(
             f"/api/quests/templates?created_by={user_id}",
-            json={"title": f"Template {i}", "xp_reward": 10, "gold_reward": 5}
+            json={"title": f"Template {i}", "xp_reward": 10, "gold_reward": 5},
         )
-    
+
     # Get templates
     response = client.get("/api/quests/templates/all")
     assert response.status_code == 200
@@ -155,26 +127,22 @@ def test_get_home_quest_templates(client: TestClient):
 def test_create_quest_from_template(client: TestClient, home_with_user):
     """Test creating a quest instance from a template"""
     home_id, user_id = home_with_user
-    
+
     # Create another user to be creator
     creator_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
+        f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"}
     )
     creator_id = creator_response.json()["id"]
-    
+
     # Create template
     template_response = client.post(
         f"/api/quests/templates?created_by={creator_id}",
-        json={"title": "Clean kitchen", "xp_reward": 25, "gold_reward": 10}
+        json={"title": "Clean kitchen", "xp_reward": 25, "gold_reward": 10},
     )
     template_id = template_response.json()["id"]
-    
+
     # Create quest from template
-    response = client.post(
-        f"/api/quests?user_id={user_id}",
-        json={"quest_template_id": template_id}
-    )
+    response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
     assert response.status_code == 200
     assert response.json()["quest_template_id"] == template_id
     assert response.json()["completed"] is False
@@ -183,27 +151,23 @@ def test_create_quest_from_template(client: TestClient, home_with_user):
 def test_get_all_quests(client: TestClient, home_with_user):
     """Test retrieving all quests"""
     home_id, user_id = home_with_user
-    
+
     # Create creator and template
     creator_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
+        f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"}
     )
     creator_id = creator_response.json()["id"]
-    
+
     template_response = client.post(
         f"/api/quests/templates?created_by={creator_id}",
-        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5}
+        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5},
     )
     template_id = template_response.json()["id"]
-    
+
     # Create multiple quests
     for i in range(3):
-        client.post(
-            f"/api/quests?user_id={user_id}",
-            json={"quest_template_id": template_id}
-        )
-    
+        client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
+
     # Retrieve all quests
     response = client.get("/api/quests")
     assert response.status_code == 200
@@ -213,27 +177,23 @@ def test_get_all_quests(client: TestClient, home_with_user):
 def test_get_quest(client: TestClient, home_with_user):
     """Test retrieving a quest"""
     home_id, user_id = home_with_user
-    
+
     # Create template
     creator_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
+        f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"}
     )
     creator_id = creator_response.json()["id"]
-    
+
     template_response = client.post(
         f"/api/quests/templates?created_by={creator_id}",
-        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5}
+        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5},
     )
     template_id = template_response.json()["id"]
-    
+
     # Create quest
-    quest_response = client.post(
-        f"/api/quests?user_id={user_id}",
-        json={"quest_template_id": template_id}
-    )
+    quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
     quest_id = quest_response.json()["id"]
-    
+
     # Retrieve quest
     response = client.get(f"/api/quests/{quest_id}?user_id={user_id}")
     assert response.status_code == 200
@@ -243,27 +203,23 @@ def test_get_quest(client: TestClient, home_with_user):
 def test_get_user_quests(client: TestClient, home_with_user):
     """Test retrieving all quests for a user"""
     home_id, user_id = home_with_user
-    
+
     # Create template
     creator_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
+        f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"}
     )
     creator_id = creator_response.json()["id"]
-    
+
     template_response = client.post(
         f"/api/quests/templates?created_by={creator_id}",
-        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5}
+        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5},
     )
     template_id = template_response.json()["id"]
-    
+
     # Create multiple quests
     for i in range(3):
-        client.post(
-            f"/api/quests?user_id={user_id}",
-            json={"quest_template_id": template_id}
-        )
-    
+        client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
+
     # Retrieve quests
     response = client.get(f"/api/quests/user/{user_id}?home_id={home_id}")
     assert response.status_code == 200
@@ -273,33 +229,26 @@ def test_get_user_quests(client: TestClient, home_with_user):
 def test_get_user_quests_filtered(client: TestClient, home_with_user):
     """Test retrieving quests filtered by completion status"""
     home_id, user_id = home_with_user
-    
+
     # Create template
     creator_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
+        f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"}
     )
     creator_id = creator_response.json()["id"]
-    
+
     template_response = client.post(
         f"/api/quests/templates?created_by={creator_id}",
-        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5}
+        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5},
     )
     template_id = template_response.json()["id"]
-    
+
     # Create and complete one quest
-    quest1 = client.post(
-        f"/api/quests?user_id={user_id}",
-        json={"quest_template_id": template_id}
-    ).json()
+    quest1 = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id}).json()
     client.post(f"/api/quests/{quest1['id']}/complete?user_id={user_id}")
-    
+
     # Create another incomplete quest
-    client.post(
-        f"/api/quests?user_id={user_id}",
-        json={"quest_template_id": template_id}
-    )
-    
+    client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
+
     # Filter for incomplete quests
     response = client.get(f"/api/quests/user/{user_id}?home_id={home_id}&completed=false")
     assert response.status_code == 200
@@ -309,27 +258,23 @@ def test_get_user_quests_filtered(client: TestClient, home_with_user):
 def test_complete_quest(client: TestClient, home_with_user):
     """Test completing a quest and awarding XP/gold"""
     home_id, user_id = home_with_user
-    
+
     # Create template
     creator_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
+        f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"}
     )
     creator_id = creator_response.json()["id"]
-    
+
     template_response = client.post(
         f"/api/quests/templates?created_by={creator_id}",
-        json={"title": "Test quest", "xp_reward": 50, "gold_reward": 25}
+        json={"title": "Test quest", "xp_reward": 50, "gold_reward": 25},
     )
     template_id = template_response.json()["id"]
-    
+
     # Create quest
-    quest_response = client.post(
-        f"/api/quests?user_id={user_id}",
-        json={"quest_template_id": template_id}
-    )
+    quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
     quest_id = quest_response.json()["id"]
-    
+
     # Complete quest
     response = client.post(f"/api/quests/{quest_id}/complete?user_id={user_id}")
     assert response.status_code == 200
@@ -347,30 +292,26 @@ def test_complete_quest(client: TestClient, home_with_user):
 def test_complete_quest_updates_level(client: TestClient, home_with_user):
     """Test that completing a quest updates user level"""
     home_id, user_id = home_with_user
-    
+
     # Create template with enough XP to level up
     creator_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
+        f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"}
     )
     creator_id = creator_response.json()["id"]
-    
+
     template_response = client.post(
         f"/api/quests/templates?created_by={creator_id}",
-        json={"title": "Mega quest", "xp_reward": 100, "gold_reward": 10}
+        json={"title": "Mega quest", "xp_reward": 100, "gold_reward": 10},
     )
     template_id = template_response.json()["id"]
-    
+
     # Create quest
-    quest_response = client.post(
-        f"/api/quests?user_id={user_id}",
-        json={"quest_template_id": template_id}
-    )
+    quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
     quest_id = quest_response.json()["id"]
-    
+
     # Complete quest
     client.post(f"/api/quests/{quest_id}/complete?user_id={user_id}")
-    
+
     # Verify user leveled up
     user = client.get(f"/api/users/{user_id}").json()
     assert user["level"] == 2
@@ -380,32 +321,25 @@ def test_complete_quest_updates_level(client: TestClient, home_with_user):
 def test_update_quest(client: TestClient, home_with_user):
     """Test updating a quest"""
     home_id, user_id = home_with_user
-    
+
     # Create template
     creator_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
+        f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"}
     )
     creator_id = creator_response.json()["id"]
-    
+
     template_response = client.post(
         f"/api/quests/templates?created_by={creator_id}",
-        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5}
+        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5},
     )
     template_id = template_response.json()["id"]
-    
+
     # Create quest
-    quest_response = client.post(
-        f"/api/quests?user_id={user_id}",
-        json={"quest_template_id": template_id}
-    )
+    quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
     quest_id = quest_response.json()["id"]
-    
+
     # Update quest
-    response = client.put(
-        f"/api/quests/{quest_id}?user_id={user_id}",
-        json={"completed": True}
-    )
+    response = client.put(f"/api/quests/{quest_id}?user_id={user_id}", json={"completed": True})
     assert response.status_code == 200
     assert response.json()["completed"] is True
 
@@ -413,31 +347,27 @@ def test_update_quest(client: TestClient, home_with_user):
 def test_complete_quest_twice_fails(client: TestClient, home_with_user):
     """Test that completing a quest twice is prevented"""
     home_id, user_id = home_with_user
-    
+
     # Create template
     creator_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
+        f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"}
     )
     creator_id = creator_response.json()["id"]
-    
+
     template_response = client.post(
         f"/api/quests/templates?created_by={creator_id}",
-        json={"title": "Test quest", "xp_reward": 50, "gold_reward": 25}
+        json={"title": "Test quest", "xp_reward": 50, "gold_reward": 25},
     )
     template_id = template_response.json()["id"]
-    
+
     # Create quest
-    quest_response = client.post(
-        f"/api/quests?user_id={user_id}",
-        json={"quest_template_id": template_id}
-    )
+    quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
     quest_id = quest_response.json()["id"]
-    
+
     # Complete quest first time
     response = client.post(f"/api/quests/{quest_id}/complete?user_id={user_id}")
     assert response.status_code == 200
-    
+
     # Try to complete again
     response = client.post(f"/api/quests/{quest_id}/complete?user_id={user_id}")
     assert response.status_code == 400
@@ -447,38 +377,31 @@ def test_complete_quest_twice_fails(client: TestClient, home_with_user):
 def test_quest_home_visibility(client: TestClient, home_with_user):
     """Test that all users in a home can see all quests in that home"""
     home_id, user1_id = home_with_user
-    
+
     # Create second user
-    user2_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "user2", "password": "user2pass"}
-    )
+    user2_response = client.post(f"/api/homes/{home_id}/join", json={"username": "user2", "password": "user2pass"})
     user2_id = user2_response.json()["id"]
-    
+
     # Create template
     creator_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
+        f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"}
     )
     creator_id = creator_response.json()["id"]
-    
+
     template_response = client.post(
         f"/api/quests/templates?created_by={creator_id}",
-        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5}
+        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5},
     )
     template_id = template_response.json()["id"]
-    
+
     # User1 creates a quest
-    quest_response = client.post(
-        f"/api/quests?user_id={user1_id}",
-        json={"quest_template_id": template_id}
-    )
+    quest_response = client.post(f"/api/quests?user_id={user1_id}", json={"quest_template_id": template_id})
     quest_id = quest_response.json()["id"]
-    
+
     # User2 can see user1's quest (home-scoped visibility)
     response = client.get(f"/api/quests/{quest_id}")
     assert response.status_code == 200
-    
+
     # User2 can complete user1's quest (family chore app model)
     response = client.post(f"/api/quests/{quest_id}/complete")
     assert response.status_code == 200
@@ -487,31 +410,27 @@ def test_quest_home_visibility(client: TestClient, home_with_user):
 def test_delete_quest(client: TestClient, home_with_user):
     """Test deleting a quest"""
     home_id, user_id = home_with_user
-    
+
     # Create template
     creator_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
+        f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"}
     )
     creator_id = creator_response.json()["id"]
-    
+
     template_response = client.post(
         f"/api/quests/templates?created_by={creator_id}",
-        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5}
+        json={"title": "Test quest", "xp_reward": 10, "gold_reward": 5},
     )
     template_id = template_response.json()["id"]
-    
+
     # Create quest
-    quest_response = client.post(
-        f"/api/quests?user_id={user_id}",
-        json={"quest_template_id": template_id}
-    )
+    quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
     quest_id = quest_response.json()["id"]
-    
+
     # Delete quest
     response = client.delete(f"/api/quests/{quest_id}?user_id={user_id}")
     assert response.status_code == 200
-    
+
     # Verify quest is deleted
     response = client.get(f"/api/quests/{quest_id}?user_id={user_id}")
     assert response.status_code == 404
@@ -520,34 +439,25 @@ def test_delete_quest(client: TestClient, home_with_user):
 def test_quest_template_tags_in_quest_response(client: TestClient, home_with_user):
     """Test that tags from template are included in quest response"""
     home_id, user_id = home_with_user
-    
+
     # Create creator
     creator_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
+        f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"}
     )
     creator_id = creator_response.json()["id"]
-    
+
     # Create template with tags
     template_response = client.post(
         f"/api/quests/templates?created_by={creator_id}",
-        json={
-            "title": "Exercise",
-            "tags": "health,exercise",
-            "xp_reward": 50,
-            "gold_reward": 20
-        }
+        json={"title": "Exercise", "tags": "health,exercise", "xp_reward": 50, "gold_reward": 20},
     )
     template_id = template_response.json()["id"]
-    
+
     # Create quest from template
-    quest_response = client.post(
-        f"/api/quests?user_id={user_id}",
-        json={"quest_template_id": template_id}
-    )
+    quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
     assert quest_response.status_code == 200
     quest_data = quest_response.json()
-    
+
     # Verify template data including tags is in quest response
     assert quest_data["template"]["tags"] == "health,exercise"
     assert quest_data["template"]["title"] == "Exercise"
@@ -556,25 +466,20 @@ def test_quest_template_tags_in_quest_response(client: TestClient, home_with_use
 def test_update_quest_template(client: TestClient, home_with_user):
     """Test updating a quest template"""
     home_id, user_id = home_with_user
-    
+
     # Create creator
     creator_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
+        f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"}
     )
     creator_id = creator_response.json()["id"]
-    
+
     # Create template
     template_response = client.post(
         f"/api/quests/templates?created_by={creator_id}",
-        json={
-            "title": "Clean Kitchen",
-            "xp_reward": 25,
-            "gold_reward": 10
-        }
+        json={"title": "Clean Kitchen", "xp_reward": 25, "gold_reward": 10},
     )
     template_id = template_response.json()["id"]
-    
+
     # Update template with description, tags, and new rewards
     update_response = client.put(
         f"/api/quests/templates/{template_id}",
@@ -583,19 +488,19 @@ def test_update_quest_template(client: TestClient, home_with_user):
             "description": "Scrub counters, wash dishes, take out trash",
             "tags": "chores,cleaning",
             "xp_reward": 50,
-            "gold_reward": 25
-        }
+            "gold_reward": 25,
+        },
     )
     assert update_response.status_code == 200
     updated = update_response.json()
-    
+
     # Verify all fields updated
     assert updated["display_name"] == "The Cookery Cleanup"
     assert updated["description"] == "Scrub counters, wash dishes, take out trash"
     assert updated["tags"] == "chores,cleaning"
     assert updated["xp_reward"] == 50
     assert updated["gold_reward"] == 25
-    
+
     # Verify original title unchanged
     assert updated["title"] == "Clean Kitchen"
 
@@ -603,35 +508,25 @@ def test_update_quest_template(client: TestClient, home_with_user):
 def test_update_quest_template_partial(client: TestClient, home_with_user):
     """Test partial update of quest template (only some fields)"""
     home_id, user_id = home_with_user
-    
+
     # Create creator
     creator_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "creator", "password": "creatorpass"}
+        f"/api/homes/{home_id}/join", json={"username": "creator", "password": "creatorpass"}
     )
     creator_id = creator_response.json()["id"]
-    
+
     # Create template
     template_response = client.post(
         f"/api/quests/templates?created_by={creator_id}",
-        json={
-            "title": "Clean Kitchen",
-            "xp_reward": 25,
-            "gold_reward": 10
-        }
+        json={"title": "Clean Kitchen", "xp_reward": 25, "gold_reward": 10},
     )
     template_id = template_response.json()["id"]
-    
+
     # Update only tags
-    update_response = client.put(
-        f"/api/quests/templates/{template_id}",
-        json={
-            "tags": "chores"
-        }
-    )
+    update_response = client.put(f"/api/quests/templates/{template_id}", json={"tags": "chores"})
     assert update_response.status_code == 200
     updated = update_response.json()
-    
+
     # Verify only tags changed, other fields remain
     assert updated["tags"] == "chores"
     assert updated["xp_reward"] == 25  # unchanged
@@ -644,36 +539,30 @@ def test_update_quest_template_home_isolation(client: TestClient):
     # Create home 1 with user and template
     home1_response = client.post("/api/homes", json={"name": "Home 1"})
     home1_id = home1_response.json()["id"]
-    
-    user1_response = client.post(
-        f"/api/homes/{home1_id}/join",
-        json={"username": "user1", "password": "pass1"}
-    )
+
+    user1_response = client.post(f"/api/homes/{home1_id}/join", json={"username": "user1", "password": "pass1"})
     user1_id = user1_response.json()["id"]
-    
+
     # Create template in home 1
     template_response = client.post(
         f"/api/quests/templates?created_by={user1_id}",
-        json={"title": "Home 1 Quest", "xp_reward": 25, "gold_reward": 10}
+        json={"title": "Home 1 Quest", "xp_reward": 25, "gold_reward": 10},
     )
     template_id = template_response.json()["id"]
-    
+
     # Create home 2 with different user
     home2_response = client.post("/api/homes", json={"name": "Home 2"})
     home2_id = home2_response.json()["id"]
-    
-    user2_response = client.post(
-        f"/api/homes/{home2_id}/join",
-        json={"username": "user2", "password": "pass2"}
-    )
+
+    user2_response = client.post(f"/api/homes/{home2_id}/join", json={"username": "user2", "password": "pass2"})
     # Don't use user2, let's logout and simulate being in home 2 context
-    
+
     # Try to update template from home 1 (should fail because user2 is in home 2)
     # This requires login context, so we can only test indirectly
     # Simulating: user from home 2 tries to access home 1's template
     # Since we don't have cross-home auth in tests, we can at least test 404
     update_response = client.put(
-        f"/api/quests/templates/999999",  # Non-existent template
-        json={"tags": "should-fail"}
+        "/api/quests/templates/999999",  # Non-existent template
+        json={"tags": "should-fail"},
     )
     assert update_response.status_code == 404

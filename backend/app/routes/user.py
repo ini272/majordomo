@@ -1,10 +1,12 @@
-from typing import List, Dict
+from typing import Dict, List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
-from app.database import get_db
-from app.models.user import User, UserCreate, UserRead, UserUpdate
-from app.crud import user as crud_user
+
 from app.auth import get_current_user
+from app.crud import user as crud_user
+from app.database import get_db
+from app.models.user import UserRead, UserUpdate
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -31,45 +33,51 @@ def get_user(user_id: int, db: Session = Depends(get_db), auth: Dict = Depends(g
     user = crud_user.get_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     # Verify user belongs to authenticated home
     if user.home_id != auth["home_id"]:
         raise HTTPException(status_code=403, detail="Not authorized to access this user")
-    
+
     return user
 
 
 # POST endpoints
 @router.post("/{user_id}/xp")
-def add_xp_to_user(user_id: int, amount: int = Query(..., ge=0), db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def add_xp_to_user(
+    user_id: int, amount: int = Query(..., ge=0), db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)
+):
     """Add XP to user"""
     user = crud_user.get_user(db, user_id)
     if not user or user.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     user = crud_user.add_xp(db, user_id, amount)
     return user
 
 
 @router.post("/{user_id}/gold")
-def add_gold_to_user(user_id: int, amount: int = Query(..., ge=0), db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def add_gold_to_user(
+    user_id: int, amount: int = Query(..., ge=0), db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)
+):
     """Add gold to user"""
     user = crud_user.get_user(db, user_id)
     if not user or user.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     user = crud_user.add_gold(db, user_id, amount)
     return user
 
 
 # PUT endpoints
 @router.put("/{user_id}", response_model=UserRead)
-def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def update_user(
+    user_id: int, user_update: UserUpdate, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)
+):
     """Update user"""
     user = crud_user.get_user(db, user_id)
     if not user or user.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     user = crud_user.update_user(db, user_id, user_update)
     return user
 
@@ -81,8 +89,8 @@ def delete_user(user_id: int, db: Session = Depends(get_db), auth: Dict = Depend
     user = crud_user.get_user(db, user_id)
     if not user or user.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     if not crud_user.delete_user(db, user_id):
         raise HTTPException(status_code=404, detail="Failed to delete user")
-    
+
     return {"detail": "User deleted"}

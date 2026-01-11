@@ -1,7 +1,9 @@
-from typing import Optional
-from datetime import date, timedelta
 import random
-from sqlmodel import select, Session
+from datetime import date, timedelta
+from typing import Optional
+
+from sqlmodel import Session, select
+
 from app.models.daily_bounty import DailyBounty
 from app.models.quest import QuestTemplate
 
@@ -9,9 +11,7 @@ from app.models.quest import QuestTemplate
 def get_bounty_for_date(db: Session, home_id: int, target_date: date) -> Optional[DailyBounty]:
     """Get the daily bounty for a specific date and home"""
     return db.exec(
-        select(DailyBounty)
-        .where(DailyBounty.home_id == home_id)
-        .where(DailyBounty.bounty_date == target_date)
+        select(DailyBounty).where(DailyBounty.home_id == home_id).where(DailyBounty.bounty_date == target_date)
     ).first()
 
 
@@ -20,7 +20,9 @@ def get_today_bounty(db: Session, home_id: int) -> Optional[DailyBounty]:
     return get_bounty_for_date(db, home_id, date.today())
 
 
-def select_random_template(db: Session, home_id: int, exclude_template_id: Optional[int] = None) -> Optional[QuestTemplate]:
+def select_random_template(
+    db: Session, home_id: int, exclude_template_id: Optional[int] = None
+) -> Optional[QuestTemplate]:
     """Select a random quest template from the home's templates"""
     query = select(QuestTemplate).where(QuestTemplate.home_id == home_id)
 
@@ -37,11 +39,7 @@ def select_random_template(db: Session, home_id: int, exclude_template_id: Optio
 
 def create_bounty(db: Session, home_id: int, quest_template_id: int, target_date: date) -> DailyBounty:
     """Create a new daily bounty record"""
-    db_bounty = DailyBounty(
-        home_id=home_id,
-        quest_template_id=quest_template_id,
-        bounty_date=target_date
-    )
+    db_bounty = DailyBounty(home_id=home_id, quest_template_id=quest_template_id, bounty_date=target_date)
     db.add(db_bounty)
     db.commit()
     db.refresh(db_bounty)

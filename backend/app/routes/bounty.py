@@ -1,10 +1,12 @@
 from typing import Dict
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
-from app.database import get_db
+
 from app.auth import get_current_user
 from app.crud import daily_bounty as crud_daily_bounty
 from app.crud import quest_template as crud_quest_template
+from app.database import get_db
 from app.models.quest import QuestTemplateRead
 
 router = APIRouter(prefix="/api/bounty", tags=["bounty"])
@@ -23,10 +25,7 @@ def get_today_bounty(
     bounty = crud_daily_bounty.get_or_create_today_bounty(db, auth["home_id"])
 
     if not bounty:
-        return {
-            "bounty": None,
-            "message": "No quest templates available to create bounty"
-        }
+        return {"bounty": None, "message": "No quest templates available to create bounty"}
 
     # Get full template data
     template = crud_quest_template.get_quest_template(db, bounty.quest_template_id)
@@ -56,10 +55,7 @@ def refresh_bounty(
     bounty = crud_daily_bounty.refresh_bounty(db, auth["home_id"])
 
     if not bounty:
-        raise HTTPException(
-            status_code=400,
-            detail="No quest templates available to create bounty"
-        )
+        raise HTTPException(status_code=400, detail="No quest templates available to create bounty")
 
     # Get full template data
     template = crud_quest_template.get_quest_template(db, bounty.quest_template_id)

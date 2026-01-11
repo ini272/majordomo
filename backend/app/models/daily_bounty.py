@@ -1,11 +1,13 @@
-from datetime import datetime, timezone
 from datetime import date as date_type
+from datetime import datetime, timezone
 from typing import Optional
-from sqlmodel import SQLModel, Field
+
+from sqlmodel import Field, SQLModel
 
 
 class DailyBounty(SQLModel, table=True):
     """DailyBounty model tracking daily bounty selection per home"""
+
     __tablename__ = "daily_bounty"
 
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -17,6 +19,7 @@ class DailyBounty(SQLModel, table=True):
 
 class DailyBountyRead(SQLModel):
     """Schema for reading daily bounty data"""
+
     id: int
     home_id: int
     quest_template_id: int

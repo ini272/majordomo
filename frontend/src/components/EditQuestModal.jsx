@@ -1,19 +1,31 @@
-import { useState, useEffect, useCallback } from 'react';
-import { api } from '../services/api';
-import { COLORS, PARCHMENT_STYLES } from '../constants/colors';
-import StewardImage from '../assets/thesteward.png';
-import ParchmentTypeWriter from './ParchmentTypeWriter';
+import { useState, useEffect, useCallback } from "react";
+import { api } from "../services/api";
+import { COLORS, PARCHMENT_STYLES } from "../constants/colors";
+import StewardImage from "../assets/thesteward.png";
+import ParchmentTypeWriter from "./ParchmentTypeWriter";
 
-const AVAILABLE_TAGS = ['Chores', 'Learning', 'Exercise', 'Health', 'Organization'];
+const AVAILABLE_TAGS = [
+  "Chores",
+  "Learning",
+  "Exercise",
+  "Health",
+  "Organization",
+];
 
-export default function EditQuestModal({ templateId, token, skipAI, onSave, onClose }) {
+export default function EditQuestModal({
+  templateId,
+  token,
+  skipAI,
+  onSave,
+  onClose,
+}) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  
+
   const [template, setTemplate] = useState(null);
-  const [displayName, setDisplayName] = useState('');
-  const [description, setDescription] = useState('');
+  const [displayName, setDisplayName] = useState("");
+  const [description, setDescription] = useState("");
   const [selectedTags, setSelectedTags] = useState([]);
   const [time, setTime] = useState(2);
   const [effort, setEffort] = useState(2);
@@ -27,7 +39,7 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
       try {
         // Wait for Groq background task to complete (unless skipping AI)
         if (!skipAI) {
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await new Promise((resolve) => setTimeout(resolve, 1500));
         }
 
         // Fetch the template
@@ -35,12 +47,12 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
         setTemplate(response);
 
         // Set form values from template
-        setDisplayName(response.display_name || '');
-        setDescription(response.description || '');
-        
+        setDisplayName(response.display_name || "");
+        setDescription(response.description || "");
+
         // Parse tags
         if (response.tags) {
-          const tags = response.tags.split(',').map(t => {
+          const tags = response.tags.split(",").map((t) => {
             const trimmed = t.trim();
             // Capitalize first letter to match AVAILABLE_TAGS
             return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
@@ -74,12 +86,17 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
       const updateData = {
         display_name: displayName.trim() || null,
         description: description.trim() || null,
-        tags: selectedTags.length > 0 ? selectedTags.join(',').toLowerCase() : null,
+        tags:
+          selectedTags.length > 0 ? selectedTags.join(",").toLowerCase() : null,
         xp_reward: baseXP,
         gold_reward: baseGold,
       };
 
-      const updated = await api.quests.updateTemplate(templateId, updateData, token);
+      const updated = await api.quests.updateTemplate(
+        templateId,
+        updateData,
+        token,
+      );
       onSave?.(updated);
       onClose?.();
     } catch (err) {
@@ -87,7 +104,18 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
     } finally {
       setSaving(false);
     }
-  }, [time, effort, dread, displayName, description, selectedTags, templateId, token, onSave, onClose]);
+  }, [
+    time,
+    effort,
+    dread,
+    displayName,
+    description,
+    selectedTags,
+    templateId,
+    token,
+    onSave,
+    onClose,
+  ]);
 
   const xp = (time + effort + dread) * 2;
   const gold = Math.floor(xp / 2);
@@ -96,14 +124,21 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div
         className="w-full max-w-4xl p-6 md:p-8 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto flex gap-6"
-        style={{ backgroundColor: COLORS.darkPanel, borderColor: COLORS.gold, borderWidth: '2px' }}
+        style={{
+          backgroundColor: COLORS.darkPanel,
+          borderColor: COLORS.gold,
+          borderWidth: "2px",
+        }}
       >
         {/* Form Content */}
         <div className="flex-1 min-w-0">
           {/* Header */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-serif font-bold" style={{ color: COLORS.gold }}>
+              <h2
+                className="text-2xl font-serif font-bold"
+                style={{ color: COLORS.gold }}
+              >
                 Scribe Quest Details
               </h2>
               <button
@@ -115,7 +150,6 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
                 ✕
               </button>
             </div>
-
           </div>
 
           {/* Error */}
@@ -125,7 +159,7 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
               style={{
                 backgroundColor: COLORS.redDarker,
                 borderColor: COLORS.redBorder,
-                borderWidth: '1px',
+                borderWidth: "1px",
                 color: COLORS.redLight,
               }}
             >
@@ -141,11 +175,14 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
                   className="w-12 h-12 border-4 rounded-full"
                   style={{
                     borderColor: COLORS.gold,
-                    borderTopColor: 'transparent',
+                    borderTopColor: "transparent",
                   }}
                 />
               </div>
-              <p className="text-center font-serif" style={{ color: COLORS.brown }}>
+              <p
+                className="text-center font-serif"
+                style={{ color: COLORS.brown }}
+              >
                 The Scribe is weaving your quest...
               </p>
             </div>
@@ -153,12 +190,24 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
             <>
               {/* Display Name */}
               <div className="mb-6">
-                <label className="block text-sm uppercase tracking-wider mb-2 font-serif" style={{ color: COLORS.gold }}>
+                <label
+                  className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                  style={{ color: COLORS.gold }}
+                >
                   Quest Name (Fantasy)
                 </label>
                 {showTypeWriter ? (
-                  <div onClick={() => setShowTypeWriter(false)} title="Click to skip animation" className="cursor-pointer">
-                    <ParchmentTypeWriter text={displayName} speed={30} delay={200} onComplete={() => setNameAnimationDone(true)} />
+                  <div
+                    onClick={() => setShowTypeWriter(false)}
+                    title="Click to skip animation"
+                    className="cursor-pointer"
+                  >
+                    <ParchmentTypeWriter
+                      text={displayName}
+                      speed={30}
+                      delay={200}
+                      onComplete={() => setNameAnimationDone(true)}
+                    />
                   </div>
                 ) : (
                   <div
@@ -177,10 +226,10 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
                       placeholder="e.g., The Cookery Cleanup"
                       className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
                       style={{
-                        backgroundColor: 'transparent',
-                        border: 'none',
+                        backgroundColor: "transparent",
+                        border: "none",
                         color: PARCHMENT_STYLES.textColor,
-                        fontFamily: 'Georgia, serif',
+                        fontFamily: "Georgia, serif",
                       }}
                       disabled={saving}
                     />
@@ -190,12 +239,24 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
 
               {/* Description */}
               <div className="mb-6">
-                <label className="block text-sm uppercase tracking-wider mb-2 font-serif" style={{ color: COLORS.gold }}>
+                <label
+                  className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                  style={{ color: COLORS.gold }}
+                >
                   Description
                 </label>
                 {showTypeWriter && nameAnimationDone ? (
-                  <div onClick={() => setShowTypeWriter(false)} title="Click to skip animation" className="cursor-pointer">
-                    <ParchmentTypeWriter text={description} speed={40} delay={200} onComplete={() => setShowTypeWriter(false)} />
+                  <div
+                    onClick={() => setShowTypeWriter(false)}
+                    title="Click to skip animation"
+                    className="cursor-pointer"
+                  >
+                    <ParchmentTypeWriter
+                      text={description}
+                      speed={40}
+                      delay={200}
+                      onComplete={() => setShowTypeWriter(false)}
+                    />
                   </div>
                 ) : showTypeWriter ? (
                   <div
@@ -204,7 +265,7 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
                       backgroundColor: PARCHMENT_STYLES.backgroundColor,
                       backgroundImage: PARCHMENT_STYLES.backgroundImage,
                       border: `2px solid ${PARCHMENT_STYLES.borderColor}`,
-                      minHeight: '100px',
+                      minHeight: "100px",
                       boxShadow: PARCHMENT_STYLES.boxShadow,
                     }}
                   />
@@ -225,11 +286,11 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
                       rows="3"
                       className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
                       style={{
-                        backgroundColor: 'transparent',
-                        border: 'none',
+                        backgroundColor: "transparent",
+                        border: "none",
                         color: PARCHMENT_STYLES.textColor,
-                        fontFamily: 'Georgia, serif',
-                        resize: 'none',
+                        fontFamily: "Georgia, serif",
+                        resize: "none",
                       }}
                       disabled={saving}
                     />
@@ -239,7 +300,10 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
 
               {/* Tags */}
               <div className="mb-6">
-                <label className="block text-sm uppercase tracking-wider mb-2 font-serif" style={{ color: COLORS.gold }}>
+                <label
+                  className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                  style={{ color: COLORS.gold }}
+                >
                   Tags (Optional)
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -249,17 +313,23 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
                       type="button"
                       onClick={() => {
                         if (selectedTags.includes(tag)) {
-                          setSelectedTags(selectedTags.filter((t) => t !== tag));
+                          setSelectedTags(
+                            selectedTags.filter((t) => t !== tag),
+                          );
                         } else {
                           setSelectedTags([...selectedTags, tag]);
                         }
                       }}
                       className="px-3 py-1 text-xs uppercase tracking-wider font-serif rounded transition-all"
                       style={{
-                        backgroundColor: selectedTags.includes(tag) ? COLORS.gold : `rgba(212, 175, 55, 0.2)`,
-                        color: selectedTags.includes(tag) ? COLORS.darkPanel : COLORS.gold,
+                        backgroundColor: selectedTags.includes(tag)
+                          ? COLORS.gold
+                          : `rgba(212, 175, 55, 0.2)`,
+                        color: selectedTags.includes(tag)
+                          ? COLORS.darkPanel
+                          : COLORS.gold,
                         border: `1px solid ${COLORS.gold}`,
-                        cursor: saving ? 'not-allowed' : 'pointer',
+                        cursor: saving ? "not-allowed" : "pointer",
                       }}
                       disabled={saving}
                     >
@@ -270,14 +340,27 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
               </div>
 
               {/* Sliders */}
-              <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: `rgba(212, 175, 55, 0.1)`, borderColor: COLORS.gold, borderWidth: '1px' }}>
-                <h3 className="text-sm uppercase tracking-wider mb-4 font-serif" style={{ color: COLORS.gold }}>
+              <div
+                className="mb-6 p-4 rounded-lg"
+                style={{
+                  backgroundColor: `rgba(212, 175, 55, 0.1)`,
+                  borderColor: COLORS.gold,
+                  borderWidth: "1px",
+                }}
+              >
+                <h3
+                  className="text-sm uppercase tracking-wider mb-4 font-serif"
+                  style={{ color: COLORS.gold }}
+                >
                   Difficulty Assessment
                 </h3>
 
                 {/* Time Slider */}
                 <div className="mb-4">
-                  <label className="block text-xs uppercase tracking-wider mb-2 font-serif" style={{ color: COLORS.parchment }}>
+                  <label
+                    className="block text-xs uppercase tracking-wider mb-2 font-serif"
+                    style={{ color: COLORS.parchment }}
+                  >
                     Time: {time}/5 (1=Quick, 5=Long)
                   </label>
                   <input
@@ -294,7 +377,10 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
 
                 {/* Effort Slider */}
                 <div className="mb-4">
-                  <label className="block text-xs uppercase tracking-wider mb-2 font-serif" style={{ color: COLORS.parchment }}>
+                  <label
+                    className="block text-xs uppercase tracking-wider mb-2 font-serif"
+                    style={{ color: COLORS.parchment }}
+                  >
                     Effort: {effort}/5 (1=Easy, 5=Hard)
                   </label>
                   <input
@@ -311,7 +397,10 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
 
                 {/* Dread Slider */}
                 <div className="mb-4">
-                  <label className="block text-xs uppercase tracking-wider mb-2 font-serif" style={{ color: COLORS.parchment }}>
+                  <label
+                    className="block text-xs uppercase tracking-wider mb-2 font-serif"
+                    style={{ color: COLORS.parchment }}
+                  >
                     Dread: {dread}/5 (1=Love it, 5=Hate it)
                   </label>
                   <input
@@ -328,20 +417,35 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
               </div>
 
               {/* Rewards Preview */}
-              <div className="grid grid-cols-2 gap-4 mb-6 p-4 rounded-lg" style={{ backgroundColor: `rgba(212, 175, 55, 0.1)` }}>
+              <div
+                className="grid grid-cols-2 gap-4 mb-6 p-4 rounded-lg"
+                style={{ backgroundColor: `rgba(212, 175, 55, 0.1)` }}
+              >
                 <div className="text-center">
-                  <div className="text-xs uppercase tracking-wider mb-1 font-serif" style={{ color: COLORS.brown }}>
+                  <div
+                    className="text-xs uppercase tracking-wider mb-1 font-serif"
+                    style={{ color: COLORS.brown }}
+                  >
                     XP Reward
                   </div>
-                  <div className="text-2xl font-serif font-bold" style={{ color: COLORS.gold }}>
+                  <div
+                    className="text-2xl font-serif font-bold"
+                    style={{ color: COLORS.gold }}
+                  >
                     {xp}
                   </div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xs uppercase tracking-wider mb-1 font-serif" style={{ color: COLORS.brown }}>
+                  <div
+                    className="text-xs uppercase tracking-wider mb-1 font-serif"
+                    style={{ color: COLORS.brown }}
+                  >
                     Gold Reward
                   </div>
-                  <div className="text-2xl font-serif font-bold" style={{ color: COLORS.gold }}>
+                  <div
+                    className="text-2xl font-serif font-bold"
+                    style={{ color: COLORS.gold }}
+                  >
                     {gold}
                   </div>
                 </div>
@@ -356,9 +460,9 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
                   style={{
                     backgroundColor: `rgba(212, 175, 55, 0.1)`,
                     borderColor: COLORS.gold,
-                    borderWidth: '2px',
+                    borderWidth: "2px",
                     color: COLORS.gold,
-                    cursor: saving ? 'not-allowed' : 'pointer',
+                    cursor: saving ? "not-allowed" : "pointer",
                     opacity: saving ? 0.5 : 1,
                   }}
                 >
@@ -369,15 +473,17 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
                   disabled={saving}
                   className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all"
                   style={{
-                    backgroundColor: saving ? `rgba(212, 175, 55, 0.1)` : `rgba(212, 175, 55, 0.2)`,
+                    backgroundColor: saving
+                      ? `rgba(212, 175, 55, 0.1)`
+                      : `rgba(212, 175, 55, 0.2)`,
                     borderColor: COLORS.gold,
-                    borderWidth: '2px',
+                    borderWidth: "2px",
                     color: COLORS.gold,
-                    cursor: saving ? 'not-allowed' : 'pointer',
+                    cursor: saving ? "not-allowed" : "pointer",
                     opacity: saving ? 0.5 : 1,
                   }}
                 >
-                  {saving ? 'Saving...' : 'Save Quest'}
+                  {saving ? "Saving..." : "Save Quest"}
                 </button>
               </div>
             </>
@@ -390,7 +496,7 @@ export default function EditQuestModal({ templateId, token, skipAI, onSave, onCl
             src={StewardImage}
             alt="The Steward"
             className="w-full h-auto object-contain"
-            style={{ maxHeight: '600px' }}
+            style={{ maxHeight: "600px" }}
           />
         </div>
       </div>

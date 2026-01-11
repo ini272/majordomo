@@ -6,7 +6,7 @@ const getAPIURL = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  
+
   const { hostname, protocol } = window.location;
   return `${protocol}//${hostname}:8000/api`;
 };
@@ -16,126 +16,129 @@ export const api = {
   auth: {
     login: async (homeId, username, password) => {
       const res = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ home_id: homeId, username, password })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ home_id: homeId, username, password }),
       });
-      if (!res.ok) throw new Error('Login failed');
+      if (!res.ok) throw new Error("Login failed");
       return res.json();
-    }
+    },
   },
 
   user: {
     getStats: async (token) => {
       const res = await fetch(`${API_URL}/users/me`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Failed to fetch user stats');
+      if (!res.ok) throw new Error("Failed to fetch user stats");
       return res.json();
-    }
+    },
   },
-  
+
   quests: {
     getAll: async (token) => {
       const res = await fetch(`${API_URL}/quests`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Failed to fetch quests');
+      if (!res.ok) throw new Error("Failed to fetch quests");
       return res.json();
     },
 
     getTemplate: async (templateId, token) => {
       const res = await fetch(`${API_URL}/quests/templates/${templateId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Failed to fetch quest template');
+      if (!res.ok) throw new Error("Failed to fetch quest template");
       return res.json();
     },
 
     updateTemplate: async (templateId, templateData, token) => {
       const res = await fetch(`${API_URL}/quests/templates/${templateId}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(templateData)
+        body: JSON.stringify(templateData),
       });
-      if (!res.ok) throw new Error('Failed to update quest template');
+      if (!res.ok) throw new Error("Failed to update quest template");
       return res.json();
     },
-    
+
     complete: async (questId, token) => {
       const res = await fetch(`${API_URL}/quests/${questId}/complete`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Failed to complete quest');
+      if (!res.ok) throw new Error("Failed to complete quest");
       return res.json();
     },
 
     createTemplate: async (templateData, token, createdBy, skipAI = false) => {
-      const res = await fetch(`${API_URL}/quests/templates?created_by=${createdBy}&skip_ai=${skipAI}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+      const res = await fetch(
+        `${API_URL}/quests/templates?created_by=${createdBy}&skip_ai=${skipAI}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(templateData),
         },
-        body: JSON.stringify(templateData)
-      });
-      if (!res.ok) throw new Error('Failed to create quest template');
+      );
+      if (!res.ok) throw new Error("Failed to create quest template");
       return res.json();
     },
 
     create: async (questData, token, userId) => {
       const res = await fetch(`${API_URL}/quests?user_id=${userId}`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(questData)
+        body: JSON.stringify(questData),
       });
-      if (!res.ok) throw new Error('Failed to create quest');
+      if (!res.ok) throw new Error("Failed to create quest");
       return res.json();
-    }
+    },
   },
 
   triggers: {
     quest: async (questTemplateId, token) => {
       const res = await fetch(`${API_URL}/triggers/quest/${questTemplateId}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Failed to trigger quest');
+      if (!res.ok) throw new Error("Failed to trigger quest");
       return res.json();
-    }
+    },
   },
 
   bounty: {
     getToday: async (token) => {
       const res = await fetch(`${API_URL}/bounty/today`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Failed to fetch daily bounty');
+      if (!res.ok) throw new Error("Failed to fetch daily bounty");
       return res.json();
     },
 
     refresh: async (token) => {
       const res = await fetch(`${API_URL}/bounty/refresh`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Failed to refresh daily bounty');
+      if (!res.ok) throw new Error("Failed to refresh daily bounty");
       return res.json();
     },
 
     checkTemplate: async (templateId, token) => {
       const res = await fetch(`${API_URL}/bounty/check/${templateId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Failed to check bounty status');
+      if (!res.ok) throw new Error("Failed to check bounty status");
       return res.json();
-    }
-  }
+    },
+  },
 };

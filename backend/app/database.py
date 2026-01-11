@@ -1,14 +1,13 @@
 import os
+
 from sqlalchemy import create_engine
-from sqlmodel import SQLModel, Session
+from sqlmodel import Session, SQLModel
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./majordomo.db")
 
 # Create engine with SQLite-specific settings
 engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    echo=os.getenv("SQL_ECHO", "false").lower() == "true"
+    DATABASE_URL, connect_args={"check_same_thread": False}, echo=os.getenv("SQL_ECHO", "false").lower() == "true"
 )
 
 

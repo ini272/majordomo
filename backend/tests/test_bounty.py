@@ -1,5 +1,6 @@
-import pytest
 from datetime import date
+
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -11,10 +12,7 @@ def home_with_templates(client: TestClient):
     home_id = home_response.json()["id"]
 
     # Create user
-    user_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "testuser", "password": "testpass"}
-    )
+    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
     user_id = user_response.json()["id"]
 
     # Create quest templates
@@ -26,10 +24,7 @@ def home_with_templates(client: TestClient):
     ]
 
     for data in template_data:
-        response = client.post(
-            f"/api/quests/templates?created_by={user_id}&skip_ai=true",
-            json=data
-        )
+        response = client.post(f"/api/quests/templates?created_by={user_id}&skip_ai=true", json=data)
         templates.append(response.json())
 
     return home_id, user_id, templates
@@ -128,10 +123,7 @@ def test_complete_bounty_quest_gives_double_rewards(client: TestClient, home_wit
     bounty_template_id = bounty_template["id"]
 
     # Create a quest from the bounty template
-    quest_response = client.post(
-        f"/api/quests?user_id={user_id}",
-        json={"quest_template_id": bounty_template_id}
-    )
+    quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": bounty_template_id})
     quest_id = quest_response.json()["id"]
 
     # Get user stats before completion
@@ -169,10 +161,7 @@ def test_complete_non_bounty_quest_gives_normal_rewards(client: TestClient, home
     other_template = [t for t in templates if t["id"] != bounty_template_id][0]
 
     # Create quest from non-bounty template
-    quest_response = client.post(
-        f"/api/quests?user_id={user_id}",
-        json={"quest_template_id": other_template["id"]}
-    )
+    quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": other_template["id"]})
     quest_id = quest_response.json()["id"]
 
     # Get user stats before completion
@@ -204,10 +193,7 @@ def test_bounty_with_no_templates(client: TestClient):
     home_response = client.post("/api/homes", json={"name": "Empty Home"})
     home_id = home_response.json()["id"]
 
-    user_response = client.post(
-        f"/api/homes/{home_id}/join",
-        json={"username": "testuser", "password": "testpass"}
-    )
+    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
 
     # Try to get bounty
     response = client.get("/api/bounty/today")

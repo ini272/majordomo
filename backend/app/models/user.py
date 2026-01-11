@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
-from typing import Optional, List, TYPE_CHECKING
-from sqlmodel import SQLModel, Field, Relationship
+from typing import TYPE_CHECKING, List, Optional
+
+from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from app.models.home import Home
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
 
 class User(SQLModel, table=True):
     """User model representing a home member"""
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     home_id: int = Field(foreign_key="home.id", index=True)
     username: str = Field(index=True)
@@ -19,7 +20,7 @@ class User(SQLModel, table=True):
     xp: int = Field(default=0)
     gold_balance: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    
+
     # Relationships
     home: "Home" = Relationship(back_populates="users")
     quests: List["Quest"] = Relationship(back_populates="user")
@@ -28,6 +29,7 @@ class User(SQLModel, table=True):
 
 class UserRead(SQLModel):
     """Schema for reading user data"""
+
     id: int
     home_id: int
     username: str
@@ -39,12 +41,14 @@ class UserRead(SQLModel):
 
 class UserCreate(SQLModel):
     """Schema for creating a user"""
+
     username: str = Field(min_length=1, max_length=50)
     password: str = Field(min_length=1)
 
 
 class UserUpdate(SQLModel):
     """Schema for updating user data"""
+
     level: Optional[int] = Field(default=None, ge=1)
     xp: Optional[int] = Field(default=None, ge=0)
     gold_balance: Optional[int] = Field(default=None, ge=0)
