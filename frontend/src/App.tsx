@@ -97,7 +97,7 @@ function App() {
             path="/board"
             element={<Board token={token} onQuestUpdate={handleQuestUpdate} />}
           />
-          <Route path="/profile" element={<Profile />} />
+          <Route path="/profile" element={<Profile token={token} />} />
           <Route path="/market" element={<Market />} />
           <Route path="/heroes" element={<Heroes />} />
           <Route path="/trigger/quest/:questTemplateId" element={<NFCTrigger />} />
