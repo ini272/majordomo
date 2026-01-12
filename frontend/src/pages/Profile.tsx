@@ -64,7 +64,7 @@ export default function Profile({ token }: ProfileProps) {
     return null;
   }
 
-  const completedQuests = quests.filter((q) => q.completed);
+  const completedQuests = quests.filter(q => q.completed);
   const completedCount = completedQuests.length;
 
   // Calculate XP progress to next level
@@ -222,34 +222,33 @@ export default function Profile({ token }: ProfileProps) {
         </h3>
         {completedQuests.length > 0 ? (
           <div className="space-y-3">
-            {completedQuests.slice(-5).reverse().map((quest) => (
-              <div
-                key={quest.id}
-                className="p-4 rounded"
-                style={{
-                  backgroundColor: COLORS.dark,
-                  borderLeftColor: COLORS.greenSuccess,
-                  borderLeftWidth: "4px",
-                }}
-              >
-                <p className="font-serif font-bold mb-1" style={{ color: COLORS.parchment }}>
-                  {quest.template.display_name || quest.template.title}
-                </p>
-                <div className="flex justify-between items-center text-xs">
-                  <p style={{ color: COLORS.brown }}>
-                    Completed {new Date(quest.completed_at!).toLocaleDateString()}
+            {completedQuests
+              .slice(-5)
+              .reverse()
+              .map(quest => (
+                <div
+                  key={quest.id}
+                  className="p-4 rounded"
+                  style={{
+                    backgroundColor: COLORS.dark,
+                    borderLeftColor: COLORS.greenSuccess,
+                    borderLeftWidth: "4px",
+                  }}
+                >
+                  <p className="font-serif font-bold mb-1" style={{ color: COLORS.parchment }}>
+                    {quest.template.display_name || quest.template.title}
                   </p>
-                  <div className="flex gap-3">
-                    <span style={{ color: COLORS.gold }}>
-                      +{quest.template.xp_reward} XP
-                    </span>
-                    <span style={{ color: COLORS.gold }}>
-                      +{quest.template.gold_reward} Gold
-                    </span>
+                  <div className="flex justify-between items-center text-xs">
+                    <p style={{ color: COLORS.brown }}>
+                      Completed {new Date(quest.completed_at!).toLocaleDateString()}
+                    </p>
+                    <div className="flex gap-3">
+                      <span style={{ color: COLORS.gold }}>+{quest.template.xp_reward} XP</span>
+                      <span style={{ color: COLORS.gold }}>+{quest.template.gold_reward} Gold</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
             {completedQuests.length > 5 && (
               <p className="text-center text-sm pt-2" style={{ color: COLORS.brown }}>
                 Showing 5 most recent of {completedCount} total completed quests
