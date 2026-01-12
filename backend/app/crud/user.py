@@ -60,6 +60,9 @@ def update_user(db: Session, user_id: int, user_in: UserUpdate) -> Optional[User
 
 def add_xp(db: Session, user_id: int, amount: int) -> Optional[User]:
     """Add XP to user and update level automatically"""
+    if amount < 0:
+        raise ValueError("XP amount must be non-negative")
+
     db_user = get_user(db, user_id)
     if not db_user:
         return None
@@ -73,12 +76,19 @@ def add_xp(db: Session, user_id: int, amount: int) -> Optional[User]:
 
 
 def add_gold(db: Session, user_id: int, amount: int) -> Optional[User]:
-    """Add gold to user"""
+    """
+    Add gold to user. Can be negative to deduct gold (e.g., for purchases).
+    Will raise ValueError if the result would be negative.
+    """
     db_user = get_user(db, user_id)
     if not db_user:
         return None
 
-    db_user.gold_balance += amount
+    new_balance = db_user.gold_balance + amount
+    if new_balance < 0:
+        raise ValueError(f"Insufficient gold balance. Current: {db_user.gold_balance}, Attempting to add: {amount}")
+
+    db_user.gold_balance = new_balance
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
