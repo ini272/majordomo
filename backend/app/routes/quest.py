@@ -9,6 +9,7 @@ from app.crud import quest as crud_quest
 from app.crud import quest_template as crud_quest_template
 from app.crud import user as crud_user
 from app.database import get_db
+from app.errors import ErrorCode, create_error_detail
 from app.models.quest import (
     QuestCreate,
     QuestRead,
@@ -45,7 +46,10 @@ def get_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = Depends
     """Get quest by ID (only those in your home can access)"""
     quest = crud_quest.get_quest(db, quest_id)
     if not quest or quest.home_id != auth["home_id"]:
-        raise HTTPException(status_code=404, detail="Quest not found")
+        raise HTTPException(
+            status_code=404,
+            detail=create_error_detail(ErrorCode.QUEST_NOT_FOUND, details={"quest_id": quest_id}),
+        )
 
     return quest
 
@@ -61,7 +65,10 @@ def get_user_quests(
     # Verify user exists in authenticated home
     user = crud_user.get_user(db, user_id)
     if not user or user.home_id != auth["home_id"]:
-        raise HTTPException(status_code=404, detail="User not found in home")
+        raise HTTPException(
+            status_code=404,
+            detail=create_error_detail(ErrorCode.USER_NOT_FOUND, details={"user_id": user_id}),
+        )
 
     return crud_quest.get_quests_by_user(db, auth["home_id"], user_id, completed)
 
@@ -71,7 +78,10 @@ def get_quest_template(template_id: int, db: Session = Depends(get_db), auth: Di
     """Get quest template by ID"""
     template = crud_quest_template.get_quest_template(db, template_id)
     if not template or template.home_id != auth["home_id"]:
-        raise HTTPException(status_code=404, detail="Quest template not found")
+        raise HTTPException(
+            status_code=404,
+            detail=create_error_detail(ErrorCode.QUEST_TEMPLATE_NOT_FOUND, details={"template_id": template_id}),
+        )
 
     return template
 
@@ -111,11 +121,20 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = De
     """
     quest = crud_quest.get_quest(db, quest_id)
     if not quest or quest.home_id != auth["home_id"]:
-        raise HTTPException(status_code=404, detail="Quest not found")
+        raise HTTPException(
+            status_code=404,
+            detail=create_error_detail(ErrorCode.QUEST_NOT_FOUND, details={"quest_id": quest_id}),
+        )
 
     # Prevent double-completion
     if quest.completed:
-        raise HTTPException(status_code=400, detail="Quest is already completed")
+        raise HTTPException(
+            status_code=400,
+            detail=create_error_detail(
+                ErrorCode.QUEST_ALREADY_COMPLETED,
+                details={"quest_id": quest_id, "completed_at": quest.completed_at.isoformat() if quest.completed_at else None},
+            ),
+        )
 
     # Check if this quest's template is today's daily bounty
     today_bounty = crud_daily_bounty.get_today_bounty(db, auth["home_id"])
@@ -135,7 +154,19 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = De
             crud_user.add_xp(db, quest.user_id, xp_awarded)
             crud_user.add_gold(db, quest.user_id, gold_awarded)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            error_msg = str(e)
+            # Determine error code based on error message
+            if "XP amount" in error_msg:
+                error_code = ErrorCode.NEGATIVE_XP
+            elif "Insufficient gold" in error_msg:
+                error_code = ErrorCode.INSUFFICIENT_GOLD
+            else:
+                error_code = ErrorCode.INVALID_INPUT
+
+            raise HTTPException(
+                status_code=400,
+                detail=create_error_detail(error_code, message=error_msg, details={"quest_id": quest_id}),
+            )
 
     return {
         "quest": QuestRead.model_validate(quest),
