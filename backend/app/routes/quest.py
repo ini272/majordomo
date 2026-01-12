@@ -4,6 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from app.auth import get_current_user
+from app.crud import achievement as crud_achievement
 from app.crud import daily_bounty as crud_daily_bounty
 from app.crud import quest as crud_quest
 from app.crud import quest_template as crud_quest_template
@@ -134,6 +135,9 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = De
         crud_user.add_xp(db, quest.user_id, xp_awarded)
         crud_user.add_gold(db, quest.user_id, gold_awarded)
 
+    # Check and award any newly earned achievements
+    newly_awarded_achievements = crud_achievement.check_and_award_achievements(db, quest.user_id)
+
     return {
         "quest": QuestRead.model_validate(quest),
         "rewards": {
@@ -142,6 +146,9 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = De
             "is_daily_bounty": is_daily_bounty,
             "multiplier": multiplier,
         },
+        "achievements": [
+            {"id": ua.achievement_id, "unlocked_at": ua.unlocked_at} for ua in newly_awarded_achievements
+        ],
     }
 
 

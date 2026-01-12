@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, List, Optional
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
+    from app.models.achievement import UserAchievement
     from app.models.home import Home
     from app.models.quest import Quest
     from app.models.reward import UserRewardClaim
@@ -25,6 +26,7 @@ class User(SQLModel, table=True):
     home: "Home" = Relationship(back_populates="users")
     quests: List["Quest"] = Relationship(back_populates="user")
     reward_claims: List["UserRewardClaim"] = Relationship(back_populates="user")
+    user_achievements: List["UserAchievement"] = Relationship(back_populates="user")
 
 
 class UserRead(SQLModel):
