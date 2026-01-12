@@ -103,7 +103,12 @@ def test_trigger_quest_not_found(client: TestClient, session: Session):
     # Try to trigger non-existent quest
     response = client.post("/api/triggers/quest/9999", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 404
-    assert "not found" in response.json()["detail"].lower()
+    error_detail = response.json()["detail"]
+    # Support both old (string) and new (dict) error formats
+    if isinstance(error_detail, dict):
+        assert "not found" in error_detail["message"].lower()
+    else:
+        assert "not found" in error_detail.lower()
 
 
 def test_trigger_quest_unauthorized(client: TestClient, session: Session):
@@ -132,7 +137,12 @@ def test_trigger_quest_wrong_home(client: TestClient, session: Session):
     # Try to trigger quest from different home
     response = client.post(f"/api/triggers/quest/{template.id}", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 403
-    assert "not authorized" in response.json()["detail"].lower()
+    error_detail = response.json()["detail"]
+    # Support both old (string) and new (dict) error formats
+    if isinstance(error_detail, dict):
+        assert "not authorized" in error_detail["message"].lower() or error_detail["code"] == "UNAUTHORIZED_ACCESS"
+    else:
+        assert "not authorized" in error_detail.lower()
 
 
 def test_trigger_multiple_times(client: TestClient, session: Session):

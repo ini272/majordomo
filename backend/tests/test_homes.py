@@ -119,7 +119,13 @@ def test_duplicate_username_in_same_home_rejected(client: TestClient):
     # Try to create duplicate
     response2 = client.post(f"/api/homes/{home_id}/join", json={"username": "alice", "password": "pass2"})
     assert response2.status_code == 400
-    assert "already exists" in response2.json()["detail"]
+    error_detail = response2.json()["detail"]
+    # Support both old (string) and new (dict) error formats
+    if isinstance(error_detail, dict):
+        assert error_detail["code"] == "DUPLICATE_USERNAME"
+        assert "already exists" in error_detail["message"].lower()
+    else:
+        assert "already exists" in error_detail.lower()
 
 
 def test_same_username_different_homes_allowed(client: TestClient):
