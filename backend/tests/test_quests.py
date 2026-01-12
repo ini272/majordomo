@@ -371,7 +371,13 @@ def test_complete_quest_twice_fails(client: TestClient, home_with_user):
     # Try to complete again
     response = client.post(f"/api/quests/{quest_id}/complete?user_id={user_id}")
     assert response.status_code == 400
-    assert "already completed" in response.json()["detail"]
+    error_detail = response.json()["detail"]
+    # Support both old (string) and new (dict) error formats
+    if isinstance(error_detail, dict):
+        assert error_detail["code"] == "QUEST_ALREADY_COMPLETED"
+        assert "already completed" in error_detail["message"].lower()
+    else:
+        assert "already completed" in error_detail.lower()
 
 
 def test_quest_home_visibility(client: TestClient, home_with_user):

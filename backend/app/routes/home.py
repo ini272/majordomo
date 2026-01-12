@@ -7,6 +7,7 @@ from app.auth import get_current_user
 from app.crud import home as crud_home
 from app.crud import user as crud_user
 from app.database import get_db
+from app.errors import ErrorCode, create_error_detail
 from app.models.home import HomeCreate, HomeRead
 from app.models.user import UserCreate, UserRead
 
@@ -26,11 +27,20 @@ def get_home(home_id: int, db: Session = Depends(get_db), auth: Dict = Depends(g
     """Get home by ID"""
     # Verify user belongs to this home
     if auth["home_id"] != home_id:
-        raise HTTPException(status_code=403, detail="Not authorized to access this home")
+        raise HTTPException(
+            status_code=403,
+            detail=create_error_detail(
+                ErrorCode.UNAUTHORIZED_ACCESS,
+                message="You are not authorized to access this home",
+                details={"home_id": home_id, "your_home_id": auth["home_id"]},
+            ),
+        )
 
     home = crud_home.get_home(db, home_id)
     if not home:
-        raise HTTPException(status_code=404, detail="Home not found")
+        raise HTTPException(
+            status_code=404, detail=create_error_detail(ErrorCode.HOME_NOT_FOUND, details={"home_id": home_id})
+        )
 
     return home
 
@@ -53,7 +63,20 @@ def get_home_users(home_id: int, db: Session = Depends(get_db), auth: Dict = Dep
 @router.post("", response_model=HomeRead)
 def create_home(home: HomeCreate, db: Session = Depends(get_db)):
     """Create a new home"""
-    return crud_home.create_home(db, home)
+    try:
+        return crud_home.create_home(db, home)
+    except ValueError as e:
+        # Check if it's a duplicate home name error
+        error_msg = str(e)
+        if "already exists" in error_msg:
+            raise HTTPException(
+                status_code=400,
+                detail=create_error_detail(
+                    ErrorCode.DUPLICATE_HOME_NAME, message=error_msg, details={"home_name": home.name}
+                ),
+            )
+        else:
+            raise HTTPException(status_code=400, detail=create_error_detail(ErrorCode.INVALID_INPUT, message=error_msg))
 
 
 @router.post("/{home_id}/join", response_model=UserRead)
@@ -61,12 +84,21 @@ def join_home(home_id: int, user: UserCreate, db: Session = Depends(get_db)):
     """Join a home"""
     home = crud_home.get_home(db, home_id)
     if not home:
-        raise HTTPException(status_code=404, detail="Home not found")
+        raise HTTPException(
+            status_code=404, detail=create_error_detail(ErrorCode.HOME_NOT_FOUND, details={"home_id": home_id})
+        )
 
     # Check if username already exists in this home
     existing_user = crud_user.get_user_by_username(db, home_id, user.username)
     if existing_user:
-        raise HTTPException(status_code=400, detail="Username already exists in this home")
+        raise HTTPException(
+            status_code=400,
+            detail=create_error_detail(
+                ErrorCode.DUPLICATE_USERNAME,
+                message="Username already exists in this home",
+                details={"username": user.username, "home_id": home_id},
+            ),
+        )
 
     return crud_user.create_user(db, home_id, user)
 

@@ -7,6 +7,7 @@ from app.auth import get_current_user
 from app.crud import reward as crud_reward
 from app.crud import user as crud_user
 from app.database import get_db
+from app.errors import ErrorCode, create_error_detail
 from app.models.reward import RewardCreate, RewardRead, UserRewardClaimRead
 
 router = APIRouter(prefix="/api/rewards", tags=["rewards"])
@@ -24,7 +25,9 @@ def get_reward(reward_id: int, db: Session = Depends(get_db), auth: Dict = Depen
     """Get reward by ID"""
     reward = crud_reward.get_reward(db, reward_id)
     if not reward or reward.home_id != auth["home_id"]:
-        raise HTTPException(status_code=404, detail="Reward not found")
+        raise HTTPException(
+            status_code=404, detail=create_error_detail(ErrorCode.REWARD_NOT_FOUND, details={"reward_id": reward_id})
+        )
 
     return reward
 
@@ -55,16 +58,27 @@ def claim_reward(
     # Verify user exists and belongs to authenticated home
     user = crud_user.get_user(db, user_id)
     if not user or user.home_id != auth["home_id"]:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404, detail=create_error_detail(ErrorCode.USER_NOT_FOUND, details={"user_id": user_id})
+        )
 
     # Verify reward exists and belongs to same home
     reward = crud_reward.get_reward(db, reward_id)
     if not reward or reward.home_id != auth["home_id"]:
-        raise HTTPException(status_code=404, detail="Reward not found")
+        raise HTTPException(
+            status_code=404, detail=create_error_detail(ErrorCode.REWARD_NOT_FOUND, details={"reward_id": reward_id})
+        )
 
     claim = crud_reward.claim_reward(db, user_id, reward_id)
     if not claim:
-        raise HTTPException(status_code=404, detail="Failed to claim reward")
+        raise HTTPException(
+            status_code=400,
+            detail=create_error_detail(
+                ErrorCode.INVALID_INPUT,
+                message="Failed to claim reward",
+                details={"user_id": user_id, "reward_id": reward_id},
+            ),
+        )
 
     return claim
 
