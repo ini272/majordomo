@@ -15,11 +15,11 @@ class User(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     home_id: int = Field(foreign_key="home.id", index=True)
-    username: str = Field(index=True)
+    username: str = Field(index=True, min_length=1, max_length=50)
     password_hash: str
-    level: int = Field(default=1)
-    xp: int = Field(default=0)
-    gold_balance: int = Field(default=0)
+    level: int = Field(default=1, ge=1, le=1000)
+    xp: int = Field(default=0, ge=0)
+    gold_balance: int = Field(default=0, ge=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Relationships

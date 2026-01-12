@@ -132,8 +132,11 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = De
     if quest.template:
         xp_awarded = quest.template.xp_reward * multiplier
         gold_awarded = quest.template.gold_reward * multiplier
-        crud_user.add_xp(db, quest.user_id, xp_awarded)
-        crud_user.add_gold(db, quest.user_id, gold_awarded)
+        try:
+            crud_user.add_xp(db, quest.user_id, xp_awarded)
+            crud_user.add_gold(db, quest.user_id, gold_awarded)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     # Check and award any newly earned achievements
     newly_awarded_achievements = crud_achievement.check_and_award_achievements(db, quest.user_id)

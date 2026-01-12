@@ -53,7 +53,10 @@ def get_home_users(home_id: int, db: Session = Depends(get_db), auth: Dict = Dep
 @router.post("", response_model=HomeRead)
 def create_home(home: HomeCreate, db: Session = Depends(get_db)):
     """Create a new home"""
-    return crud_home.create_home(db, home)
+    try:
+        return crud_home.create_home(db, home)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/{home_id}/join", response_model=UserRead)

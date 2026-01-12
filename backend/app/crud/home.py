@@ -26,8 +26,18 @@ def get_home_by_invite_code(db: Session, invite_code: str) -> Optional[Home]:
     return db.exec(select(Home).where(Home.invite_code == invite_code)).first()
 
 
+def get_home_by_name(db: Session, name: str) -> Optional[Home]:
+    """Get home by name"""
+    return db.exec(select(Home).where(Home.name == name)).first()
+
+
 def create_home(db: Session, home_in: HomeCreate) -> Home:
     """Create a new home"""
+    # Check for duplicate home name
+    existing_home = get_home_by_name(db, home_in.name)
+    if existing_home:
+        raise ValueError(f"A home with the name '{home_in.name}' already exists")
+
     db_home = Home(**home_in.model_dump(), invite_code=generate_invite_code())
     db.add(db_home)
     db.commit()
