@@ -96,18 +96,17 @@ def create_error_detail(code: ErrorCode, message: Optional[str] = None, details:
         details: Optional additional details dict
 
     Returns:
-        Dict with error detail in format: {"detail": {"code": "...", "message": "...", "details": {...}}}
+        Dict with error detail in format: {"code": "...", "message": "...", "details": {...}}
+        Note: HTTPException will wrap this in a "detail" field automatically
     """
     return {
-        "detail": {
-            "code": code.value,
-            "message": message or ERROR_MESSAGES.get(code, "An error occurred"),
-            "details": details or {},
-        }
+        "code": code.value,
+        "message": message or ERROR_MESSAGES.get(code, "An error occurred"),
+        "details": details or {},
     }
 
 
-def create_simple_error(message: str) -> dict:
+def create_simple_error(message: str) -> str:
     """
     Create a simple error response (backward compatible with existing error format).
 
@@ -115,6 +114,6 @@ def create_simple_error(message: str) -> dict:
         message: Error message
 
     Returns:
-        Dict with error message in format: {"detail": "message"}
+        Error message string (HTTPException will wrap this in "detail" automatically)
     """
-    return {"detail": message}
+    return message
