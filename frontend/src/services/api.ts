@@ -36,6 +36,54 @@ export const api = {
       if (!res.ok) throw new Error("Login failed");
       return res.json();
     },
+
+    loginEmail: async (email: string, password: string): Promise<LoginResponse> => {
+      const res = await fetch(`${API_URL}/auth/login-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail?.message || "Login failed");
+      }
+      return res.json();
+    },
+
+    signup: async (
+      email: string,
+      password: string,
+      homeName: string
+    ): Promise<LoginResponse & { invite_code: string }> => {
+      const res = await fetch(`${API_URL}/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, home_name: homeName }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail?.message || "Signup failed");
+      }
+      return res.json();
+    },
+
+    join: async (
+      inviteCode: string,
+      email: string,
+      username: string,
+      password: string
+    ): Promise<LoginResponse> => {
+      const res = await fetch(`${API_URL}/auth/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invite_code: inviteCode, email, username, password }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail?.message || "Failed to join home");
+      }
+      return res.json();
+    },
   },
 
   user: {
@@ -177,6 +225,16 @@ export const api = {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to check bounty status");
+      return res.json();
+    },
+  },
+
+  home: {
+    getInviteCode: async (homeId: number, token: string): Promise<{ invite_code: string; home_name: string }> => {
+      const res = await fetch(`${API_URL}/homes/${homeId}/invite-code`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch invite code");
       return res.json();
     },
   },

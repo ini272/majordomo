@@ -31,10 +31,22 @@ def get_home_users(db: Session, home_id: int) -> List[User]:
     return db.exec(select(User).where(User.home_id == home_id)).all()
 
 
+def get_user_by_email(db: Session, email: str) -> Optional[User]:
+    """Get user by email (globally unique)"""
+    return db.exec(select(User).where(User.email == email)).first()
+
+
 def create_user(db: Session, home_id: int, user_in: UserCreate) -> User:
     """Create a new user in a home"""
     data = user_in.model_dump()
     password = data.pop("password")
+
+    # Check for duplicate email if provided
+    if data.get("email"):
+        existing_user = get_user_by_email(db, data["email"])
+        if existing_user:
+            raise ValueError(f"Email '{data['email']}' is already registered")
+
     db_user = User(**data, home_id=home_id, password_hash=hash_password(password))
     db.add(db_user)
     db.commit()
