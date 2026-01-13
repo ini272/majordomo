@@ -12,6 +12,7 @@ export default function Profile({ token }: ProfileProps) {
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAllQuests, setShowAllQuests] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -205,7 +206,7 @@ export default function Profile({ token }: ProfileProps) {
         </div>
       </div>
 
-      {/* Recent Completed Quests Section (Placeholder) */}
+      {/* Quest History Section */}
       <div
         className="p-6 rounded-lg"
         style={{
@@ -214,17 +215,46 @@ export default function Profile({ token }: ProfileProps) {
           borderWidth: "2px",
         }}
       >
-        <h3
-          className="text-xl font-serif font-bold mb-4 text-center"
-          style={{ color: COLORS.gold }}
-        >
-          Quest History
-        </h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3
+            className="text-xl font-serif font-bold text-center flex-1"
+            style={{ color: COLORS.gold }}
+          >
+            Quest History
+          </h3>
+          {completedQuests.length > 5 && (
+            <button
+              onClick={() => setShowAllQuests(!showAllQuests)}
+              className="text-sm font-serif px-3 py-1 rounded transition-colors"
+              style={{
+                color: COLORS.gold,
+                borderColor: COLORS.gold,
+                borderWidth: "1px",
+                backgroundColor: "transparent",
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.backgroundColor = COLORS.gold;
+                e.currentTarget.style.color = COLORS.dark;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.backgroundColor = "transparent";
+                e.currentTarget.style.color = COLORS.gold;
+              }}
+            >
+              {showAllQuests ? "Show Recent" : `View All (${completedCount})`}
+            </button>
+          )}
+        </div>
         {completedQuests.length > 0 ? (
           <div className="space-y-3">
             {completedQuests
-              .slice(-5)
-              .reverse()
+              .sort((a, b) => {
+                // Sort by completed_at timestamp, newest first
+                const dateA = new Date(a.completed_at!).getTime();
+                const dateB = new Date(b.completed_at!).getTime();
+                return dateB - dateA;
+              })
+              .slice(0, showAllQuests ? completedQuests.length : 5)
               .map(quest => (
                 <div
                   key={quest.id}
@@ -249,7 +279,7 @@ export default function Profile({ token }: ProfileProps) {
                   </div>
                 </div>
               ))}
-            {completedQuests.length > 5 && (
+            {!showAllQuests && completedQuests.length > 5 && (
               <p className="text-center text-sm pt-2" style={{ color: COLORS.brown }}>
                 Showing 5 most recent of {completedCount} total completed quests
               </p>
