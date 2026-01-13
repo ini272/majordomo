@@ -28,10 +28,11 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
       if (mode === "signup") {
         const email = form.get("email") as string;
+        const username = form.get("username") as string;
         const password = form.get("password") as string;
         const homeName = form.get("homeName") as string;
 
-        data = await api.auth.signup(email, password, homeName);
+        data = await api.auth.signup(email, username, password, homeName);
         setInviteCode(data.invite_code);
       } else if (mode === "join") {
         const inviteCode = form.get("inviteCode") as string;
@@ -196,6 +197,28 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 type="email"
                 name="email"
                 placeholder="adventurer@realm.com"
+                required
+                className="w-full px-3 py-2 md:py-3 font-serif placeholder-opacity-50 focus:outline-none focus:shadow-lg transition-all"
+                style={{
+                  backgroundColor: COLORS.black,
+                  borderColor: COLORS.gold,
+                  borderWidth: "2px",
+                  color: COLORS.parchment,
+                }}
+              />
+            </div>
+
+            <div className="mb-6 md:mb-8">
+              <label
+                className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                style={{ color: COLORS.gold }}
+              >
+                Display Name
+              </label>
+              <input
+                type="text"
+                name="username"
+                placeholder="DragonSlayer"
                 required
                 className="w-full px-3 py-2 md:py-3 font-serif placeholder-opacity-50 focus:outline-none focus:shadow-lg transition-all"
                 style={{

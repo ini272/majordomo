@@ -30,6 +30,7 @@ class LoginEmailRequest(BaseModel):
 
 class SignupRequest(BaseModel):
     email: EmailStr
+    username: str
     password: str
     home_name: str
 
@@ -95,6 +96,7 @@ def signup(request: SignupRequest, db: Session = Depends(get_db)):
     Create a new home and user account, return JWT access token.
 
     - **email**: User's email address (will be globally unique)
+    - **username**: Display name for the user (unique within the home)
     - **password**: User's password
     - **home_name**: Name for the new home/household
 
@@ -105,11 +107,8 @@ def signup(request: SignupRequest, db: Session = Depends(get_db)):
         # Create the home
         home = crud_home.create_home(db, HomeCreate(name=request.home_name))
 
-        # Generate username from email (use part before @)
-        username = request.email.split("@")[0]
-
         # Create the user (first member of the home)
-        user = crud_user.create_user(db, home.id, UserCreate(username=username, email=request.email, password=request.password))
+        user = crud_user.create_user(db, home.id, UserCreate(username=request.username, email=request.email, password=request.password))
 
         # Return token for immediate login
         token = create_access_token(user.id, user.home_id)

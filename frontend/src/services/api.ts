@@ -52,13 +52,14 @@ export const api = {
 
     signup: async (
       email: string,
+      username: string,
       password: string,
       homeName: string
     ): Promise<LoginResponse & { invite_code: string }> => {
       const res = await fetch(`${API_URL}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, home_name: homeName }),
+        body: JSON.stringify({ email, username, password, home_name: homeName }),
       });
       if (!res.ok) {
         const error = await res.json();
