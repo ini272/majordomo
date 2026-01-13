@@ -38,7 +38,12 @@ def get_all_quests(db: Session = Depends(get_db), auth: Dict = Depends(get_curre
 
     Returns all active and completed quests for the household.
     Results are sorted by creation date (newest first).
+
+    Automatically checks for overdue quests and marks them as corrupted.
     """
+    # Check and corrupt any overdue quests before returning the list
+    crud_quest.check_and_corrupt_overdue_quests(db)
+
     return crud_quest.get_quests_by_home(db, auth["home_id"])
 
 
@@ -140,7 +145,18 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = De
     # Check if this quest's template is today's daily bounty
     today_bounty = crud_daily_bounty.get_today_bounty(db, auth["home_id"])
     is_daily_bounty = today_bounty and today_bounty.quest_template_id == quest.quest_template_id
-    multiplier = 2 if is_daily_bounty else 1
+
+    # Check if quest is corrupted (overdue)
+    is_corrupted = quest.quest_type == "corrupted"
+
+    # Apply multipliers: daily bounty (2x) or corrupted (1.5x)
+    # If both, apply higher multiplier (daily bounty)
+    if is_daily_bounty:
+        multiplier = 2
+    elif is_corrupted:
+        multiplier = 1.5
+    else:
+        multiplier = 1
 
     # Mark quest as completed
     quest = crud_quest.complete_quest(db, quest_id)
@@ -178,6 +194,7 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = De
             "xp": xp_awarded,
             "gold": gold_awarded,
             "is_daily_bounty": is_daily_bounty,
+            "is_corrupted": is_corrupted,
             "multiplier": multiplier,
         },
         "achievements": [
@@ -317,3 +334,22 @@ def delete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = Depe
 
     crud_quest.delete_quest(db, quest_id)
     return {"detail": "Quest deleted"}
+
+
+# Corruption system endpoint
+@router.post("/check-corruption")
+def check_corruption(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+    """
+    Manually trigger corruption check for overdue quests.
+
+    This endpoint can be called by a cron job or manually to check for quests
+    that are past their due date and mark them as corrupted.
+
+    Returns the number of quests that were corrupted.
+    """
+    corrupted_quests = crud_quest.check_and_corrupt_overdue_quests(db)
+
+    return {
+        "corrupted_count": len(corrupted_quests),
+        "corrupted_quest_ids": [q.id for q in corrupted_quests],
+    }
