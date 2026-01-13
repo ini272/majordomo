@@ -59,6 +59,29 @@ def get_home_users(home_id: int, db: Session = Depends(get_db), auth: Dict = Dep
     return crud_user.get_home_users(db, home_id)
 
 
+@router.get("/{home_id}/invite-code")
+def get_invite_code(home_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+    """Get invite code for a home (for sharing with others)"""
+    # Verify user belongs to this home
+    if auth["home_id"] != home_id:
+        raise HTTPException(
+            status_code=403,
+            detail=create_error_detail(
+                ErrorCode.UNAUTHORIZED_ACCESS,
+                message="You are not authorized to access this home's invite code",
+                details={"home_id": home_id, "your_home_id": auth["home_id"]},
+            ),
+        )
+
+    home = crud_home.get_home(db, home_id)
+    if not home:
+        raise HTTPException(
+            status_code=404, detail=create_error_detail(ErrorCode.HOME_NOT_FOUND, details={"home_id": home_id})
+        )
+
+    return {"invite_code": home.invite_code, "home_name": home.name}
+
+
 # POST endpoints
 @router.post("", response_model=HomeRead)
 def create_home(home: HomeCreate, db: Session = Depends(get_db)):

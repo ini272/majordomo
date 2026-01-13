@@ -13,6 +13,8 @@ export default function Profile({ token }: ProfileProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAllQuests, setShowAllQuests] = useState(false);
+  const [homeInfo, setHomeInfo] = useState<{ invite_code: string; home_name: string } | null>(null);
+  const [copiedInvite, setCopiedInvite] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -25,6 +27,12 @@ export default function Profile({ token }: ProfileProps) {
         ]);
         setUserStats(stats);
         setQuests(questsData);
+
+        // Fetch home info after we have the user stats
+        if (stats.home_id) {
+          const homeData = await api.home.getInviteCode(stats.home_id, token);
+          setHomeInfo(homeData);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load profile data");
       } finally {
@@ -180,6 +188,62 @@ export default function Profile({ token }: ProfileProps) {
           </div>
         </div>
       </div>
+
+      {/* Home Information Section */}
+      {homeInfo && (
+        <div
+          className="p-6 rounded-lg mb-8"
+          style={{
+            backgroundColor: COLORS.darkPanel,
+            borderColor: COLORS.gold,
+            borderWidth: "2px",
+          }}
+        >
+          <h3
+            className="text-xl font-serif font-bold mb-4 text-center"
+            style={{ color: COLORS.gold }}
+          >
+            Your Home
+          </h3>
+          <div className="text-center mb-6">
+            <p className="text-xs uppercase tracking-widest mb-1" style={{ color: COLORS.brown }}>
+              Home Name
+            </p>
+            <p className="text-2xl font-serif font-bold" style={{ color: COLORS.parchment }}>
+              {homeInfo.home_name}
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs uppercase tracking-widest mb-2" style={{ color: COLORS.brown }}>
+              Invite Code
+            </p>
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <p className="text-xl font-mono font-bold" style={{ color: COLORS.gold }}>
+                {homeInfo.invite_code}
+              </p>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(homeInfo.invite_code);
+                  setCopiedInvite(true);
+                  setTimeout(() => setCopiedInvite(false), 2000);
+                }}
+                className="px-3 py-1 text-xs font-serif uppercase tracking-wider transition-all"
+                style={{
+                  backgroundColor: copiedInvite ? COLORS.greenSuccess : "transparent",
+                  borderColor: copiedInvite ? COLORS.greenSuccess : COLORS.gold,
+                  borderWidth: "2px",
+                  color: copiedInvite ? COLORS.dark : COLORS.gold,
+                }}
+              >
+                {copiedInvite ? "Copied!" : "Copy"}
+              </button>
+            </div>
+            <p className="font-serif text-sm" style={{ color: COLORS.parchment, opacity: 0.7 }}>
+              Share this code with others to invite them to your home
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Achievements Section (Placeholder) */}
       <div
