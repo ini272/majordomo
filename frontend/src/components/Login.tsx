@@ -52,6 +52,15 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("userId", data.user_id.toString());
       localStorage.setItem("homeId", data.home_id.toString());
+
+      // Fetch user stats to get username
+      try {
+        const userStats = await api.user.getStats(data.access_token);
+        localStorage.setItem("username", userStats.username);
+      } catch (err) {
+        console.error("Failed to fetch user stats:", err);
+      }
+
       onLoginSuccess(data.access_token);
 
       // Check for next redirect param
@@ -213,7 +222,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 className="block text-sm uppercase tracking-wider mb-2 font-serif"
                 style={{ color: COLORS.gold }}
               >
-                Display Name
+                Username
               </label>
               <input
                 type="text"
@@ -328,7 +337,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 className="block text-sm uppercase tracking-wider mb-2 font-serif"
                 style={{ color: COLORS.gold }}
               >
-                Display Name
+                Username
               </label>
               <input
                 type="text"
