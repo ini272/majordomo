@@ -1,6 +1,7 @@
 export const COLORS = {
   // Gold/Primary
   gold: "#d4af37",
+  goldDarker: "#8b7a2f",
 
   // Parchment/Text
   parchment: "#c9b896",
