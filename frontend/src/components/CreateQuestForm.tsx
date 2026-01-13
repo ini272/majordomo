@@ -21,6 +21,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   const [mode, setMode] = useState<CreationMode>("ai-scribe");
   const [title, setTitle] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [dueDate, setDueDate] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [skipAI, setSkipAI] = useState(false);
@@ -82,6 +83,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       await api.quests.create(
         {
           quest_template_id: newTemplate.id,
+          ...(dueDate && { due_date: new Date(dueDate).toISOString() }),
         },
         token,
         userId
@@ -92,6 +94,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       setShowEditModal(true);
       setTitle("");
       setSelectedTags([]);
+      setDueDate("");
       setSkipAI(false);
       // Note: onQuestCreated will be called after edit modal saves
     } catch (err) {
@@ -321,6 +324,33 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Due Date Field */}
+            <div className="mb-6">
+              <label
+                className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                style={{ color: COLORS.gold }}
+              >
+                Due Date (Optional)
+              </label>
+              <input
+                type="datetime-local"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+                className="w-full px-3 py-2 font-serif focus:outline-none focus:shadow-lg transition-all"
+                style={{
+                  backgroundColor: COLORS.black,
+                  borderColor: COLORS.gold,
+                  borderWidth: "2px",
+                  color: COLORS.parchment,
+                  colorScheme: "dark",
+                }}
+                disabled={loading}
+              />
+              <p className="text-xs mt-1 font-serif italic" style={{ color: COLORS.parchment }}>
+                Quest will become corrupted (1.5x rewards) if not completed by this time
+              </p>
             </div>
 
             {/* Skip AI Scribe Checkbox */}

@@ -33,7 +33,12 @@ def get_quests_by_user(db: Session, home_id: int, user_id: int, completed: Optio
 
 def create_quest(db: Session, home_id: int, user_id: int, quest_in: QuestCreate) -> Quest:
     """Create a new quest instance for a user from a template"""
-    db_quest = Quest(home_id=home_id, user_id=user_id, quest_template_id=quest_in.quest_template_id)
+    db_quest = Quest(
+        home_id=home_id,
+        user_id=user_id,
+        quest_template_id=quest_in.quest_template_id,
+        due_date=quest_in.due_date,
+    )
     db.add(db_quest)
     db.commit()
     db.refresh(db_quest)
@@ -80,3 +85,38 @@ def delete_quest(db: Session, quest_id: int) -> bool:
     db.delete(db_quest)
     db.commit()
     return True
+
+
+def check_and_corrupt_overdue_quests(db: Session) -> List[Quest]:
+    """
+    Check for quests that are past their due date and not completed.
+    Mark them as corrupted if they haven't been corrupted already.
+    Returns list of newly corrupted quests.
+    """
+    now = datetime.now(timezone.utc)
+
+    # Find quests that are:
+    # - Not completed
+    # - Have a due_date set
+    # - Past their due_date
+    # - Not already corrupted
+    query = select(Quest).where(
+        (Quest.completed == False)
+        & (Quest.due_date.isnot(None))
+        & (Quest.due_date < now)
+        & (Quest.quest_type != "corrupted")
+    )
+
+    overdue_quests = db.exec(query).all()
+
+    corrupted_quests = []
+    for quest in overdue_quests:
+        quest.quest_type = "corrupted"
+        quest.corrupted_at = now
+        db.add(quest)
+        corrupted_quests.append(quest)
+
+    if corrupted_quests:
+        db.commit()
+
+    return corrupted_quests

@@ -24,6 +24,9 @@ export interface Quest {
   completed: boolean;
   created_at: string;
   completed_at: string | null;
+  quest_type: string;
+  due_date: string | null;
+  corrupted_at: string | null;
   template: QuestTemplate;
 }
 
@@ -58,6 +61,7 @@ export interface QuestCompleteResponse {
     xp: number;
     gold: number;
     is_daily_bounty: boolean;
+    is_corrupted: boolean;
     multiplier: number;
   };
 }
@@ -91,4 +95,5 @@ export interface QuestTemplateUpdateRequest {
 
 export interface QuestCreateRequest {
   quest_template_id: number;
+  due_date?: string | null;
 }

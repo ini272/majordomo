@@ -86,6 +86,11 @@ class Quest(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: Optional[datetime] = None
 
+    # Corruption system fields
+    quest_type: str = Field(default="standard")  # standard, bounty, corrupted
+    due_date: Optional[datetime] = None  # when quest should be completed (optional, user-set)
+    corrupted_at: Optional[datetime] = None  # when quest became corrupted
+
     # Relationships
     home: "Home" = Relationship(back_populates="quests")
     user: "User" = Relationship(back_populates="quests")
@@ -102,6 +107,9 @@ class QuestRead(SQLModel):
     completed: bool
     created_at: datetime
     completed_at: Optional[datetime]
+    quest_type: str
+    due_date: Optional[datetime]
+    corrupted_at: Optional[datetime]
     # Include template data for convenience
     template: QuestTemplateRead
 
@@ -110,9 +118,12 @@ class QuestCreate(SQLModel):
     """Schema for creating a quest from a template"""
 
     quest_template_id: int
+    due_date: Optional[datetime] = None  # optional user-set deadline
 
 
 class QuestUpdate(SQLModel):
     """Schema for updating a quest"""
 
     completed: Optional[bool] = None
+    quest_type: Optional[str] = None
+    due_date: Optional[datetime] = None

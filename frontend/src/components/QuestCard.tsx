@@ -41,7 +41,23 @@ interface QuestCardProps {
 }
 
 export default function QuestCard({ quest, onComplete, isDailyBounty = false }: QuestCardProps) {
-  const typeStyles = getQuestTypeStyles(quest.template.quest_type);
+  const typeStyles = getQuestTypeStyles(quest.quest_type);
+  const isCorrupted = quest.quest_type === "corrupted";
+
+  // Format due date for display
+  const formatDueDate = (dueDate: string | null) => {
+    if (!dueDate) return null;
+    const date = new Date(dueDate);
+    const now = new Date();
+    const diff = date.getTime() - now.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+
+    if (diff < 0) return "Overdue";
+    if (days > 0) return `${days} day${days > 1 ? "s" : ""} left`;
+    if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""} left`;
+    return "Due soon";
+  };
 
   return (
     <div
@@ -56,15 +72,15 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
       <div className="absolute top-3 right-4 text-2xl opacity-20">⚔</div>
 
       {/* Quest Type Badge */}
-      <div className="absolute top-4 left-4 flex gap-2">
+      <div className="absolute top-4 left-4 flex gap-2 flex-wrap">
         <span
-          className="px-2 py-1 rounded text-xs uppercase font-serif font-bold"
+          className={`px-2 py-1 rounded text-xs uppercase font-serif font-bold ${isCorrupted ? "animate-pulse" : ""}`}
           style={{
             backgroundColor: typeStyles.badgeBg,
             color: typeStyles.badgeColor,
           }}
         >
-          {quest.template.quest_type}
+          {quest.quest_type}
         </span>
         {isDailyBounty && (
           <span
@@ -75,6 +91,29 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
             }}
           >
             2x Bounty
+          </span>
+        )}
+        {isCorrupted && (
+          <span
+            className="px-2 py-1 rounded text-xs uppercase font-serif font-bold"
+            style={{
+              backgroundColor: "rgba(139, 58, 58, 0.3)",
+              color: "#ff8080",
+            }}
+          >
+            1.5x Rewards
+          </span>
+        )}
+        {quest.due_date && !quest.completed && (
+          <span
+            className="px-2 py-1 rounded text-xs font-serif font-bold"
+            style={{
+              backgroundColor: isCorrupted ? "rgba(139, 58, 58, 0.2)" : "rgba(255, 165, 0, 0.2)",
+              color: isCorrupted ? "#ff6b6b" : "#ffa500",
+              border: `1px solid ${isCorrupted ? "#ff6b6b" : "#ffa500"}`,
+            }}
+          >
+            📅 {formatDueDate(quest.due_date)}
           </span>
         )}
       </div>
@@ -132,6 +171,11 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
           </div>
           <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
             {quest.template.xp_reward || 0}
+            {isCorrupted && !quest.completed && (
+              <span className="text-sm ml-2" style={{ color: "#ff8080" }}>
+                (x1.5)
+              </span>
+            )}
           </div>
         </div>
         <div className="text-center flex-1">
@@ -143,6 +187,11 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
           </div>
           <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
             {quest.template.gold_reward || 0}
+            {isCorrupted && !quest.completed && (
+              <span className="text-sm ml-2" style={{ color: "#ff8080" }}>
+                (x1.5)
+              </span>
+            )}
           </div>
         </div>
         <div className="text-center flex-1">
