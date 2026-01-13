@@ -57,6 +57,14 @@ export const api = {
       return res.json();
     },
 
+    getAllTemplates: async (token: string): Promise<QuestTemplate[]> => {
+      const res = await fetch(`${API_URL}/quests/templates/all`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch quest templates");
+      return res.json();
+    },
+
     getTemplate: async (templateId: number, token: string): Promise<QuestTemplate> => {
       const res = await fetch(`${API_URL}/quests/templates/${templateId}`, {
         headers: { Authorization: `Bearer ${token}` },
