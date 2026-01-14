@@ -572,3 +572,96 @@ def test_update_quest_template_home_isolation(client: TestClient):
         json={"tags": "should-fail"},
     )
     assert update_response.status_code == 404
+
+
+def test_quest_template_display_name_vs_title(client: TestClient, home_with_user):
+    """Test distinction between title and display_name in quest template"""
+    home_id, user_id = home_with_user
+
+    # Create template with both title and display_name
+    template_response = client.post(
+        f"/api/quests/templates?created_by={user_id}",
+        json={
+            "title": "Clean Kitchen",
+            "display_name": "The Great Kitchen Cleansing",
+            "xp_reward": 25,
+            "gold_reward": 10,
+        },
+    )
+
+    assert template_response.status_code == 200
+    template = template_response.json()
+    assert template["title"] == "Clean Kitchen"
+    assert template["display_name"] == "The Great Kitchen Cleansing"
+
+
+def test_quest_template_different_quest_types(client: TestClient, home_with_user):
+    """Test creating quest templates with different quest_type values"""
+    home_id, user_id = home_with_user
+
+    quest_types = ["standard", "corrupted"]
+
+    for quest_type in quest_types:
+        response = client.post(
+            f"/api/quests/templates?created_by={user_id}",
+            json={"title": f"Quest Type {quest_type}", "quest_type": quest_type, "xp_reward": 10, "gold_reward": 5},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["quest_type"] == quest_type
+
+
+def test_quest_template_different_recurrences(client: TestClient, home_with_user):
+    """Test creating quest templates with different recurrence values"""
+    home_id, user_id = home_with_user
+
+    recurrences = ["one-off", "daily", "weekly"]
+
+    for recurrence in recurrences:
+        response = client.post(
+            f"/api/quests/templates?created_by={user_id}",
+            json={"title": f"Quest {recurrence}", "recurrence": recurrence, "xp_reward": 10, "gold_reward": 5},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["recurrence"] == recurrence
+
+
+def test_quest_template_system_vs_user_created(client: TestClient, home_with_user):
+    """Test that user-created templates have system=False"""
+    home_id, user_id = home_with_user
+
+    # Create user template
+    response = client.post(
+        f"/api/quests/templates?created_by={user_id}",
+        json={"title": "User Created Quest", "xp_reward": 10, "gold_reward": 5},
+    )
+
+    assert response.status_code == 200
+    template = response.json()
+    assert template["system"] is False
+    assert template["created_by"] == user_id
+
+
+def test_quest_template_created_by_tracking(client: TestClient, home_with_user):
+    """Test that quest templates track who created them"""
+    home_id, user_id = home_with_user
+
+    # Create another user
+    user2_response = client.post(f"/api/homes/{home_id}/join", json={"username": "user2", "password": "pass2"})
+    user2_id = user2_response.json()["id"]
+
+    # Create template by user1
+    template1 = client.post(
+        f"/api/quests/templates?created_by={user_id}",
+        json={"title": "User1 Quest", "xp_reward": 10, "gold_reward": 5},
+    ).json()
+
+    # Create template by user2
+    template2 = client.post(
+        f"/api/quests/templates?created_by={user2_id}",
+        json={"title": "User2 Quest", "xp_reward": 10, "gold_reward": 5},
+    ).json()
+
+    assert template1["created_by"] == user_id
+    assert template2["created_by"] == user2_id
