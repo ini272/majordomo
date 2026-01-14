@@ -9,13 +9,13 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def home_with_user_and_template(client: TestClient):
     """Create a home with user and quest template for corruption testing"""
-    # Create home
-    home_response = client.post("/api/homes", json={"name": "Test Home"})
-    home_id = home_response.json()["id"]
-
-    # Create user
-    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
-    user_id = user_response.json()["id"]
+    # Create home and user via signup
+    signup = client.post(
+        "/api/auth/signup",
+        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
+    )
+    home_id = signup.json()["home_id"]
+    user_id = signup.json()["user_id"]
 
     # Create quest template
     template_response = client.post(

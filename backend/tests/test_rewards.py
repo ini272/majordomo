@@ -5,13 +5,15 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def home_with_user(client: TestClient):
     """Create a home with a user for test setup"""
-    home_response = client.post("/api/homes", json={"name": "Test Home"})
-    home_id = home_response.json()["id"]
+    signup = client.post(
+        "/api/auth/signup",
+        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
+    )
+    home_id = signup.json()["home_id"]
+    user_id = signup.json()["user_id"]
+    invite_code = signup.json()["invite_code"]
 
-    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
-    user_id = user_response.json()["id"]
-
-    return home_id, user_id
+    return home_id, user_id, invite_code
 
 
 def test_create_reward(client: TestClient):
@@ -81,7 +83,7 @@ def test_get_home_rewards_multiple(client: TestClient):
 
 def test_claim_reward(client: TestClient, home_with_user):
     """Test claiming a reward"""
-    home_id, user_id = home_with_user
+    home_id, user_id, invite_code = home_with_user
 
     # Create reward
     reward_response = client.post(f"/api/rewards?home_id={home_id}", json={"name": "Gaming hour", "cost": 100})
@@ -96,7 +98,7 @@ def test_claim_reward(client: TestClient, home_with_user):
 
 def test_claim_reward_not_found(client: TestClient, home_with_user):
     """Test claiming a non-existent reward"""
-    home_id, user_id = home_with_user
+    home_id, user_id, invite_code = home_with_user
 
     # Try to claim non-existent reward
     response = client.post(f"/api/rewards/999/claim?user_id={user_id}")
@@ -105,7 +107,7 @@ def test_claim_reward_not_found(client: TestClient, home_with_user):
 
 def test_get_user_reward_claims(client: TestClient, home_with_user):
     """Test retrieving a user's reward claims"""
-    home_id, user_id = home_with_user
+    home_id, user_id, invite_code = home_with_user
 
     # Create and claim multiple rewards
     for i in range(2):

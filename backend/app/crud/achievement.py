@@ -141,3 +141,47 @@ def check_and_award_achievements(db: Session, user_id: int) -> List[UserAchievem
                 newly_awarded.append(awarded)
 
     return newly_awarded
+
+
+def create_default_achievements(db: Session, home_id: int) -> List[Achievement]:
+    """
+    Create default starter achievements for a new home.
+    Returns list of created achievements.
+    """
+    default_achievements = [
+        AchievementCreate(
+            name="First Steps",
+            description="Complete your first quest",
+            criteria_type="quests_completed",
+            criteria_value=1,
+            icon="trophy-bronze",
+        ),
+        AchievementCreate(
+            name="Quest Novice",
+            description="Complete 10 quests",
+            criteria_type="quests_completed",
+            criteria_value=10,
+            icon="trophy-silver",
+        ),
+        AchievementCreate(
+            name="Rising Star",
+            description="Reach level 5",
+            criteria_type="level_reached",
+            criteria_value=5,
+            icon="star",
+        ),
+        AchievementCreate(
+            name="Gold Digger",
+            description="Earn 100 gold",
+            criteria_type="gold_earned",
+            criteria_value=100,
+            icon="coin",
+        ),
+    ]
+
+    created = []
+    for achievement_data in default_achievements:
+        achievement = create_achievement(db, home_id, achievement_data)
+        created.append(achievement)
+
+    return created

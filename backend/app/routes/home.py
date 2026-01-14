@@ -102,30 +102,6 @@ def create_home(home: HomeCreate, db: Session = Depends(get_db)):
             raise HTTPException(status_code=400, detail=create_error_detail(ErrorCode.INVALID_INPUT, message=error_msg))
 
 
-@router.post("/{home_id}/join", response_model=UserRead)
-def join_home(home_id: int, user: UserCreate, db: Session = Depends(get_db)):
-    """Join a home"""
-    home = crud_home.get_home(db, home_id)
-    if not home:
-        raise HTTPException(
-            status_code=404, detail=create_error_detail(ErrorCode.HOME_NOT_FOUND, details={"home_id": home_id})
-        )
-
-    # Check if username already exists in this home
-    existing_user = crud_user.get_user_by_username(db, home_id, user.username)
-    if existing_user:
-        raise HTTPException(
-            status_code=400,
-            detail=create_error_detail(
-                ErrorCode.DUPLICATE_USERNAME,
-                message="Username already exists in this home",
-                details={"username": user.username, "home_id": home_id},
-            ),
-        )
-
-    return crud_user.create_user(db, home_id, user)
-
-
 # DELETE endpoints
 @router.delete("/{home_id}")
 def delete_home(home_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):

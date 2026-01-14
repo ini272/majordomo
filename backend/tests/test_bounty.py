@@ -7,13 +7,13 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def home_with_templates(client: TestClient):
     """Create a home with user and quest templates for bounty testing"""
-    # Create home
-    home_response = client.post("/api/homes", json={"name": "Test Home"})
-    home_id = home_response.json()["id"]
-
-    # Create user
-    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
-    user_id = user_response.json()["id"]
+    # Create home and user via signup
+    signup = client.post(
+        "/api/auth/signup",
+        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
+    )
+    home_id = signup.json()["home_id"]
+    user_id = signup.json()["user_id"]
 
     # Create quest templates
     templates = []
@@ -189,11 +189,12 @@ def test_complete_non_bounty_quest_gives_normal_rewards(client: TestClient, home
 
 def test_bounty_with_no_templates(client: TestClient):
     """Test getting bounty when home has no templates returns None"""
-    # Create home and user but no templates
-    home_response = client.post("/api/homes", json={"name": "Empty Home"})
-    home_id = home_response.json()["id"]
-
-    user_response = client.post(f"/api/homes/{home_id}/join", json={"username": "testuser", "password": "testpass"})
+    # Create home and user via signup (but no templates)
+    signup = client.post(
+        "/api/auth/signup",
+        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Empty Home"},
+    )
+    assert signup.status_code == 200
 
     # Try to get bounty
     response = client.get("/api/bounty/today")
