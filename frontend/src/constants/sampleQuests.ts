@@ -1,7 +1,17 @@
 // Pre-written fantasy quests for testing the full creation flow
 // without waiting for Groq API responses
 
-export const SAMPLE_QUESTS = [
+export interface SampleQuest {
+  title: string;
+  display_name: string;
+  description: string;
+  tags: string;
+  time: number;
+  effort: number;
+  dread: number;
+}
+
+export const SAMPLE_QUESTS: SampleQuest[] = [
   {
     title: "Clean Kitchen",
     display_name: "The Grease Wars",
@@ -179,7 +189,7 @@ export const SAMPLE_QUESTS = [
 ];
 
 // Get a random sample quest
-export const getRandomSampleQuest = () => {
+export const getRandomSampleQuest = (): SampleQuest => {
   const index = Math.floor(Math.random() * SAMPLE_QUESTS.length);
   return SAMPLE_QUESTS[index];
 };
