@@ -4,20 +4,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-@pytest.fixture
-def home_with_user(client: TestClient):
-    """Create a home with a user for test setup"""
-    signup = client.post(
-        "/api/auth/signup",
-        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
-    )
-    home_id = signup.json()["home_id"]
-    user_id = signup.json()["user_id"]
-    invite_code = signup.json()["invite_code"]
-
-    return home_id, user_id, invite_code
-
-
 def test_create_achievement(client: TestClient, home_with_user):
     """Test creating an achievement"""
     home_id, user_id, invite_code = home_with_user
