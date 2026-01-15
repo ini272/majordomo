@@ -93,6 +93,12 @@ pre-commit install
 pre-commit run --all-files
 ```
 
+**IMPORTANT for Claude Code sessions:**
+Before committing any changes, ALWAYS run the appropriate formatters:
+- **Backend changes**: `cd backend && uv run ruff format . && uv run ruff check --fix .`
+- **Frontend changes**: `cd frontend && bun run format`
+- **Or run all hooks**: `pre-commit run --all-files`
+
 ### Manual Linting
 
 **Backend**:
