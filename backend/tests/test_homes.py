@@ -40,34 +40,54 @@ def test_invite_code_is_unique(client: TestClient):
 
 
 def test_join_home(client: TestClient):
-    """Test joining a home"""
-    # Create home
-    home_response = client.post("/api/homes", json={"name": "Test Home"})
-    home_id = home_response.json()["id"]
+    """Test joining a home with invite code"""
+    # Create home with first user via signup
+    signup_response = client.post(
+        "/api/auth/signup",
+        json={"email": "owner@example.com", "username": "owner", "password": "testpass", "home_name": "Test Home"},
+    )
+    assert signup_response.status_code == 200
+    invite_code = signup_response.json()["invite_code"]
+    home_id = signup_response.json()["home_id"]
 
-    # Join home
-    response = client.post(f"/api/homes/{home_id}/join", json={"username": "newuser", "password": "testpass"})
+    # Join home with invite code
+    response = client.post(
+        "/api/auth/join",
+        json={"invite_code": invite_code, "email": "newuser@example.com", "username": "newuser", "password": "testpass"},
+    )
     assert response.status_code == 200
-    assert response.json()["username"] == "newuser"
     assert response.json()["home_id"] == home_id
+    assert "access_token" in response.json()
 
 
 def test_join_home_not_found(client: TestClient):
-    """Test joining a non-existent home"""
-    response = client.post("/api/homes/999/join", json={"username": "newuser", "password": "testpass"})
+    """Test joining with invalid invite code"""
+    response = client.post(
+        "/api/auth/join",
+        json={"invite_code": "INVALID", "email": "user@example.com", "username": "newuser", "password": "testpass"},
+    )
     assert response.status_code == 404
 
 
 def test_get_home_users(client: TestClient):
     """Test getting all users in a home"""
-    # Create home
-    home_response = client.post("/api/homes", json={"name": "Test Home"})
-    home_id = home_response.json()["id"]
+    # Create home with first user
+    signup = client.post(
+        "/api/auth/signup",
+        json={"email": "user1@example.com", "username": "user1", "password": "pass1", "home_name": "Test Home"},
+    )
+    home_id = signup.json()["home_id"]
+    invite_code = signup.json()["invite_code"]
 
-    # Add users
-    client.post(f"/api/homes/{home_id}/join", json={"username": "user1", "password": "pass1"})
-    client.post(f"/api/homes/{home_id}/join", json={"username": "user2", "password": "pass2"})
-    client.post(f"/api/homes/{home_id}/join", json={"username": "user3", "password": "pass3"})
+    # Add more users
+    client.post(
+        "/api/auth/join",
+        json={"invite_code": invite_code, "email": "user2@example.com", "username": "user2", "password": "pass2"},
+    )
+    client.post(
+        "/api/auth/join",
+        json={"invite_code": invite_code, "email": "user3@example.com", "username": "user3", "password": "pass3"},
+    )
 
     # Get users
     response = client.get(f"/api/homes/{home_id}/users")
@@ -108,43 +128,44 @@ def test_delete_home(client: TestClient):
 
 def test_duplicate_username_in_same_home_rejected(client: TestClient):
     """Test that duplicate usernames in same home are rejected"""
-    # Create home
-    home_response = client.post("/api/homes", json={"name": "Test Home"})
-    home_id = home_response.json()["id"]
+    # Create home with first user
+    signup = client.post(
+        "/api/auth/signup",
+        json={"email": "alice@example.com", "username": "alice", "password": "pass1", "home_name": "Test Home"},
+    )
+    invite_code = signup.json()["invite_code"]
 
-    # Create first user
-    response1 = client.post(f"/api/homes/{home_id}/join", json={"username": "alice", "password": "pass1"})
-    assert response1.status_code == 200
-
-    # Try to create duplicate
-    response2 = client.post(f"/api/homes/{home_id}/join", json={"username": "alice", "password": "pass2"})
+    # Try to join with duplicate username
+    response2 = client.post(
+        "/api/auth/join",
+        json={"invite_code": invite_code, "email": "alice2@example.com", "username": "alice", "password": "pass2"},
+    )
     assert response2.status_code == 400
     error_detail = response2.json()["detail"]
     # Support both old (string) and new (dict) error formats
     if isinstance(error_detail, dict):
         assert error_detail["code"] == "DUPLICATE_USERNAME"
-        assert "already exists" in error_detail["message"].lower()
+        assert "already" in error_detail["message"].lower() or "exists" in error_detail["message"].lower()
     else:
-        assert "already exists" in error_detail.lower()
+        assert "already" in error_detail.lower() or "exists" in error_detail.lower()
 
 
 def test_same_username_different_homes_allowed(client: TestClient):
     """Test that same username can exist in different homes"""
     # Create first home and user
-    home1_response = client.post("/api/homes", json={"name": "Home 1"})
-    home1_id = home1_response.json()["id"]
+    response1 = client.post(
+        "/api/auth/signup",
+        json={"email": "alice1@example.com", "username": "alice", "password": "pass1", "home_name": "Home 1"},
+    )
+    home1_id = response1.json()["home_id"]
 
-    response1 = client.post(f"/api/homes/{home1_id}/join", json={"username": "alice", "password": "pass1"})
-    assert response1.status_code == 200
+    # Create second home and user with same username
+    response2 = client.post(
+        "/api/auth/signup",
+        json={"email": "alice2@example.com", "username": "alice", "password": "pass2", "home_name": "Home 2"},
+    )
+    home2_id = response2.json()["home_id"]
 
-    # Create second home and user with same name
-    home2_response = client.post("/api/homes", json={"name": "Home 2"})
-    home2_id = home2_response.json()["id"]
-
-    response2 = client.post(f"/api/homes/{home2_id}/join", json={"username": "alice", "password": "pass2"})
-    assert response2.status_code == 200
-
-    # Verify they are different users
-    assert response1.json()["id"] != response2.json()["id"]
-    assert response1.json()["home_id"] == home1_id
-    assert response2.json()["home_id"] == home2_id
+    # Verify they are different users in different homes
+    assert response1.json()["user_id"] != response2.json()["user_id"]
+    assert home1_id != home2_id

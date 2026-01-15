@@ -41,11 +41,16 @@ def create_user(db: Session, home_id: int, user_in: UserCreate) -> User:
     data = user_in.model_dump()
     password = data.pop("password")
 
-    # Check for duplicate email if provided
+    # Check for duplicate email if provided (globally unique)
     if data.get("email"):
         existing_user = get_user_by_email(db, data["email"])
         if existing_user:
             raise ValueError(f"Email '{data['email']}' is already registered")
+
+    # Check for duplicate username within the home
+    existing_username = get_user_by_username(db, home_id, data["username"])
+    if existing_username:
+        raise ValueError(f"Username '{data['username']}' already exists in this home")
 
     db_user = User(**data, home_id=home_id, password_hash=hash_password(password))
     db.add(db_user)

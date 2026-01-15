@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from sqlmodel import Session, func, select
+from sqlmodel import Session, func, or_, select
 
 from app.models.achievement import Achievement, AchievementCreate, UserAchievement
 from app.models.quest import Quest
@@ -13,8 +13,10 @@ def get_achievement(db: Session, achievement_id: int) -> Optional[Achievement]:
 
 
 def get_home_achievements(db: Session, home_id: int) -> List[Achievement]:
-    """Get all achievements in a home"""
-    return db.exec(select(Achievement).where(Achievement.home_id == home_id)).all()
+    """Get all achievements available to a home (system + home-specific)"""
+    return db.exec(
+        select(Achievement).where(or_(Achievement.home_id == home_id, Achievement.is_system == True))
+    ).all()
 
 
 def get_user_achievements(db: Session, user_id: int) -> List[UserAchievement]:
@@ -32,9 +34,20 @@ def has_user_achievement(db: Session, user_id: int, achievement_id: int) -> bool
     return result is not None
 
 
-def create_achievement(db: Session, home_id: int, achievement_in: AchievementCreate) -> Achievement:
-    """Create a new achievement in a home"""
-    db_achievement = Achievement(**achievement_in.model_dump(), home_id=home_id)
+def create_achievement(db: Session, home_id: int, achievement_in: AchievementCreate, is_system: bool = False) -> Achievement:
+    """Create a new achievement
+
+    Args:
+        db: Database session
+        home_id: Home ID (ignored if is_system=True)
+        achievement_in: Achievement data
+        is_system: If True, creates a system-wide achievement (home_id will be None)
+    """
+    achievement_data = achievement_in.model_dump()
+    achievement_data["is_system"] = is_system
+    achievement_data["home_id"] = None if is_system else home_id
+
+    db_achievement = Achievement(**achievement_data)
     db.add(db_achievement)
     db.commit()
     db.refresh(db_achievement)
@@ -141,3 +154,63 @@ def check_and_award_achievements(db: Session, user_id: int) -> List[UserAchievem
                 newly_awarded.append(awarded)
 
     return newly_awarded
+
+
+def create_default_achievements(db: Session, home_id: int = None) -> List[Achievement]:
+    """
+    Ensure default system achievements exist.
+
+    This is idempotent - it only creates achievements if they don't already exist.
+    System achievements are shared across all homes, so they're only created once.
+
+    Args:
+        db: Database session
+        home_id: Ignored (kept for backward compatibility)
+
+    Returns:
+        List of system achievements (existing or newly created)
+    """
+    # Check if system achievements already exist
+    existing_system = db.exec(select(Achievement).where(Achievement.is_system == True)).all()
+    if existing_system:
+        return existing_system
+
+    # Define default system achievements
+    default_achievements = [
+        AchievementCreate(
+            name="First Steps",
+            description="Complete your first quest",
+            criteria_type="quests_completed",
+            criteria_value=1,
+            icon="trophy-bronze",
+        ),
+        AchievementCreate(
+            name="Quest Novice",
+            description="Complete 10 quests",
+            criteria_type="quests_completed",
+            criteria_value=10,
+            icon="trophy-silver",
+        ),
+        AchievementCreate(
+            name="Rising Star",
+            description="Reach level 5",
+            criteria_type="level_reached",
+            criteria_value=5,
+            icon="star",
+        ),
+        AchievementCreate(
+            name="Gold Digger",
+            description="Earn 100 gold",
+            criteria_type="gold_earned",
+            criteria_value=100,
+            icon="coin",
+        ),
+    ]
+
+    # Create system achievements (home_id will be None)
+    created = []
+    for achievement_data in default_achievements:
+        achievement = create_achievement(db, home_id=0, achievement_in=achievement_data, is_system=True)
+        created.append(achievement)
+
+    return created

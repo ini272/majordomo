@@ -9,10 +9,17 @@ if TYPE_CHECKING:
 
 
 class Achievement(SQLModel, table=True):
-    """Achievement model representing an unlockable badge/milestone in a home"""
+    """Achievement model representing an unlockable badge/milestone
+
+    Can be either:
+    - System achievement (is_system=True, home_id=None): Shared across all homes
+    - Custom achievement (is_system=False, home_id=X): Specific to one home
+    """
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    home_id: int = Field(foreign_key="home.id", index=True)
+    home_id: Optional[int] = Field(default=None, foreign_key="home.id", index=True)
+    is_system: bool = Field(default=False, index=True)  # True for system-wide achievements
+
     name: str = Field(min_length=1, max_length=200)
     description: Optional[str] = Field(default=None, max_length=1000)
 
@@ -27,7 +34,7 @@ class Achievement(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Relationships
-    home: "Home" = Relationship(back_populates="achievements")
+    home: Optional["Home"] = Relationship(back_populates="achievements")
     user_achievements: List["UserAchievement"] = Relationship(back_populates="achievement")
 
 
@@ -35,7 +42,8 @@ class AchievementRead(SQLModel):
     """Schema for reading achievement data"""
 
     id: int
-    home_id: int
+    home_id: Optional[int]  # None for system achievements
+    is_system: bool
     name: str
     description: Optional[str]
     criteria_type: str

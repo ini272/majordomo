@@ -7,6 +7,7 @@ from pydantic import BaseModel, EmailStr
 from sqlmodel import Session
 
 from app.auth import create_access_token, verify_password
+from app.crud import achievement as crud_achievement
 from app.crud import home as crud_home
 from app.crud import user as crud_user
 from app.database import get_db
@@ -106,6 +107,9 @@ def signup(request: SignupRequest, db: Session = Depends(get_db)):
     try:
         # Create the home
         home = crud_home.create_home(db, HomeCreate(name=request.home_name))
+
+        # Create default starter achievements for the new home
+        crud_achievement.create_default_achievements(db, home.id)
 
         # Create the user (first member of the home)
         user = crud_user.create_user(db, home.id, UserCreate(username=request.username, email=request.email, password=request.password))

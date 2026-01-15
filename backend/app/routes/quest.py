@@ -162,11 +162,12 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = De
     quest = crud_quest.complete_quest(db, quest_id)
 
     # Award XP and gold to user from template (with bounty multiplier)
+    # Floor values to integers to avoid fractional XP/gold (e.g., 1.5x multiplier)
     xp_awarded = 0
     gold_awarded = 0
     if quest.template:
-        xp_awarded = quest.template.xp_reward * multiplier
-        gold_awarded = quest.template.gold_reward * multiplier
+        xp_awarded = int(quest.template.xp_reward * multiplier)
+        gold_awarded = int(quest.template.gold_reward * multiplier)
         try:
             crud_user.add_xp(db, quest.user_id, xp_awarded)
             crud_user.add_gold(db, quest.user_id, gold_awarded)

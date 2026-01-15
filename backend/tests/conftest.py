@@ -50,3 +50,22 @@ def client(db):
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def home_with_user(client: TestClient):
+    """
+    Create a home with a user for test setup.
+
+    Returns:
+        tuple: (home_id, user_id, invite_code)
+    """
+    signup = client.post(
+        "/api/auth/signup",
+        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
+    )
+    home_id = signup.json()["home_id"]
+    user_id = signup.json()["user_id"]
+    invite_code = signup.json()["invite_code"]
+
+    return home_id, user_id, invite_code

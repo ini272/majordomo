@@ -28,7 +28,11 @@ def get_home_achievements(db: Session = Depends(get_db), auth: Dict = Depends(ge
 def get_achievement(achievement_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
     """Get achievement by ID"""
     achievement = crud_achievement.get_achievement(db, achievement_id)
-    if not achievement or achievement.home_id != auth["home_id"]:
+    if not achievement:
+        raise HTTPException(status_code=404, detail="Achievement not found")
+
+    # Allow access to system achievements or achievements from user's home
+    if not achievement.is_system and achievement.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="Achievement not found")
 
     return achievement
