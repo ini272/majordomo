@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { COLORS } from "../constants/colors";
 import { api } from "../services/api";
-import type { User, Quest } from "../types/api";
+import type { User, Quest, Achievement, UserAchievement } from "../types/api";
 
 interface ProfileProps {
   token: string;
@@ -15,18 +15,24 @@ export default function Profile({ token }: ProfileProps) {
   const [showAllQuests, setShowAllQuests] = useState(false);
   const [homeInfo, setHomeInfo] = useState<{ invite_code: string; home_name: string } | null>(null);
   const [copiedInvite, setCopiedInvite] = useState(false);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
-        const [stats, questsData] = await Promise.all([
+        const [stats, questsData, achievementsData, userAchievementsData] = await Promise.all([
           api.user.getStats(token),
           api.quests.getAll(token),
+          api.achievements.getAll(token),
+          api.achievements.getMyAchievements(token),
         ]);
         setUserStats(stats);
         setQuests(questsData);
+        setAchievements(achievementsData);
+        setUserAchievements(userAchievementsData);
 
         // Fetch home info after we have the user stats
         if (stats.home_id) {
@@ -75,6 +81,37 @@ export default function Profile({ token }: ProfileProps) {
 
   const completedQuests = quests.filter(q => q.completed);
   const completedCount = completedQuests.length;
+
+  // Helper function to check if user has unlocked an achievement
+  const isAchievementUnlocked = (achievementId: number): boolean => {
+    return userAchievements.some(ua => ua.achievement_id === achievementId);
+  };
+
+  // Helper function to calculate progress toward an achievement
+  const getAchievementProgress = (achievement: Achievement): { current: number; max: number; percent: number } => {
+    if (!userStats) return { current: 0, max: achievement.criteria_value, percent: 0 };
+
+    let current = 0;
+    switch (achievement.criteria_type) {
+      case "quests_completed":
+        current = completedCount;
+        break;
+      case "level_reached":
+        current = userStats.level;
+        break;
+      case "gold_earned":
+        current = userStats.gold_balance;
+        break;
+      case "xp_earned":
+        current = userStats.xp;
+        break;
+      default:
+        current = 0;
+    }
+
+    const percent = Math.min((current / achievement.criteria_value) * 100, 100);
+    return { current, max: achievement.criteria_value, percent };
+  };
 
   // Calculate XP progress to next level
   // Based on backend formula: Level N requires 100 * (N-1) * N / 2 total XP
@@ -245,7 +282,7 @@ export default function Profile({ token }: ProfileProps) {
         </div>
       )}
 
-      {/* Achievements Section (Placeholder) */}
+      {/* Achievements Section */}
       <div
         className="p-6 rounded-lg mb-8"
         style={{
@@ -260,14 +297,119 @@ export default function Profile({ token }: ProfileProps) {
         >
           Achievements
         </h3>
-        <div className="text-center py-8">
-          <p className="font-serif text-lg mb-2" style={{ color: COLORS.brown }}>
-            No achievements unlocked yet
-          </p>
-          <p className="font-serif text-sm" style={{ color: COLORS.parchment, opacity: 0.7 }}>
-            Complete quests and reach milestones to earn badges of honor
-          </p>
-        </div>
+        {achievements.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {achievements.map(achievement => {
+              const unlocked = isAchievementUnlocked(achievement.id);
+              const progress = getAchievementProgress(achievement);
+
+              return (
+                <div
+                  key={achievement.id}
+                  className="p-4 rounded-lg"
+                  style={{
+                    backgroundColor: COLORS.dark,
+                    borderColor: unlocked ? COLORS.gold : COLORS.brown,
+                    borderWidth: "2px",
+                    opacity: unlocked ? 1 : 0.7,
+                  }}
+                >
+                  <div className="flex items-start gap-3 mb-2">
+                    {/* Icon */}
+                    <div
+                      className="text-2xl flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full"
+                      style={{
+                        backgroundColor: unlocked ? COLORS.gold : COLORS.brown,
+                        color: COLORS.dark,
+                      }}
+                    >
+                      {achievement.icon === "trophy-bronze" && "🥉"}
+                      {achievement.icon === "trophy-silver" && "🥈"}
+                      {achievement.icon === "star" && "⭐"}
+                      {achievement.icon === "coin" && "🪙"}
+                      {!achievement.icon && "🏆"}
+                    </div>
+
+                    {/* Name and Description */}
+                    <div className="flex-1">
+                      <h4
+                        className="font-serif font-bold mb-1"
+                        style={{ color: unlocked ? COLORS.gold : COLORS.parchment }}
+                      >
+                        {achievement.name}
+                      </h4>
+                      <p
+                        className="text-sm font-serif"
+                        style={{ color: COLORS.brown }}
+                      >
+                        {achievement.description}
+                      </p>
+                    </div>
+
+                    {/* Unlocked Badge */}
+                    {unlocked && (
+                      <div
+                        className="text-xs font-serif px-2 py-1 rounded"
+                        style={{
+                          backgroundColor: COLORS.greenSuccess,
+                          color: COLORS.dark,
+                        }}
+                      >
+                        ✓
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Progress Bar (only for locked achievements) */}
+                  {!unlocked && (
+                    <div className="mt-3">
+                      <div className="flex justify-between items-center mb-1">
+                        <p className="text-xs" style={{ color: COLORS.brown }}>
+                          Progress
+                        </p>
+                        <p className="text-xs" style={{ color: COLORS.parchment }}>
+                          {progress.current} / {progress.max}
+                        </p>
+                      </div>
+                      <div
+                        className="w-full h-2 rounded-full overflow-hidden"
+                        style={{ backgroundColor: COLORS.dark }}
+                      >
+                        <div
+                          className="h-full transition-all duration-500"
+                          style={{
+                            width: `${progress.percent}%`,
+                            backgroundColor: COLORS.brown,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Unlocked Date */}
+                  {unlocked && (
+                    <div className="mt-2">
+                      <p className="text-xs" style={{ color: COLORS.brown }}>
+                        Unlocked {new Date(
+                          userAchievements.find(ua => ua.achievement_id === achievement.id)?.unlocked_at || ""
+                        ).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="font-serif text-lg mb-2" style={{ color: COLORS.brown }}>
+              No achievements available yet
+            </p>
+            <p className="font-serif text-sm" style={{ color: COLORS.parchment, opacity: 0.7 }}>
+              Complete quests and reach milestones to earn badges of honor
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Quest History Section */}
