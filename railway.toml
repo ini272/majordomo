@@ -1,0 +1,25 @@
+# Railway Configuration for Majordomo
+# This file defines how Railway should deploy the backend and frontend services
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+# Backend Service Configuration
+[[services]]
+name = "backend"
+dockerfile = "backend/Dockerfile"
+
+[services.healthcheck]
+path = "/api/health"
+timeout = 100
+interval = 10
+
+# Frontend Service Configuration
+[[services]]
+name = "frontend"
+dockerfile = "frontend/Dockerfile"
+
+[services.variables]
+# Railway will inject RAILWAY_PUBLIC_DOMAIN for backend URL
+# This gets set as VITE_API_URL during build
