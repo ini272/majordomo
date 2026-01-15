@@ -2,6 +2,10 @@ FROM oven/bun:1 AS builder
 
 WORKDIR /app
 
+# Accept build argument for API URL
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
 # Copy package files
 COPY package.json bun.lockb* ./
 
@@ -11,7 +15,7 @@ RUN bun install --frozen-lockfile
 # Copy source
 COPY . .
 
-# Build the app
+# Build the app (VITE_API_URL will be embedded in the build)
 RUN bun run build
 
 # Production stage
