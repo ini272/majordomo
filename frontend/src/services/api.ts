@@ -9,6 +9,8 @@ import type {
   QuestCreateRequest,
   DailyBounty,
   BountyCheckResponse,
+  Achievement,
+  UserAchievement,
 } from "../types/api";
 
 // Detect API URL at runtime
@@ -236,6 +238,24 @@ export const api = {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch invite code");
+      return res.json();
+    },
+  },
+
+  achievements: {
+    getAll: async (token: string): Promise<Achievement[]> => {
+      const res = await fetch(`${API_URL}/achievements`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch achievements");
+      return res.json();
+    },
+
+    getMyAchievements: async (token: string): Promise<UserAchievement[]> => {
+      const res = await fetch(`${API_URL}/achievements/me/achievements`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch user achievements");
       return res.json();
     },
   },

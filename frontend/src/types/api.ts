@@ -97,3 +97,23 @@ export interface QuestCreateRequest {
   quest_template_id: number;
   due_date?: string | null;
 }
+
+export interface Achievement {
+  id: number;
+  home_id: number | null;
+  is_system: boolean;
+  name: string;
+  description: string | null;
+  criteria_type: string;
+  criteria_value: number;
+  icon: string | null;
+  created_at: string;
+}
+
+export interface UserAchievement {
+  id: number;
+  user_id: number;
+  achievement_id: number;
+  unlocked_at: string;
+  achievement: Achievement;
+}
