@@ -17,6 +17,9 @@ export default defineConfig({
       host: process.env.HMR_HOST || "localhost",
       port: 3000,
     },
+    allowedHosts: [
+      ".trycloudflare.com",
+    ],
   },
   resolve: {
     alias: {
