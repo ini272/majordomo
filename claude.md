@@ -1,6 +1,8 @@
 # Majordomo
 
-Gamified household chore management system. Transform chores into quests with rewards, daily bounties, and NFC triggers.
+Gamified household chore management system. Transform chores into quests with XP/gold rewards, daily bounties, and NFC triggers.
+
+**For design philosophy and detailed mechanics, see [DESIGN.md](./DESIGN.md)**
 
 ## Tech Stack
 
@@ -31,23 +33,26 @@ Gamified household chore management system. Transform chores into quests with re
 └── docker-compose.yml # Container orchestration
 ```
 
-## Key Concepts
+## Core Models & Concepts
 
-- **Quest**: Chore task with title, description, gold/XP rewards, difficulty, assignee
-- **Quest Template**: Reusable quest definitions for recurring chores
-- **Daily Bounty**: Special time-limited quests with bonus rewards
-- **Reward**: Items purchasable with earned gold
-- **Home**: Household group containing users and quests
-- **Scribe**: AI service (Groq) for generating quest descriptions
+### Database Models
+- **User**: Authentication, profile, gold, XP, level, home membership
+- **Quest**: Task management, assignment, completion tracking, quest_type (standard/bounty/corrupted)
+- **QuestTemplate**: Reusable quest definitions for recurring chores
+- **DailyBounty**: Time-limited bonus quests
+- **Reward**: Marketplace items purchasable with gold
+- **Home**: Household/family groups
 
-## Core Models
+### Key Concepts
+- **Quest Types**: Standard (regular), Bounty (time-limited bonus), Corrupted (overdue, higher rewards)
+- **XP/Leveling**: Exponential curve: `XP_for_Next_Level = 100 * (current_level ^ 1.5)`
+- **Scribe**: Background AI service (Groq) for generating quest descriptions
 
-- User (authentication, profile, gold, XP, home membership)
-- Quest (task management, assignment, completion tracking)
-- QuestTemplate (recurring quest blueprints)
-- DailyBounty (time-limited bonus quests)
-- Reward (marketplace items)
-- Home (household/family groups)
+## Current Development Phase
+
+**MVP**: Core gameplay loop functional. Users can log in, view quests, complete them, and gain XP/gold. Quest types (standard, bounty, corrupted) are implemented.
+
+**Next**: Phase 1 features - difficulty levels, categories, filtering, Profile/Market/Heroes pages.
 
 ## Development
 
