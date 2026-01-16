@@ -3,6 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "bun": ">=1.0.0",
+    "npm": "please-use-bun",
+    "yarn": "please-use-bun",
+    "pnpm": "please-use-bun"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
