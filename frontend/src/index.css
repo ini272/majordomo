@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+/* Tailwind v4: Define custom theme values in CSS */
+@theme {
+  /* Custom font families - generates .font-{name} utilities */
+  --font-serif: Georgia, serif;
+  --font-body: Georgia, serif;
+  --font-cinzel: Cinzel, "Comic Sans MS", cursive;
+  --font-fell: "IM Fell English", "Comic Sans MS", cursive;
+
+  /* Custom colors - generates .text-{name}, .bg-{name}, etc. */
+  --color-gold: #d4af37;
+  --color-parchment: #c9b896;
+  --color-parchment-light: #e8dcc8;
+  --color-dark: #1a1a1a;
+  --color-dark-panel: #0f0f0f;
+  --color-brown: #8b7355;
+
+  /* Custom background images */
+  --background-image-parchment-texture: repeating-linear-gradient(0deg, rgba(212, 175, 55, 0.02) 0px, rgba(212, 175, 55, 0.02) 2px, transparent 2px, transparent 4px);
+}
+
 body {
   background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 50%, #1a0a2e 100%);
   /* Gradient: linear-gradient(135deg, dark 0%, darkGradient1 50%, darkGradient2 100%) */
