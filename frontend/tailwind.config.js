@@ -30,8 +30,8 @@ export default {
     fontFamily: {
       serif: ["Georgia", "serif"],
       body: ["Georgia", "serif"],
-      cinzel: ["Cinzel", "Georgia", "serif"],
-      fell: ["IM Fell English", "Georgia", "serif"],
+      cinzel: ["Cinzel", "Comic Sans MS", "cursive"],
+      fell: ["IM Fell English", "Comic Sans MS", "cursive"],
     },
     extend: {
       backgroundImage: {
