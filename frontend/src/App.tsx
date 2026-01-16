@@ -8,6 +8,7 @@ import Profile from "./pages/Profile";
 import Market from "./pages/Market";
 import Heroes from "./pages/Heroes";
 import NFCTrigger from "./pages/NFCTrigger";
+import QuestCardPlayground from "./pages/QuestCardPlayground";
 import { COLORS } from "./constants/colors";
 
 function App() {
@@ -101,6 +102,7 @@ function App() {
           <Route path="/market" element={<Market />} />
           <Route path="/heroes" element={<Heroes />} />
           <Route path="/trigger/quest/:questTemplateId" element={<NFCTrigger />} />
+          <Route path="/playground" element={<QuestCardPlayground />} />
           <Route path="/" element={<Navigate to="/board" replace />} />
         </Routes>
 
