@@ -2,11 +2,7 @@ import { useState } from "react";
 import { COLORS } from "../constants/colors";
 
 // Import fonts locally (only for playground)
-import "@fontsource/cinzel/400.css";
-import "@fontsource/cinzel/500.css";
-import "@fontsource/cinzel/600.css";
-import "@fontsource/cinzel/700.css";
-import "@fontsource/im-fell-english/400.css";
+import "../styles/playground-fonts.css";
 
 // Sample quest data for testing
 const sampleQuests = [
@@ -257,6 +253,39 @@ export default function QuestCardPlayground() {
                 <div className="text-sm opacity-70">The quick brown fox jumps</div>
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Font Test - Debug Section */}
+        <div className="mb-8 p-6 rounded-lg" style={{ backgroundColor: COLORS.darkPanel, borderColor: COLORS.gold, borderWidth: "2px" }}>
+          <h2 className="text-xl font-bold mb-4" style={{ color: COLORS.gold }}>
+            Font Loading Test
+          </h2>
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs mb-1" style={{ color: COLORS.brown }}>Cinzel (should be decorative serif):</p>
+              <p className="font-cinzel text-2xl" style={{ color: COLORS.parchment }}>
+                The Quick Brown Fox Jumps Over The Lazy Dog
+              </p>
+            </div>
+            <div>
+              <p className="text-xs mb-1" style={{ color: COLORS.brown }}>IM Fell English (should be old-style serif):</p>
+              <p className="font-fell text-2xl" style={{ color: COLORS.parchment }}>
+                The Quick Brown Fox Jumps Over The Lazy Dog
+              </p>
+            </div>
+            <div>
+              <p className="text-xs mb-1" style={{ color: COLORS.brown }}>Georgia fallback (should be standard serif):</p>
+              <p className="font-serif text-2xl" style={{ color: COLORS.parchment }}>
+                The Quick Brown Fox Jumps Over The Lazy Dog
+              </p>
+            </div>
+            <div>
+              <p className="text-xs mb-1" style={{ color: COLORS.brown }}>Comic Sans test (you should NOT see this font unless custom fonts fail):</p>
+              <p style={{ fontFamily: "Comic Sans MS, cursive", color: COLORS.parchment }} className="text-2xl">
+                The Quick Brown Fox Jumps Over The Lazy Dog
+              </p>
+            </div>
           </div>
         </div>
 
