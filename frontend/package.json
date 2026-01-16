@@ -13,6 +13,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/cinzel": "^5.2.8",
+    "@fontsource/im-fell-english": "^5.2.6",
     "framer-motion": "^12.24.7",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

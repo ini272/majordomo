@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { COLORS } from "../constants/colors";
 
+// Import fonts locally (only for playground)
+import "@fontsource/cinzel/400.css";
+import "@fontsource/cinzel/500.css";
+import "@fontsource/cinzel/600.css";
+import "@fontsource/cinzel/700.css";
+import "@fontsource/im-fell-english/400.css";
+
 // Sample quest data for testing
 const sampleQuests = [
   {
