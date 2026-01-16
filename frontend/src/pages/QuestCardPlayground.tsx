@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { COLORS } from "../constants/colors";
+import { debugFontLoading, debugElementFont, getFontDebugInfo } from "../utils/fontDebug";
 
 // Import fonts locally (only for playground)
 import "../styles/playground-fonts.css";
@@ -218,6 +219,26 @@ function PlaygroundQuestCard({ quest, fontClassName }: QuestCardProps) {
 
 export default function QuestCardPlayground() {
   const [selectedFont, setSelectedFont] = useState(MEDIEVAL_FONTS[0]);
+  const [fontDebugInfo, setFontDebugInfo] = useState<ReturnType<typeof getFontDebugInfo> | null>(null);
+
+  useEffect(() => {
+    console.log('🎨 QuestCardPlayground mounted - checking font loading...');
+
+    // Enable font loading debugging
+    debugFontLoading();
+
+    // Check fonts after a short delay (let them load)
+    const timer = setTimeout(() => {
+      // Debug specific elements
+      debugElementFont('.font-cinzel');
+      debugElementFont('.font-fell');
+
+      // Update debug info state
+      setFontDebugInfo(getFontDebugInfo());
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="min-h-screen p-4" style={{ backgroundColor: COLORS.dark }}>
@@ -255,6 +276,37 @@ export default function QuestCardPlayground() {
             ))}
           </div>
         </div>
+
+        {/* Font Debug Info Panel */}
+        {fontDebugInfo && (
+          <div className="mb-8 p-6 rounded-lg" style={{ backgroundColor: COLORS.darkPanel, borderColor: "#4ade80", borderWidth: "2px" }}>
+            <h2 className="text-xl font-bold mb-4" style={{ color: "#4ade80" }}>
+              Font Loading Status (Check Console for Details)
+            </h2>
+            <div className="space-y-2 text-sm font-mono" style={{ color: COLORS.parchment }}>
+              <div>
+                <strong>All Fonts Loaded:</strong> {fontDebugInfo.fontsLoaded ? '✅ Yes' : '⏳ Loading...'}
+              </div>
+              <div>
+                <strong>Fonts Available:</strong> {fontDebugInfo.availableFonts.length}
+              </div>
+              {fontDebugInfo.availableFonts.length > 0 && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer" style={{ color: COLORS.gold }}>
+                    Show loaded fonts ({fontDebugInfo.availableFonts.length})
+                  </summary>
+                  <ul className="mt-2 ml-4 space-y-1">
+                    {fontDebugInfo.availableFonts.map((font, idx) => (
+                      <li key={idx} style={{ color: font.status === 'loaded' ? '#4ade80' : '#fbbf24' }}>
+                        {font.family} - {font.weight} {font.style} - {font.status}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Font Test - Debug Section */}
         <div className="mb-8 p-6 rounded-lg" style={{ backgroundColor: COLORS.darkPanel, borderColor: COLORS.gold, borderWidth: "2px" }}>
