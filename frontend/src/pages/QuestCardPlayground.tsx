@@ -54,20 +54,17 @@ const sampleQuests = [
 ];
 
 const MEDIEVAL_FONTS = [
-  { name: "IM Fell English", value: "'IM Fell English', serif", import: "IM+Fell+English:400,400i" },
-  { name: "Cinzel", value: "'Cinzel', serif", import: "Cinzel:400,500,600,700" },
-  { name: "MedievalSharp", value: "'MedievalSharp', cursive", import: "MedievalSharp" },
-  { name: "Uncial Antiqua", value: "'Uncial Antiqua', cursive", import: "Uncial+Antiqua" },
-  { name: "Philosopher", value: "'Philosopher', sans-serif", import: "Philosopher:400,700" },
-  { name: "Default (Current)", value: "ui-serif, Georgia, serif", import: "" },
+  { name: "IM Fell English", className: "font-fell" },
+  { name: "Cinzel", className: "font-cinzel" },
+  { name: "Default (Georgia)", className: "font-serif" },
 ];
 
 interface QuestCardProps {
   quest: typeof sampleQuests[0];
-  fontFamily: string;
+  fontClassName: string;
 }
 
-function PlaygroundQuestCard({ quest, fontFamily }: QuestCardProps) {
+function PlaygroundQuestCard({ quest, fontClassName }: QuestCardProps) {
   const getTypeColor = () => {
     switch (quest.questType) {
       case "bounty":
@@ -84,11 +81,10 @@ function PlaygroundQuestCard({ quest, fontFamily }: QuestCardProps) {
 
   return (
     <div
-      className="relative p-6 mb-4 rounded-lg shadow-lg border-2 transition-all"
+      className={`relative p-6 mb-4 rounded-lg shadow-lg border-2 transition-all ${fontClassName}`}
       style={{
         backgroundColor: colors.bg,
         borderColor: colors.border,
-        fontFamily: fontFamily,
         boxShadow: `0 0 20px ${colors.border}40, inset 0 0 30px rgba(0,0,0,0.5)`,
       }}
     >
@@ -222,16 +218,10 @@ export default function QuestCardPlayground() {
 
   return (
     <div className="min-h-screen p-4" style={{ backgroundColor: COLORS.dark }}>
-      {/* Load Google Fonts */}
-      <link
-        href={`https://fonts.googleapis.com/css2?${MEDIEVAL_FONTS.filter(f => f.import).map(f => `family=${f.import}`).join("&")}&display=swap`}
-        rel="stylesheet"
-      />
-
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold mb-2" style={{ color: COLORS.gold, fontFamily: selectedFont.value }}>
+          <h1 className={`text-4xl font-bold mb-2 ${selectedFont.className}`} style={{ color: COLORS.gold }}>
             Quest Card Design Playground
           </h1>
           <p className="text-sm" style={{ color: COLORS.brown }}>
@@ -249,12 +239,11 @@ export default function QuestCardPlayground() {
               <button
                 key={font.name}
                 onClick={() => setSelectedFont(font)}
-                className="p-4 rounded border-2 text-left transition-all"
+                className={`p-4 rounded border-2 text-left transition-all ${font.className}`}
                 style={{
                   backgroundColor: selectedFont.name === font.name ? `${COLORS.gold}20` : "transparent",
                   borderColor: selectedFont.name === font.name ? COLORS.gold : COLORS.brown,
                   color: COLORS.parchment,
-                  fontFamily: font.value,
                 }}
               >
                 <div className="font-bold mb-1">{font.name}</div>
@@ -266,7 +255,7 @@ export default function QuestCardPlayground() {
 
         {/* Quest Cards Display */}
         <div className="mb-8">
-          <h2 className="text-xl font-bold mb-4" style={{ color: COLORS.gold, fontFamily: selectedFont.value }}>
+          <h2 className={`text-xl font-bold mb-4 ${selectedFont.className}`} style={{ color: COLORS.gold }}>
             Quest Card Examples
           </h2>
           <p className="text-sm mb-6" style={{ color: COLORS.brown }}>
@@ -274,7 +263,7 @@ export default function QuestCardPlayground() {
           </p>
 
           {sampleQuests.map((quest) => (
-            <PlaygroundQuestCard key={quest.id} quest={quest} fontFamily={selectedFont.value} />
+            <PlaygroundQuestCard key={quest.id} quest={quest} fontClassName={selectedFont.className} />
           ))}
         </div>
 
