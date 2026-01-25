@@ -183,3 +183,27 @@ def test_claim_reward_deducts_gold(client: TestClient, home_with_user):
     # Verify gold was deducted
     user_response = client.get(f"/api/users/{user_id}")
     assert user_response.json()["gold_balance"] == 350  # 500 - 150
+
+
+def test_claim_free_reward(client: TestClient, home_with_user):
+    """Test claiming a free reward (cost = 0) works without gold"""
+    home_id, user_id, invite_code = home_with_user
+
+    # Create free reward
+    reward_response = client.post(
+        f"/api/rewards?home_id={home_id}",
+        json={"name": "Free Gift", "cost": 0}
+    )
+    reward_id = reward_response.json()["id"]
+
+    # Verify user has 0 gold
+    user_response = client.get(f"/api/users/{user_id}")
+    assert user_response.json()["gold_balance"] == 0
+
+    # Claim free reward (should succeed)
+    response = client.post(f"/api/rewards/{reward_id}/claim?user_id={user_id}")
+    assert response.status_code == 200
+
+    # Verify gold unchanged (still 0)
+    user_response = client.get(f"/api/users/{user_id}")
+    assert user_response.json()["gold_balance"] == 0
