@@ -6,7 +6,12 @@ def test_get_user(client: TestClient):
     # Create home and user via signup
     signup = client.post(
         "/api/auth/signup",
-        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
+        json={
+            "email": "testuser@example.com",
+            "username": "testuser",
+            "password": "testpass",
+            "home_name": "Test Home",
+        },
     )
     user_id = signup.json()["user_id"]
 
@@ -27,7 +32,12 @@ def test_update_user(client: TestClient):
     # Create user via signup
     signup = client.post(
         "/api/auth/signup",
-        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
+        json={
+            "email": "testuser@example.com",
+            "username": "testuser",
+            "password": "testpass",
+            "home_name": "Test Home",
+        },
     )
     user_id = signup.json()["user_id"]
 
@@ -42,7 +52,12 @@ def test_add_xp_to_user(client: TestClient):
     # Create user
     signup = client.post(
         "/api/auth/signup",
-        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
+        json={
+            "email": "testuser@example.com",
+            "username": "testuser",
+            "password": "testpass",
+            "home_name": "Test Home",
+        },
     )
     user_id = signup.json()["user_id"]
 
@@ -57,7 +72,12 @@ def test_level_progression(client: TestClient):
     # Create user
     signup = client.post(
         "/api/auth/signup",
-        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
+        json={
+            "email": "testuser@example.com",
+            "username": "testuser",
+            "password": "testpass",
+            "home_name": "Test Home",
+        },
     )
     user_id = signup.json()["user_id"]
 
@@ -73,7 +93,12 @@ def test_add_gold_to_user(client: TestClient):
     # Create user
     signup = client.post(
         "/api/auth/signup",
-        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
+        json={
+            "email": "testuser@example.com",
+            "username": "testuser",
+            "password": "testpass",
+            "home_name": "Test Home",
+        },
     )
     user_id = signup.json()["user_id"]
 
@@ -88,7 +113,12 @@ def test_delete_user(client: TestClient):
     # Create user
     signup = client.post(
         "/api/auth/signup",
-        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
+        json={
+            "email": "testuser@example.com",
+            "username": "testuser",
+            "password": "testpass",
+            "home_name": "Test Home",
+        },
     )
     user_id = signup.json()["user_id"]
 
@@ -128,14 +158,24 @@ def test_duplicate_username_in_home(client: TestClient):
     # Create home with first user
     signup = client.post(
         "/api/auth/signup",
-        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
+        json={
+            "email": "testuser@example.com",
+            "username": "testuser",
+            "password": "testpass",
+            "home_name": "Test Home",
+        },
     )
     invite_code = signup.json()["invite_code"]
 
     # Try to create duplicate
     response = client.post(
         "/api/auth/join",
-        json={"invite_code": invite_code, "email": "different@example.com", "username": "testuser", "password": "different"},
+        json={
+            "invite_code": invite_code,
+            "email": "different@example.com",
+            "username": "testuser",
+            "password": "different",
+        },
     )
     assert response.status_code == 400
     error_detail = response.json()["detail"]
@@ -170,7 +210,12 @@ def test_create_user_with_email(client: TestClient):
     # Signup already creates user with email
     response = client.post(
         "/api/auth/signup",
-        json={"email": "emailuser@example.com", "username": "emailuser", "password": "testpass", "home_name": "Test Home"},
+        json={
+            "email": "emailuser@example.com",
+            "username": "emailuser",
+            "password": "testpass",
+            "home_name": "Test Home",
+        },
     )
 
     assert response.status_code == 200
@@ -211,7 +256,12 @@ def test_user_with_optional_email(client: TestClient):
     # Email is now required for signup
     response = client.post(
         "/api/auth/signup",
-        json={"email": "required@example.com", "username": "noemailuser", "password": "testpass", "home_name": "Test Home"},
+        json={
+            "email": "required@example.com",
+            "username": "noemailuser",
+            "password": "testpass",
+            "home_name": "Test Home",
+        },
     )
 
     assert response.status_code == 200
@@ -242,7 +292,12 @@ def test_get_current_user_with_email(client: TestClient):
     # Create user with email
     client.post(
         "/api/auth/signup",
-        json={"email": "current@example.com", "username": "currentuser", "password": "testpass", "home_name": "Test Home"},
+        json={
+            "email": "current@example.com",
+            "username": "currentuser",
+            "password": "testpass",
+            "home_name": "Test Home",
+        },
     )
 
     # Get current user

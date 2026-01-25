@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -71,6 +70,9 @@ def test_claim_reward(client: TestClient, home_with_user):
     """Test claiming a reward"""
     home_id, user_id, invite_code = home_with_user
 
+    # Give user enough gold
+    client.put(f"/api/users/{user_id}", json={"gold_balance": 100})
+
     # Create reward
     reward_response = client.post(f"/api/rewards?home_id={home_id}", json={"name": "Gaming hour", "cost": 100})
     reward_id = reward_response.json()["id"]
@@ -94,6 +96,9 @@ def test_claim_reward_not_found(client: TestClient, home_with_user):
 def test_get_user_reward_claims(client: TestClient, home_with_user):
     """Test retrieving a user's reward claims"""
     home_id, user_id, invite_code = home_with_user
+
+    # Give user enough gold for both rewards (100 + 200 = 300)
+    client.put(f"/api/users/{user_id}", json={"gold_balance": 300})
 
     # Create and claim multiple rewards
     for i in range(2):
@@ -137,3 +142,84 @@ def test_reward_with_zero_cost(client: TestClient):
     response = client.post(f"/api/rewards?home_id={home_id}", json={"name": "Free reward", "cost": 0})
     assert response.status_code == 200
     assert response.json()["cost"] == 0
+
+
+def test_claim_reward_insufficient_gold(client: TestClient, home_with_user):
+    """Test claiming a reward with insufficient gold balance"""
+    home_id, user_id, invite_code = home_with_user
+
+    # Create expensive reward (200 gold)
+    reward_response = client.post(f"/api/rewards?home_id={home_id}", json={"name": "Expensive Item", "cost": 200})
+    reward_id = reward_response.json()["id"]
+
+    # Verify user has 0 gold by default
+    user_response = client.get(f"/api/users/{user_id}")
+    assert user_response.json()["gold_balance"] == 0
+
+    # Try to claim reward (should fail)
+    response = client.post(f"/api/rewards/{reward_id}/claim?user_id={user_id}")
+    assert response.status_code == 400
+    assert "INSUFFICIENT_GOLD" in response.json()["detail"]["code"]
+    assert response.json()["detail"]["details"]["required"] == 200
+    assert response.json()["detail"]["details"]["current"] == 0
+
+
+def test_claim_reward_deducts_gold(client: TestClient, home_with_user):
+    """Test that claiming a reward deducts gold from user balance"""
+    home_id, user_id, invite_code = home_with_user
+
+    # Give user 500 gold
+    client.put(f"/api/users/{user_id}", json={"gold_balance": 500})
+
+    # Create reward costing 150 gold
+    reward_response = client.post(f"/api/rewards?home_id={home_id}", json={"name": "Heroic Elixir", "cost": 150})
+    reward_id = reward_response.json()["id"]
+
+    # Claim reward
+    response = client.post(f"/api/rewards/{reward_id}/claim?user_id={user_id}")
+    assert response.status_code == 200
+
+    # Verify gold was deducted
+    user_response = client.get(f"/api/users/{user_id}")
+    assert user_response.json()["gold_balance"] == 350  # 500 - 150
+
+
+def test_claim_free_reward(client: TestClient, home_with_user):
+    """Test claiming a free reward (cost = 0) works without gold"""
+    home_id, user_id, invite_code = home_with_user
+
+    # Create free reward
+    reward_response = client.post(f"/api/rewards?home_id={home_id}", json={"name": "Free Gift", "cost": 0})
+    reward_id = reward_response.json()["id"]
+
+    # Verify user has 0 gold
+    user_response = client.get(f"/api/users/{user_id}")
+    assert user_response.json()["gold_balance"] == 0
+
+    # Claim free reward (should succeed)
+    response = client.post(f"/api/rewards/{reward_id}/claim?user_id={user_id}")
+    assert response.status_code == 200
+
+    # Verify gold unchanged (still 0)
+    user_response = client.get(f"/api/users/{user_id}")
+    assert user_response.json()["gold_balance"] == 0
+
+
+def test_claim_reward_with_exact_gold_amount(client: TestClient, home_with_user):
+    """Test claiming a reward when user has exactly the required gold"""
+    home_id, user_id, invite_code = home_with_user
+
+    # Create reward costing 100 gold
+    reward_response = client.post(f"/api/rewards?home_id={home_id}", json={"name": "Budget Item", "cost": 100})
+    reward_id = reward_response.json()["id"]
+
+    # Give user exactly 100 gold
+    client.put(f"/api/users/{user_id}", json={"gold_balance": 100})
+
+    # Claim reward (should succeed)
+    response = client.post(f"/api/rewards/{reward_id}/claim?user_id={user_id}")
+    assert response.status_code == 200
+
+    # Verify gold is now 0
+    user_response = client.get(f"/api/users/{user_id}")
+    assert user_response.json()["gold_balance"] == 0

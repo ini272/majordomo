@@ -128,7 +128,7 @@ def test_trigger_quest_wrong_home(client: TestClient, session: Session):
     home2_data = HomeCreate(name="Test Home 2")
     home2 = crud_home.create_home(session, home2_data)
     bob_data = UserCreate(username="bob", password="bob123")
-    bob = crud_user.create_user(session, home2.id, bob_data)
+    crud_user.create_user(session, home2.id, bob_data)
 
     # Login as bob
     response = client.post("/api/auth/login", json={"home_id": home2.id, "username": "bob", "password": "bob123"})

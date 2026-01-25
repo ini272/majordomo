@@ -1,4 +1,3 @@
-from typing import Dict
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
@@ -15,8 +14,8 @@ router = APIRouter(prefix="/api/bounty", tags=["bounty"])
 @router.get("/today")
 def get_today_bounty(
     db: Session = Depends(get_db),
-    auth: Dict = Depends(get_current_user),
-) -> Dict:
+    auth: dict = Depends(get_current_user),
+) -> dict:
     """
     Get today's daily bounty for the user's home.
     Creates a new bounty if one doesn't exist for today.
@@ -46,8 +45,8 @@ def get_today_bounty(
 @router.post("/refresh")
 def refresh_bounty(
     db: Session = Depends(get_db),
-    auth: Dict = Depends(get_current_user),
-) -> Dict:
+    auth: dict = Depends(get_current_user),
+) -> dict:
     """
     Force refresh today's bounty (for testing).
     Selects a new random template.
@@ -77,8 +76,8 @@ def refresh_bounty(
 def check_if_bounty(
     quest_template_id: int,
     db: Session = Depends(get_db),
-    auth: Dict = Depends(get_current_user),
-) -> Dict:
+    auth: dict = Depends(get_current_user),
+) -> dict:
     """
     Check if a specific quest template is today's bounty.
     Used to determine if bonus multiplier should apply.

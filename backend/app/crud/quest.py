@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Optional
 
 from sqlmodel import Session, select
 
@@ -11,17 +11,17 @@ def get_quest(db: Session, quest_id: int) -> Optional[Quest]:
     return db.exec(select(Quest).where(Quest.id == quest_id)).first()
 
 
-def get_all_quests(db: Session) -> List[Quest]:
+def get_all_quests(db: Session) -> list[Quest]:
     """Get all quests"""
     return db.exec(select(Quest).order_by(Quest.created_at.desc())).all()
 
 
-def get_quests_by_home(db: Session, home_id: int) -> List[Quest]:
+def get_quests_by_home(db: Session, home_id: int) -> list[Quest]:
     """Get all quests in a home"""
     return db.exec(select(Quest).where(Quest.home_id == home_id).order_by(Quest.created_at.desc())).all()
 
 
-def get_quests_by_user(db: Session, home_id: int, user_id: int, completed: Optional[bool] = None) -> List[Quest]:
+def get_quests_by_user(db: Session, home_id: int, user_id: int, completed: Optional[bool] = None) -> list[Quest]:
     """Get all quests for a user in a home, optionally filtered by completion status"""
     query = select(Quest).where((Quest.home_id == home_id) & (Quest.user_id == user_id))
 
@@ -87,7 +87,7 @@ def delete_quest(db: Session, quest_id: int) -> bool:
     return True
 
 
-def check_and_corrupt_overdue_quests(db: Session) -> List[Quest]:
+def check_and_corrupt_overdue_quests(db: Session) -> list[Quest]:
     """
     Check for quests that are past their due date and not completed.
     Mark them as corrupted if they haven't been corrupted already.
@@ -101,7 +101,7 @@ def check_and_corrupt_overdue_quests(db: Session) -> List[Quest]:
     # - Past their due_date
     # - Not already corrupted
     query = select(Quest).where(
-        (Quest.completed == False)
+        (Quest.completed == False)  # noqa: E712
         & (Quest.due_date.isnot(None))
         & (Quest.due_date < now)
         & (Quest.quest_type != "corrupted")

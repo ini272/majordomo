@@ -2,7 +2,7 @@
 
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional
+from typing import Optional
 
 import bcrypt
 from fastapi import Header, HTTPException
@@ -40,7 +40,7 @@ def create_access_token(user_id: int, home_id: int) -> str:
     return token
 
 
-def verify_token(token: str) -> Optional[Dict]:
+def verify_token(token: str) -> Optional[dict]:
     """Verify JWT token and return payload"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -49,7 +49,7 @@ def verify_token(token: str) -> Optional[Dict]:
         return None
 
 
-async def get_current_user(authorization: str = Header(None)) -> Dict:
+async def get_current_user(authorization: str = Header(None)) -> dict:
     """Dependency to get current authenticated user from JWT token"""
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing authorization header")

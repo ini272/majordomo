@@ -1,4 +1,3 @@
-from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
@@ -18,14 +17,14 @@ router = APIRouter(prefix="/api/achievements", tags=["achievements"])
 
 
 # GET endpoints
-@router.get("", response_model=List[AchievementRead])
-def get_home_achievements(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+@router.get("", response_model=list[AchievementRead])
+def get_home_achievements(db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get all achievements in the authenticated user's home"""
     return crud_achievement.get_home_achievements(db, auth["home_id"])
 
 
 @router.get("/{achievement_id}", response_model=AchievementRead)
-def get_achievement(achievement_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def get_achievement(achievement_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get achievement by ID"""
     achievement = crud_achievement.get_achievement(db, achievement_id)
     if not achievement:
@@ -38,8 +37,8 @@ def get_achievement(achievement_id: int, db: Session = Depends(get_db), auth: Di
     return achievement
 
 
-@router.get("/users/{user_id}/achievements", response_model=List[UserAchievementWithDetails])
-def get_user_achievements(user_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+@router.get("/users/{user_id}/achievements", response_model=list[UserAchievementWithDetails])
+def get_user_achievements(user_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get all achievements unlocked by a user, with full achievement details"""
     # Verify user exists and belongs to authenticated home
     user = crud_user.get_user(db, user_id)
@@ -68,22 +67,24 @@ def get_user_achievements(user_id: int, db: Session = Depends(get_db), auth: Dic
 
 
 # Convenience endpoint for current user
-@router.get("/me/achievements", response_model=List[UserAchievementWithDetails])
-def get_my_achievements(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+@router.get("/me/achievements", response_model=list[UserAchievementWithDetails])
+def get_my_achievements(db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get all achievements unlocked by the authenticated user"""
     return get_user_achievements(auth["user_id"], db, auth)
 
 
 # POST endpoints
 @router.post("", response_model=AchievementRead)
-def create_achievement(achievement: AchievementCreate, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def create_achievement(
+    achievement: AchievementCreate, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)
+):
     """Create a new achievement in the authenticated user's home"""
     return crud_achievement.create_achievement(db, auth["home_id"], achievement)
 
 
 @router.post("/{achievement_id}/award/{user_id}", response_model=UserAchievementRead)
 def award_achievement(
-    achievement_id: int, user_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)
+    achievement_id: int, user_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)
 ):
     """Manually award an achievement to a user"""
     # Verify user exists and belongs to authenticated home
@@ -108,8 +109,8 @@ def award_achievement(
     return awarded
 
 
-@router.post("/users/{user_id}/check", response_model=List[UserAchievementRead])
-def check_user_achievements(user_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+@router.post("/users/{user_id}/check", response_model=list[UserAchievementRead])
+def check_user_achievements(user_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """
     Check if user has earned any new achievements and award them automatically.
     Returns list of newly awarded achievements.
@@ -127,7 +128,7 @@ def check_user_achievements(user_id: int, db: Session = Depends(get_db), auth: D
 
 # DELETE endpoints
 @router.delete("/{achievement_id}")
-def delete_achievement(achievement_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def delete_achievement(achievement_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Delete achievement"""
     achievement = crud_achievement.get_achievement(db, achievement_id)
     if not achievement or achievement.home_id != auth["home_id"]:

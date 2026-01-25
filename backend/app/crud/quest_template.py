@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from sqlmodel import Session, select
 
@@ -10,7 +10,7 @@ def get_quest_template(db: Session, template_id: int) -> Optional[QuestTemplate]
     return db.exec(select(QuestTemplate).where(QuestTemplate.id == template_id)).first()
 
 
-def get_home_quest_templates(db: Session, home_id: int, system: Optional[bool] = None) -> List[QuestTemplate]:
+def get_home_quest_templates(db: Session, home_id: int, system: Optional[bool] = None) -> list[QuestTemplate]:
     """Get all quest templates for a home (optionally filtered by system)"""
     query = select(QuestTemplate).where(QuestTemplate.home_id == home_id)
 

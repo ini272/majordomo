@@ -53,7 +53,12 @@ def test_join_home(client: TestClient):
     # Join home with invite code
     response = client.post(
         "/api/auth/join",
-        json={"invite_code": invite_code, "email": "newuser@example.com", "username": "newuser", "password": "testpass"},
+        json={
+            "invite_code": invite_code,
+            "email": "newuser@example.com",
+            "username": "newuser",
+            "password": "testpass",
+        },
     )
     assert response.status_code == 200
     assert response.json()["home_id"] == home_id
