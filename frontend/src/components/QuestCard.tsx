@@ -74,7 +74,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
       {/* Quest Type Badge */}
       <div className="absolute top-4 left-4 flex gap-2 flex-wrap">
         <span
-          className={`px-2 py-1 rounded text-xs uppercase font-serif font-bold ${isCorrupted ? "animate-pulse" : ""}`}
+          className={`px-2 py-1 rounded text-xs font-cinzel ${isCorrupted ? "animate-pulse" : ""}`}
           style={{
             backgroundColor: typeStyles.badgeBg,
             color: typeStyles.badgeColor,
@@ -84,7 +84,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
         </span>
         {isDailyBounty && (
           <span
-            className="px-2 py-1 rounded text-xs uppercase font-serif font-bold"
+            className="px-2 py-1 rounded text-xs font-cinzel"
             style={{
               backgroundColor: "rgba(107, 95, 183, 0.3)",
               color: "#9d84ff",
@@ -95,7 +95,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
         )}
         {isCorrupted && (
           <span
-            className="px-2 py-1 rounded text-xs uppercase font-serif font-bold"
+            className="px-2 py-1 rounded text-xs font-cinzel"
             style={{
               backgroundColor: "rgba(139, 58, 58, 0.3)",
               color: "#ff8080",
@@ -106,7 +106,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
         )}
         {quest.due_date && !quest.completed && (
           <span
-            className="px-2 py-1 rounded text-xs font-serif font-bold"
+            className="px-2 py-1 rounded text-xs font-cinzel"
             style={{
               backgroundColor: isCorrupted ? "rgba(139, 58, 58, 0.2)" : "rgba(255, 165, 0, 0.2)",
               color: isCorrupted ? "#ff6b6b" : "#ffa500",
@@ -120,7 +120,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
 
       {/* Title */}
       <h2
-        className="text-2xl md:text-3xl font-serif font-bold pb-3 md:pb-4 mb-4 uppercase tracking-wider"
+        className="text-2xl md:text-3xl font-cinzel pb-3 md:pb-4 mb-4"
         style={{
           color: typeStyles.titleColor,
           borderBottomColor: typeStyles.titleColor,
@@ -132,7 +132,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
 
       {/* Description */}
       <p
-        className="italic leading-relaxed mb-6 md:mb-8 font-serif"
+        className="leading-relaxed mb-6 md:mb-8 font-fell"
         style={{ color: COLORS.parchment }}
       >
         {quest.template.description || "No description"}
@@ -144,7 +144,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
           {quest.template.tags.split(",").map(tag => (
             <span
               key={tag}
-              className="px-2 py-1 text-xs uppercase font-serif rounded"
+              className="px-2 py-1 text-xs font-cinzel rounded"
               style={{
                 backgroundColor: "rgba(212, 175, 55, 0.2)",
                 color: COLORS.gold,
@@ -164,12 +164,12 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
       >
         <div className="text-center flex-1">
           <div
-            className="text-xs uppercase tracking-widest mb-2 font-serif"
+            className="text-xs mb-2 font-cinzel"
             style={{ color: COLORS.brown }}
           >
             XP Reward
           </div>
-          <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
+          <div className="text-2xl md:text-3xl font-cinzel" style={{ color: COLORS.gold }}>
             {quest.template.xp_reward || 0}
             {isCorrupted && !quest.completed && (
               <span className="text-sm ml-2" style={{ color: "#ff8080" }}>
@@ -180,12 +180,12 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
         </div>
         <div className="text-center flex-1">
           <div
-            className="text-xs uppercase tracking-widest mb-2 font-serif"
+            className="text-xs mb-2 font-cinzel"
             style={{ color: COLORS.brown }}
           >
             Gold Reward
           </div>
-          <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
+          <div className="text-2xl md:text-3xl font-cinzel" style={{ color: COLORS.gold }}>
             {quest.template.gold_reward || 0}
             {isCorrupted && !quest.completed && (
               <span className="text-sm ml-2" style={{ color: "#ff8080" }}>
@@ -196,12 +196,12 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
         </div>
         <div className="text-center flex-1">
           <div
-            className="text-xs uppercase tracking-widest mb-2 font-serif"
+            className="text-xs mb-2 font-cinzel"
             style={{ color: COLORS.brown }}
           >
             Status
           </div>
-          <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
+          <div className="text-2xl md:text-3xl font-cinzel" style={{ color: COLORS.gold }}>
             {quest.completed ? "COMPLETED" : "ACTIVE"}
           </div>
         </div>
@@ -210,7 +210,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
       {/* Complete Button */}
       {!quest.completed && (
         <button
-          className="w-full mt-6 md:mt-8 py-3 md:py-4 px-4 font-serif font-semibold text-sm md:text-base uppercase tracking-wider transition-all duration-300 hover:shadow-lg cursor-pointer"
+          className="w-full mt-6 md:mt-8 py-3 md:py-4 px-4 font-cinzel text-sm md:text-base transition-all duration-300 hover:shadow-lg cursor-pointer"
           style={{
             backgroundColor: "rgba(95, 183, 84, 0.25)",
             borderColor: COLORS.greenSuccess,
