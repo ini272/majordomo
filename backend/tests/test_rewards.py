@@ -160,3 +160,26 @@ def test_claim_reward_insufficient_gold(client: TestClient, home_with_user):
     assert "INSUFFICIENT_GOLD" in response.json()["detail"]["code"]
     assert response.json()["detail"]["details"]["required"] == 200
     assert response.json()["detail"]["details"]["current"] == 0
+
+
+def test_claim_reward_deducts_gold(client: TestClient, home_with_user):
+    """Test that claiming a reward deducts gold from user balance"""
+    home_id, user_id, invite_code = home_with_user
+
+    # Give user 500 gold
+    client.patch(f"/api/users/{user_id}", json={"gold_balance": 500})
+
+    # Create reward costing 150 gold
+    reward_response = client.post(
+        f"/api/rewards?home_id={home_id}",
+        json={"name": "Heroic Elixir", "cost": 150}
+    )
+    reward_id = reward_response.json()["id"]
+
+    # Claim reward
+    response = client.post(f"/api/rewards/{reward_id}/claim?user_id={user_id}")
+    assert response.status_code == 200
+
+    # Verify gold was deducted
+    user_response = client.get(f"/api/users/{user_id}")
+    assert user_response.json()["gold_balance"] == 350  # 500 - 150
