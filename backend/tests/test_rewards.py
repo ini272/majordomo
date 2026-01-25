@@ -71,6 +71,9 @@ def test_claim_reward(client: TestClient, home_with_user):
     """Test claiming a reward"""
     home_id, user_id, invite_code = home_with_user
 
+    # Give user enough gold
+    client.put(f"/api/users/{user_id}", json={"gold_balance": 100})
+
     # Create reward
     reward_response = client.post(f"/api/rewards?home_id={home_id}", json={"name": "Gaming hour", "cost": 100})
     reward_id = reward_response.json()["id"]
@@ -94,6 +97,9 @@ def test_claim_reward_not_found(client: TestClient, home_with_user):
 def test_get_user_reward_claims(client: TestClient, home_with_user):
     """Test retrieving a user's reward claims"""
     home_id, user_id, invite_code = home_with_user
+
+    # Give user enough gold for both rewards (100 + 200 = 300)
+    client.put(f"/api/users/{user_id}", json={"gold_balance": 300})
 
     # Create and claim multiple rewards
     for i in range(2):
@@ -167,7 +173,7 @@ def test_claim_reward_deducts_gold(client: TestClient, home_with_user):
     home_id, user_id, invite_code = home_with_user
 
     # Give user 500 gold
-    client.patch(f"/api/users/{user_id}", json={"gold_balance": 500})
+    client.put(f"/api/users/{user_id}", json={"gold_balance": 500})
 
     # Create reward costing 150 gold
     reward_response = client.post(

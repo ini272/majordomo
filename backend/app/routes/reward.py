@@ -69,7 +69,14 @@ def claim_reward(
             status_code=404, detail=create_error_detail(ErrorCode.REWARD_NOT_FOUND, details={"reward_id": reward_id})
         )
 
-    claim = crud_reward.claim_reward(db, user_id, reward_id)
+    try:
+        claim = crud_reward.claim_reward(db, user_id, reward_id)
+    except ValueError as e:
+        # ValueError from add_gold (insufficient gold)
+        # e.args[0] is the error_detail dict from create_error_detail()
+        error_detail = e.args[0]
+        raise HTTPException(status_code=400, detail=error_detail)
+
     if not claim:
         raise HTTPException(
             status_code=400,
