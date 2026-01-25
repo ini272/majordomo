@@ -53,7 +53,22 @@ def create_reward(reward: RewardCreate, db: Session = Depends(get_db), auth: dic
 def claim_reward(
     reward_id: int, user_id: int = Query(...), db: Session = Depends(get_db), auth: dict = Depends(get_current_user)
 ):
-    """User claims a reward"""
+    """
+    User claims a reward.
+
+    Validates user has sufficient gold balance and deducts the reward cost.
+
+    Args:
+        reward_id: ID of the reward to claim
+        user_id: ID of the user claiming the reward
+
+    Returns:
+        UserRewardClaimRead: Created claim record
+
+    Raises:
+        404: User or reward not found, or not in authenticated home
+        400: Insufficient gold balance (returns INSUFFICIENT_GOLD error code)
+    """
     # Verify user exists and belongs to authenticated home
     user = crud_user.get_user(db, user_id)
     if not user or user.home_id != auth["home_id"]:
