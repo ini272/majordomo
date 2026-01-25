@@ -10,7 +10,12 @@ def home_with_templates(client: TestClient):
     # Create home and user via signup
     signup = client.post(
         "/api/auth/signup",
-        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
+        json={
+            "email": "testuser@example.com",
+            "username": "testuser",
+            "password": "testpass",
+            "home_name": "Test Home",
+        },
     )
     home_id = signup.json()["home_id"]
     user_id = signup.json()["user_id"]
@@ -72,7 +77,7 @@ def test_refresh_bounty(client: TestClient, home_with_templates):
 
     # Get initial bounty
     response1 = client.get("/api/bounty/today")
-    original_template_id = response1.json()["bounty"]["quest_template_id"]
+    response1.json()["bounty"]["quest_template_id"]
 
     # Refresh bounty
     response2 = client.post("/api/bounty/refresh")
@@ -192,7 +197,12 @@ def test_bounty_with_no_templates(client: TestClient):
     # Create home and user via signup (but no templates)
     signup = client.post(
         "/api/auth/signup",
-        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Empty Home"},
+        json={
+            "email": "testuser@example.com",
+            "username": "testuser",
+            "password": "testpass",
+            "home_name": "Empty Home",
+        },
     )
     assert signup.status_code == 200
 

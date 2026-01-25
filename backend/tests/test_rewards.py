@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -150,10 +149,7 @@ def test_claim_reward_insufficient_gold(client: TestClient, home_with_user):
     home_id, user_id, invite_code = home_with_user
 
     # Create expensive reward (200 gold)
-    reward_response = client.post(
-        f"/api/rewards?home_id={home_id}",
-        json={"name": "Expensive Item", "cost": 200}
-    )
+    reward_response = client.post(f"/api/rewards?home_id={home_id}", json={"name": "Expensive Item", "cost": 200})
     reward_id = reward_response.json()["id"]
 
     # Verify user has 0 gold by default
@@ -176,10 +172,7 @@ def test_claim_reward_deducts_gold(client: TestClient, home_with_user):
     client.put(f"/api/users/{user_id}", json={"gold_balance": 500})
 
     # Create reward costing 150 gold
-    reward_response = client.post(
-        f"/api/rewards?home_id={home_id}",
-        json={"name": "Heroic Elixir", "cost": 150}
-    )
+    reward_response = client.post(f"/api/rewards?home_id={home_id}", json={"name": "Heroic Elixir", "cost": 150})
     reward_id = reward_response.json()["id"]
 
     # Claim reward
@@ -196,10 +189,7 @@ def test_claim_free_reward(client: TestClient, home_with_user):
     home_id, user_id, invite_code = home_with_user
 
     # Create free reward
-    reward_response = client.post(
-        f"/api/rewards?home_id={home_id}",
-        json={"name": "Free Gift", "cost": 0}
-    )
+    reward_response = client.post(f"/api/rewards?home_id={home_id}", json={"name": "Free Gift", "cost": 0})
     reward_id = reward_response.json()["id"]
 
     # Verify user has 0 gold
@@ -220,10 +210,7 @@ def test_claim_reward_with_exact_gold_amount(client: TestClient, home_with_user)
     home_id, user_id, invite_code = home_with_user
 
     # Create reward costing 100 gold
-    reward_response = client.post(
-        f"/api/rewards?home_id={home_id}",
-        json={"name": "Budget Item", "cost": 100}
-    )
+    reward_response = client.post(f"/api/rewards?home_id={home_id}", json={"name": "Budget Item", "cost": 100})
     reward_id = reward_response.json()["id"]
 
     # Give user exactly 100 gold

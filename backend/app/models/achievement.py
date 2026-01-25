@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -35,7 +35,7 @@ class Achievement(SQLModel, table=True):
 
     # Relationships
     home: Optional["Home"] = Relationship(back_populates="achievements")
-    user_achievements: List["UserAchievement"] = Relationship(back_populates="achievement")
+    user_achievements: list["UserAchievement"] = Relationship(back_populates="achievement")
 
 
 class AchievementRead(SQLModel):

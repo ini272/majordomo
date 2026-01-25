@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlmodel import Session
@@ -25,14 +25,14 @@ router = APIRouter(prefix="/api/quests", tags=["quests"])
 
 
 # GET endpoints
-@router.get("/templates/all", response_model=List[QuestTemplateRead])
-def get_all_quest_templates(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+@router.get("/templates/all", response_model=list[QuestTemplateRead])
+def get_all_quest_templates(db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get all quest templates in the authenticated user's home"""
     return crud_quest_template.get_home_quest_templates(db, auth["home_id"])
 
 
-@router.get("", response_model=List[QuestRead])
-def get_all_quests(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+@router.get("", response_model=list[QuestRead])
+def get_all_quests(db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """
     Get all quest instances in the authenticated user's home.
 
@@ -48,7 +48,7 @@ def get_all_quests(db: Session = Depends(get_db), auth: Dict = Depends(get_curre
 
 
 @router.get("/{quest_id}", response_model=QuestRead)
-def get_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def get_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get quest by ID (only those in your home can access)"""
     quest = crud_quest.get_quest(db, quest_id)
     if not quest or quest.home_id != auth["home_id"]:
@@ -60,12 +60,12 @@ def get_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = Depends
     return quest
 
 
-@router.get("/user/{user_id}", response_model=List[QuestRead])
+@router.get("/user/{user_id}", response_model=list[QuestRead])
 def get_user_quests(
     user_id: int,
     completed: Optional[bool] = Query(None),
     db: Session = Depends(get_db),
-    auth: Dict = Depends(get_current_user),
+    auth: dict = Depends(get_current_user),
 ):
     """Get all quests for a user, optionally filtered by completion status"""
     # Verify user exists in authenticated home
@@ -80,7 +80,7 @@ def get_user_quests(
 
 
 @router.get("/templates/{template_id}", response_model=QuestTemplateRead)
-def get_quest_template(template_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def get_quest_template(template_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get quest template by ID"""
     template = crud_quest_template.get_quest_template(db, template_id)
     if not template or template.home_id != auth["home_id"]:
@@ -95,7 +95,7 @@ def get_quest_template(template_id: int, db: Session = Depends(get_db), auth: Di
 # POST endpoints
 @router.post("", response_model=QuestRead)
 def create_quest(
-    quest: QuestCreate, user_id: int = Query(...), db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)
+    quest: QuestCreate, user_id: int = Query(...), db: Session = Depends(get_db), auth: dict = Depends(get_current_user)
 ):
     """Create a new quest instance for a user"""
     home_id = auth["home_id"]
@@ -114,7 +114,7 @@ def create_quest(
 
 
 @router.post("/{quest_id}/complete")
-def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """
     Complete a quest and award rewards to the user.
 
@@ -138,7 +138,10 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = De
             status_code=400,
             detail=create_error_detail(
                 ErrorCode.QUEST_ALREADY_COMPLETED,
-                details={"quest_id": quest_id, "completed_at": quest.completed_at.isoformat() if quest.completed_at else None},
+                details={
+                    "quest_id": quest_id,
+                    "completed_at": quest.completed_at.isoformat() if quest.completed_at else None,
+                },
             ),
         )
 
@@ -198,9 +201,7 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = De
             "is_corrupted": is_corrupted,
             "multiplier": multiplier,
         },
-        "achievements": [
-            {"id": ua.achievement_id, "unlocked_at": ua.unlocked_at} for ua in newly_awarded_achievements
-        ],
+        "achievements": [{"id": ua.achievement_id, "unlocked_at": ua.unlocked_at} for ua in newly_awarded_achievements],
     }
 
 
@@ -252,7 +253,7 @@ def create_quest_template(
     skip_ai: bool = Query(False),
     template: QuestTemplateCreate = None,
     db: Session = Depends(get_db),
-    auth: Dict = Depends(get_current_user),
+    auth: dict = Depends(get_current_user),
     background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     """
@@ -298,7 +299,7 @@ def update_quest_template(
     template_id: int,
     template_update: QuestTemplateUpdate = None,
     db: Session = Depends(get_db),
-    auth: Dict = Depends(get_current_user),
+    auth: dict = Depends(get_current_user),
 ):
     """Update quest template"""
     template = crud_quest_template.get_quest_template(db, template_id)
@@ -314,7 +315,7 @@ def update_quest(
     quest_id: int,
     quest_update: QuestUpdate = None,
     db: Session = Depends(get_db),
-    auth: Dict = Depends(get_current_user),
+    auth: dict = Depends(get_current_user),
 ):
     """Update quest"""
     quest = crud_quest.get_quest(db, quest_id)
@@ -327,7 +328,7 @@ def update_quest(
 
 # DELETE endpoints
 @router.delete("/{quest_id}")
-def delete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def delete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Delete quest"""
     quest = crud_quest.get_quest(db, quest_id)
     if not quest or quest.home_id != auth["home_id"]:
@@ -339,7 +340,7 @@ def delete_quest(quest_id: int, db: Session = Depends(get_db), auth: Dict = Depe
 
 # Corruption system endpoint
 @router.post("/check-corruption")
-def check_corruption(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def check_corruption(db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """
     Manually trigger corruption check for overdue quests.
 

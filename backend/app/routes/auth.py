@@ -112,7 +112,9 @@ def signup(request: SignupRequest, db: Session = Depends(get_db)):
         crud_achievement.create_default_achievements(db, home.id)
 
         # Create the user (first member of the home)
-        user = crud_user.create_user(db, home.id, UserCreate(username=request.username, email=request.email, password=request.password))
+        user = crud_user.create_user(
+            db, home.id, UserCreate(username=request.username, email=request.email, password=request.password)
+        )
 
         # Return token for immediate login
         token = create_access_token(user.id, user.home_id)

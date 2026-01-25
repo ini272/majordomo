@@ -12,7 +12,12 @@ def home_with_user_and_template(client: TestClient):
     # Create home and user via signup
     signup = client.post(
         "/api/auth/signup",
-        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
+        json={
+            "email": "testuser@example.com",
+            "username": "testuser",
+            "password": "testpass",
+            "home_name": "Test Home",
+        },
     )
     home_id = signup.json()["home_id"]
     user_id = signup.json()["user_id"]
@@ -94,7 +99,7 @@ def test_manual_corruption_check(client: TestClient, home_with_user_and_template
     past_due_date = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
 
     quest_ids = []
-    for i in range(3):
+    for _i in range(3):
         quest_response = client.post(
             f"/api/quests?user_id={user_id}",
             json={"quest_template_id": template_id, "due_date": past_due_date},
@@ -156,8 +161,8 @@ def test_corrupted_quest_gives_bonus_rewards(client: TestClient, home_with_user_
 
     # Get user stats before completion
     user_before = client.get(f"/api/users/{user_id}").json()
-    xp_before = user_before["xp"]
-    gold_before = user_before["gold_balance"]
+    user_before["xp"]
+    user_before["gold_balance"]
 
     # Complete the corrupted quest
     complete_response = client.post(f"/api/quests/{quest_id}/complete?user_id={user_id}")
@@ -212,7 +217,7 @@ def test_quest_without_due_date_not_corrupted(client: TestClient, home_with_user
     quest_id = quest_response.json()["id"]
 
     # Trigger corruption check multiple times
-    for i in range(3):
+    for _i in range(3):
         client.post("/api/quests/check-corruption")
 
     # Verify quest is still standard

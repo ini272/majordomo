@@ -1,10 +1,10 @@
-from typing import List, Optional
+from typing import Optional
 
 from sqlmodel import Session, select
 
-from app.models.reward import Reward, RewardCreate, UserRewardClaim
 from app.crud import user as crud_user
 from app.errors import ErrorCode, create_error_detail
+from app.models.reward import Reward, RewardCreate, UserRewardClaim
 
 
 def get_reward(db: Session, reward_id: int) -> Optional[Reward]:
@@ -12,12 +12,12 @@ def get_reward(db: Session, reward_id: int) -> Optional[Reward]:
     return db.exec(select(Reward).where(Reward.id == reward_id)).first()
 
 
-def get_home_rewards(db: Session, home_id: int) -> List[Reward]:
+def get_home_rewards(db: Session, home_id: int) -> list[Reward]:
     """Get all rewards in a home"""
     return db.exec(select(Reward).where(Reward.home_id == home_id)).all()
 
 
-def get_user_reward_claims(db: Session, user_id: int) -> List[UserRewardClaim]:
+def get_user_reward_claims(db: Session, user_id: int) -> list[UserRewardClaim]:
     """Get all reward claims for a user"""
     return db.exec(select(UserRewardClaim).where(UserRewardClaim.user_id == user_id)).all()
 
@@ -66,7 +66,7 @@ def claim_reward(db: Session, user_id: int, reward_id: int) -> Optional[UserRewa
                     "current": user.gold_balance,
                     "user_id": user_id,
                     "reward_id": reward_id,
-                }
+                },
             )
         )
 

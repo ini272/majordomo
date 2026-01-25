@@ -1,4 +1,3 @@
-from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
@@ -13,7 +12,7 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 
 # GET endpoints
 @router.get("/me", response_model=UserRead)
-def get_current_user_stats(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def get_current_user_stats(db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get current authenticated user's stats"""
     user = crud_user.get_user(db, auth["user_id"])
     if not user:
@@ -21,14 +20,14 @@ def get_current_user_stats(db: Session = Depends(get_db), auth: Dict = Depends(g
     return user
 
 
-@router.get("", response_model=List[UserRead])
-def get_all_users(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+@router.get("", response_model=list[UserRead])
+def get_all_users(db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get all users in the authenticated user's home"""
     return crud_user.get_home_users(db, auth["home_id"])
 
 
 @router.get("/{user_id}", response_model=UserRead)
-def get_user(user_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def get_user(user_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get user by ID"""
     user = crud_user.get_user(db, user_id)
     if not user:
@@ -44,7 +43,7 @@ def get_user(user_id: int, db: Session = Depends(get_db), auth: Dict = Depends(g
 # POST endpoints
 @router.post("/{user_id}/xp")
 def add_xp_to_user(
-    user_id: int, amount: int = Query(..., ge=0), db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)
+    user_id: int, amount: int = Query(..., ge=0), db: Session = Depends(get_db), auth: dict = Depends(get_current_user)
 ):
     """Add XP to user"""
     user = crud_user.get_user(db, user_id)
@@ -57,7 +56,7 @@ def add_xp_to_user(
 
 @router.post("/{user_id}/gold")
 def add_gold_to_user(
-    user_id: int, amount: int = Query(..., ge=0), db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)
+    user_id: int, amount: int = Query(..., ge=0), db: Session = Depends(get_db), auth: dict = Depends(get_current_user)
 ):
     """Add gold to user"""
     user = crud_user.get_user(db, user_id)
@@ -71,7 +70,7 @@ def add_gold_to_user(
 # PUT endpoints
 @router.put("/{user_id}", response_model=UserRead)
 def update_user(
-    user_id: int, user_update: UserUpdate, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)
+    user_id: int, user_update: UserUpdate, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)
 ):
     """Update user"""
     user = crud_user.get_user(db, user_id)
@@ -84,7 +83,7 @@ def update_user(
 
 # DELETE endpoints
 @router.delete("/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def delete_user(user_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Delete user"""
     user = crud_user.get_user(db, user_id)
     if not user or user.home_id != auth["home_id"]:

@@ -62,7 +62,12 @@ def home_with_user(client: TestClient):
     """
     signup = client.post(
         "/api/auth/signup",
-        json={"email": "testuser@example.com", "username": "testuser", "password": "testpass", "home_name": "Test Home"},
+        json={
+            "email": "testuser@example.com",
+            "username": "testuser",
+            "password": "testpass",
+            "home_name": "Test Home",
+        },
     )
     home_id = signup.json()["home_id"]
     user_id = signup.json()["user_id"]

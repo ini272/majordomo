@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -29,7 +29,7 @@ class QuestTemplate(SQLModel, table=True):
 
     # Relationships
     home: "Home" = Relationship(back_populates="quest_templates")
-    quests: List["Quest"] = Relationship(back_populates="template")
+    quests: list["Quest"] = Relationship(back_populates="template")
 
 
 class QuestTemplateRead(SQLModel):

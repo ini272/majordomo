@@ -3,7 +3,7 @@
 import json
 import logging
 import os
-from typing import Dict, Optional
+from typing import Optional
 
 from groq import Groq
 
@@ -25,7 +25,7 @@ AVAILABLE_TAGS = [
 class ScribeResponse:
     """Parsed response from Groq"""
 
-    def __init__(self, data: Dict):
+    def __init__(self, data: dict):
         self.display_name = data.get("display_name", "").strip()
         self.description = data.get("description", "").strip()
         self.tags = data.get("tags", "").strip()

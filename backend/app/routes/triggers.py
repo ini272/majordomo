@@ -1,4 +1,3 @@
-from typing import Dict
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
@@ -17,8 +16,8 @@ router = APIRouter(prefix="/api/triggers", tags=["triggers"])
 def trigger_quest(
     quest_template_id: int,
     db: Session = Depends(get_db),
-    auth: Dict = Depends(get_current_user),
-) -> Dict:
+    auth: dict = Depends(get_current_user),
+) -> dict:
     """
     Trigger quest completion via NFC or manual trigger.
     - Creates a new quest instance from template

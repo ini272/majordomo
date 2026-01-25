@@ -1,5 +1,5 @@
 import secrets
-from typing import List, Optional
+from typing import Optional
 
 from sqlmodel import Session, select
 
@@ -11,7 +11,7 @@ def generate_invite_code() -> str:
     return secrets.token_urlsafe(8)
 
 
-def get_all_homes(db: Session) -> List[Home]:
+def get_all_homes(db: Session) -> list[Home]:
     """Get all homes"""
     return db.exec(select(Home)).all()
 

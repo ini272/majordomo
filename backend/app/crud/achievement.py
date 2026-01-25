@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from sqlmodel import Session, func, or_, select
 
@@ -12,14 +12,12 @@ def get_achievement(db: Session, achievement_id: int) -> Optional[Achievement]:
     return db.exec(select(Achievement).where(Achievement.id == achievement_id)).first()
 
 
-def get_home_achievements(db: Session, home_id: int) -> List[Achievement]:
+def get_home_achievements(db: Session, home_id: int) -> list[Achievement]:
     """Get all achievements available to a home (system + home-specific)"""
-    return db.exec(
-        select(Achievement).where(or_(Achievement.home_id == home_id, Achievement.is_system == True))
-    ).all()
+    return db.exec(select(Achievement).where(or_(Achievement.home_id == home_id, Achievement.is_system))).all()
 
 
-def get_user_achievements(db: Session, user_id: int) -> List[UserAchievement]:
+def get_user_achievements(db: Session, user_id: int) -> list[UserAchievement]:
     """Get all achievements unlocked by a user"""
     return db.exec(select(UserAchievement).where(UserAchievement.user_id == user_id)).all()
 
@@ -34,7 +32,9 @@ def has_user_achievement(db: Session, user_id: int, achievement_id: int) -> bool
     return result is not None
 
 
-def create_achievement(db: Session, home_id: int, achievement_in: AchievementCreate, is_system: bool = False) -> Achievement:
+def create_achievement(
+    db: Session, home_id: int, achievement_in: AchievementCreate, is_system: bool = False
+) -> Achievement:
     """Create a new achievement
 
     Args:
@@ -88,7 +88,9 @@ def delete_achievement(db: Session, achievement_id: int) -> bool:
 
 def get_user_quests_completed_count(db: Session, user_id: int) -> int:
     """Get total number of quests completed by a user"""
-    result = db.exec(select(func.count(Quest.id)).where(Quest.user_id == user_id).where(Quest.completed == True)).first()
+    result = db.exec(
+        select(func.count(Quest.id)).where(Quest.user_id == user_id).where(Quest.completed)
+    ).first()
     return result or 0
 
 
@@ -99,13 +101,13 @@ def get_user_bounties_completed_count(db: Session, user_id: int) -> int:
         select(func.count(Quest.id))
         .join(Quest.template)
         .where(Quest.user_id == user_id)
-        .where(Quest.completed == True)
+        .where(Quest.completed)
         .where(Quest.template.has(quest_type="bounty"))
     ).first()
     return result or 0
 
 
-def check_and_award_achievements(db: Session, user_id: int) -> List[UserAchievement]:
+def check_and_award_achievements(db: Session, user_id: int) -> list[UserAchievement]:
     """
     Check if user has earned any new achievements based on their current stats.
     Returns list of newly awarded achievements.
@@ -156,7 +158,7 @@ def check_and_award_achievements(db: Session, user_id: int) -> List[UserAchievem
     return newly_awarded
 
 
-def create_default_achievements(db: Session, home_id: int = None) -> List[Achievement]:
+def create_default_achievements(db: Session, home_id: int = None) -> list[Achievement]:
     """
     Ensure default system achievements exist.
 
@@ -171,7 +173,7 @@ def create_default_achievements(db: Session, home_id: int = None) -> List[Achiev
         List of system achievements (existing or newly created)
     """
     # Check if system achievements already exist
-    existing_system = db.exec(select(Achievement).where(Achievement.is_system == True)).all()
+    existing_system = db.exec(select(Achievement).where(Achievement.is_system)).all()
     if existing_system:
         return existing_system
 

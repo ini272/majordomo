@@ -1,6 +1,5 @@
 """Tests for achievement system"""
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -207,11 +206,16 @@ def test_check_and_award_achievements_quests_completed(client: TestClient, home_
     # Get invite code for joining
     home_info = client.get(f"/api/homes/{home_id}/invite-code").json()
     invite_code = home_info["invite_code"]
-    
+
     # Join home with new user
     creator_response = client.post(
         "/api/auth/join",
-        json={"invite_code": invite_code, "email": "creator@example.com", "username": "creator", "password": "creatorpass"},
+        json={
+            "invite_code": invite_code,
+            "email": "creator@example.com",
+            "username": "creator",
+            "password": "creatorpass",
+        },
     )
     creator_id = creator_response.json()["user_id"]
 
@@ -222,7 +226,7 @@ def test_check_and_award_achievements_quests_completed(client: TestClient, home_
     template_id = template_response.json()["id"]
 
     # Complete 2 quests
-    for i in range(2):
+    for _i in range(2):
         quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
         quest_id = quest_response.json()["id"]
         client.post(f"/api/quests/{quest_id}/complete?user_id={user_id}")
@@ -319,14 +323,14 @@ def test_achievements_home_isolation(client: TestClient):
     home1 = client.post("/api/homes", json={"name": "Home 1"})
     home1_id = home1.json()["id"]
 
-    user1 = client.post(f"/api/homes/{home1_id}/join", json={"username": "user1", "password": "pass1"})
+    client.post(f"/api/homes/{home1_id}/join", json={"username": "user1", "password": "pass1"})
 
     # Create achievement in home 1
     ach1 = client.post(
         "/api/achievements",
         json={"name": "Home 1 Achievement", "criteria_type": "quests_completed", "criteria_value": 1},
     )
-    ach1_id = ach1.json()["id"]
+    ach1.json()["id"]
 
     # Get achievements (should only see home 1's achievement)
     response = client.get("/api/achievements")

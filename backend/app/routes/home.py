@@ -1,4 +1,3 @@
-from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
@@ -9,21 +8,21 @@ from app.crud import user as crud_user
 from app.database import get_db
 from app.errors import ErrorCode, create_error_detail
 from app.models.home import HomeCreate, HomeRead
-from app.models.user import UserCreate, UserRead
+from app.models.user import UserRead
 
 router = APIRouter(prefix="/api/homes", tags=["homes"])
 
 
 # GET endpoints
-@router.get("", response_model=List[HomeRead])
-def get_all_homes(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+@router.get("", response_model=list[HomeRead])
+def get_all_homes(db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get all homes (admin endpoint - requires authentication)"""
     # TODO: Add admin-only check if needed
     return crud_home.get_all_homes(db)
 
 
 @router.get("/{home_id}", response_model=HomeRead)
-def get_home(home_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def get_home(home_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get home by ID"""
     # Verify user belongs to this home
     if auth["home_id"] != home_id:
@@ -45,8 +44,8 @@ def get_home(home_id: int, db: Session = Depends(get_db), auth: Dict = Depends(g
     return home
 
 
-@router.get("/{home_id}/users", response_model=List[UserRead])
-def get_home_users(home_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+@router.get("/{home_id}/users", response_model=list[UserRead])
+def get_home_users(home_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get all users in a home"""
     # Verify user belongs to this home
     if auth["home_id"] != home_id:
@@ -60,7 +59,7 @@ def get_home_users(home_id: int, db: Session = Depends(get_db), auth: Dict = Dep
 
 
 @router.get("/{home_id}/invite-code")
-def get_invite_code(home_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def get_invite_code(home_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get invite code for a home (for sharing with others)"""
     # Verify user belongs to this home
     if auth["home_id"] != home_id:
@@ -104,7 +103,7 @@ def create_home(home: HomeCreate, db: Session = Depends(get_db)):
 
 # DELETE endpoints
 @router.delete("/{home_id}")
-def delete_home(home_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def delete_home(home_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Delete a home"""
     # Verify user belongs to this home
     if auth["home_id"] != home_id:

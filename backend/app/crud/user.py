@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from sqlmodel import Session, select
 
@@ -6,7 +6,7 @@ from app.auth import hash_password
 from app.models.user import User, UserCreate, UserUpdate
 
 
-def get_all_users(db: Session) -> List[User]:
+def get_all_users(db: Session) -> list[User]:
     """Get all users"""
     return db.exec(select(User)).all()
 
@@ -26,7 +26,7 @@ def get_user_by_username_any_home(db: Session, username: str) -> Optional[User]:
     return db.exec(select(User).where(User.username == username)).first()
 
 
-def get_home_users(db: Session, home_id: int) -> List[User]:
+def get_home_users(db: Session, home_id: int) -> list[User]:
     """Get all users in a home"""
     return db.exec(select(User).where(User.home_id == home_id)).all()
 

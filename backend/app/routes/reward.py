@@ -1,4 +1,3 @@
-from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
@@ -14,14 +13,14 @@ router = APIRouter(prefix="/api/rewards", tags=["rewards"])
 
 
 # GET endpoints
-@router.get("", response_model=List[RewardRead])
-def get_home_rewards(db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+@router.get("", response_model=list[RewardRead])
+def get_home_rewards(db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get all rewards in the authenticated user's home"""
     return crud_reward.get_home_rewards(db, auth["home_id"])
 
 
 @router.get("/{reward_id}", response_model=RewardRead)
-def get_reward(reward_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def get_reward(reward_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get reward by ID"""
     reward = crud_reward.get_reward(db, reward_id)
     if not reward or reward.home_id != auth["home_id"]:
@@ -33,7 +32,7 @@ def get_reward(reward_id: int, db: Session = Depends(get_db), auth: Dict = Depen
 
 
 @router.get("/user/{user_id}/claims", response_model=list[UserRewardClaimRead])
-def get_user_reward_claims(user_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def get_user_reward_claims(user_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get all reward claims for a user"""
     # Verify user exists and belongs to authenticated home
     user = crud_user.get_user(db, user_id)
@@ -45,14 +44,14 @@ def get_user_reward_claims(user_id: int, db: Session = Depends(get_db), auth: Di
 
 # POST endpoints
 @router.post("", response_model=RewardRead)
-def create_reward(reward: RewardCreate, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def create_reward(reward: RewardCreate, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Create a new reward in the authenticated user's home"""
     return crud_reward.create_reward(db, auth["home_id"], reward)
 
 
 @router.post("/{reward_id}/claim", response_model=UserRewardClaimRead)
 def claim_reward(
-    reward_id: int, user_id: int = Query(...), db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)
+    reward_id: int, user_id: int = Query(...), db: Session = Depends(get_db), auth: dict = Depends(get_current_user)
 ):
     """User claims a reward"""
     # Verify user exists and belongs to authenticated home
@@ -92,7 +91,7 @@ def claim_reward(
 
 # DELETE endpoints
 @router.delete("/{reward_id}")
-def delete_reward(reward_id: int, db: Session = Depends(get_db), auth: Dict = Depends(get_current_user)):
+def delete_reward(reward_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Delete reward"""
     reward = crud_reward.get_reward(db, reward_id)
     if not reward or reward.home_id != auth["home_id"]:

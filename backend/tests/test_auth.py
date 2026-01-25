@@ -7,7 +7,12 @@ def test_signup_creates_home_and_user(client: TestClient):
     """Test signup endpoint creates new home and user"""
     response = client.post(
         "/api/auth/signup",
-        json={"email": "alice@example.com", "username": "Alice", "password": "password123", "home_name": "Alice's Home"},
+        json={
+            "email": "alice@example.com",
+            "username": "Alice",
+            "password": "password123",
+            "home_name": "Alice's Home",
+        },
     )
 
     assert response.status_code == 200
@@ -56,12 +61,19 @@ def test_login_email_with_valid_credentials(client: TestClient):
     # First signup
     signup_response = client.post(
         "/api/auth/signup",
-        json={"email": "charlie@example.com", "username": "Charlie", "password": "mypassword", "home_name": "Charlie's Home"},
+        json={
+            "email": "charlie@example.com",
+            "username": "Charlie",
+            "password": "mypassword",
+            "home_name": "Charlie's Home",
+        },
     )
     signup_data = signup_response.json()
 
     # Then login with email
-    login_response = client.post("/api/auth/login-email", json={"email": "charlie@example.com", "password": "mypassword"})
+    login_response = client.post(
+        "/api/auth/login-email", json={"email": "charlie@example.com", "password": "mypassword"}
+    )
 
     assert login_response.status_code == 200
     login_data = login_response.json()
@@ -78,7 +90,12 @@ def test_login_email_with_invalid_password(client: TestClient):
     # First signup
     client.post(
         "/api/auth/signup",
-        json={"email": "dave@example.com", "username": "Dave", "password": "correctpassword", "home_name": "Dave's Home"},
+        json={
+            "email": "dave@example.com",
+            "username": "Dave",
+            "password": "correctpassword",
+            "home_name": "Dave's Home",
+        },
     )
 
     # Try to login with wrong password
@@ -94,7 +111,9 @@ def test_login_email_with_invalid_password(client: TestClient):
 
 def test_login_email_with_nonexistent_email(client: TestClient):
     """Test login fails with email that doesn't exist"""
-    response = client.post("/api/auth/login-email", json={"email": "nonexistent@example.com", "password": "anypassword"})
+    response = client.post(
+        "/api/auth/login-email", json={"email": "nonexistent@example.com", "password": "anypassword"}
+    )
 
     assert response.status_code == 401
     error_detail = response.json()["detail"]
@@ -158,7 +177,12 @@ def test_join_home_with_duplicate_email_in_different_home(client: TestClient):
     # Create first home and user
     client.post(
         "/api/auth/signup",
-        json={"email": "henry@example.com", "username": "Henry", "password": "password123", "home_name": "Henry's Home"},
+        json={
+            "email": "henry@example.com",
+            "username": "Henry",
+            "password": "password123",
+            "home_name": "Henry's Home",
+        },
     )
 
     # Create second home
@@ -223,7 +247,12 @@ def test_same_username_different_homes_allowed(client: TestClient):
     # Create first home
     signup1 = client.post(
         "/api/auth/signup",
-        json={"email": "kate@example.com", "username": "SameName", "password": "password123", "home_name": "Kate's Home"},
+        json={
+            "email": "kate@example.com",
+            "username": "SameName",
+            "password": "password123",
+            "home_name": "Kate's Home",
+        },
     )
 
     # Create second home with same username
@@ -250,7 +279,9 @@ def test_traditional_login_still_works(client: TestClient):
     home_id = signup.json()["home_id"]
 
     # Login with username and home_id
-    login_response = client.post("/api/auth/login", json={"username": "Mike", "password": "password123", "home_id": home_id})
+    login_response = client.post(
+        "/api/auth/login", json={"username": "Mike", "password": "password123", "home_id": home_id}
+    )
 
     assert login_response.status_code == 200
     login_data = login_response.json()

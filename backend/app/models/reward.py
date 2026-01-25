@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -19,7 +19,7 @@ class Reward(SQLModel, table=True):
 
     # Relationships
     home: "Home" = Relationship(back_populates="rewards")
-    user_claims: List["UserRewardClaim"] = Relationship(back_populates="reward")
+    user_claims: list["UserRewardClaim"] = Relationship(back_populates="reward")
 
 
 class RewardRead(SQLModel):
