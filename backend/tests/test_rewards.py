@@ -137,3 +137,26 @@ def test_reward_with_zero_cost(client: TestClient):
     response = client.post(f"/api/rewards?home_id={home_id}", json={"name": "Free reward", "cost": 0})
     assert response.status_code == 200
     assert response.json()["cost"] == 0
+
+
+def test_claim_reward_insufficient_gold(client: TestClient, home_with_user):
+    """Test claiming a reward with insufficient gold balance"""
+    home_id, user_id, invite_code = home_with_user
+
+    # Create expensive reward (200 gold)
+    reward_response = client.post(
+        f"/api/rewards?home_id={home_id}",
+        json={"name": "Expensive Item", "cost": 200}
+    )
+    reward_id = reward_response.json()["id"]
+
+    # Verify user has 0 gold by default
+    user_response = client.get(f"/api/users/{user_id}")
+    assert user_response.json()["gold_balance"] == 0
+
+    # Try to claim reward (should fail)
+    response = client.post(f"/api/rewards/{reward_id}/claim?user_id={user_id}")
+    assert response.status_code == 400
+    assert "INSUFFICIENT_GOLD" in response.json()["detail"]["code"]
+    assert response.json()["detail"]["details"]["required"] == 200
+    assert response.json()["detail"]["details"]["current"] == 0
