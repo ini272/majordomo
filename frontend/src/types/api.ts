@@ -37,6 +37,8 @@ export interface User {
   gold_balance: number;
   xp: number;
   level: number;
+  active_xp_boost_count: number;
+  active_shield_expiry: string | null;
 }
 
 export interface DailyBounty {
@@ -116,4 +118,20 @@ export interface UserAchievement {
   achievement_id: number;
   unlocked_at: string;
   achievement: Achievement;
+}
+
+export interface Reward {
+  id: number;
+  home_id: number;
+  name: string;
+  description: string | null;
+  cost: number;
+  created_at: string;
+}
+
+export interface UserRewardClaim {
+  id: number;
+  user_id: number;
+  reward_id: number;
+  claimed_at: string;
 }

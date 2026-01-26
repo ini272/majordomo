@@ -11,6 +11,8 @@ import type {
   BountyCheckResponse,
   Achievement,
   UserAchievement,
+  Reward,
+  UserRewardClaim,
 } from "../types/api";
 
 // Detect API URL at runtime
@@ -233,7 +235,10 @@ export const api = {
   },
 
   home: {
-    getInviteCode: async (homeId: number, token: string): Promise<{ invite_code: string; home_name: string }> => {
+    getInviteCode: async (
+      homeId: number,
+      token: string
+    ): Promise<{ invite_code: string; home_name: string }> => {
       const res = await fetch(`${API_URL}/homes/${homeId}/invite-code`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -256,6 +261,36 @@ export const api = {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch user achievements");
+      return res.json();
+    },
+  },
+
+  rewards: {
+    getAll: async (token: string): Promise<Reward[]> => {
+      const res = await fetch(`${API_URL}/rewards`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch rewards");
+      return res.json();
+    },
+
+    claim: async (rewardId: number, userId: number, token: string): Promise<UserRewardClaim> => {
+      const res = await fetch(`${API_URL}/rewards/${rewardId}/claim?user_id=${userId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail?.message || "Failed to claim reward");
+      }
+      return res.json();
+    },
+
+    getUserClaims: async (userId: number, token: string): Promise<UserRewardClaim[]> => {
+      const res = await fetch(`${API_URL}/rewards/user/${userId}/claims`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch reward claims");
       return res.json();
     },
   },
