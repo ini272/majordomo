@@ -144,7 +144,7 @@ def test_complete_bounty_quest_gives_double_rewards(client: TestClient, home_wit
 
     # Check rewards are doubled
     assert result["rewards"]["is_daily_bounty"] is True
-    assert result["rewards"]["multiplier"] == 2
+    assert result["rewards"]["bounty_multiplier"] == 2
     assert result["rewards"]["xp"] == bounty_template["xp_reward"] * 2
     assert result["rewards"]["gold"] == bounty_template["gold_reward"] * 2
 
@@ -182,7 +182,7 @@ def test_complete_non_bounty_quest_gives_normal_rewards(client: TestClient, home
 
     # Check rewards are NOT doubled
     assert result["rewards"]["is_daily_bounty"] is False
-    assert result["rewards"]["multiplier"] == 1
+    assert result["rewards"]["bounty_multiplier"] == 1
     assert result["rewards"]["xp"] == other_template["xp_reward"]
     assert result["rewards"]["gold"] == other_template["gold_reward"]
 

@@ -144,7 +144,7 @@ def test_completed_quest_not_corrupted(client: TestClient, home_with_user_and_te
 
 
 def test_corrupted_quest_gives_bonus_rewards(client: TestClient, home_with_user_and_template):
-    """Test that corrupted quests give 1.5x rewards when completed"""
+    """Test that corrupted quests trigger house-wide debuff (reduced rewards)"""
     home_id, user_id, template_id = home_with_user_and_template
 
     # Create quest with past due date
@@ -170,15 +170,14 @@ def test_corrupted_quest_gives_bonus_rewards(client: TestClient, home_with_user_
     assert complete_response.status_code == 200
     result = complete_response.json()
 
-    # Verify 1.5x multiplier
+    # Verify corruption triggers debuff (not bonus)
     assert result["rewards"]["is_corrupted"] is True
-    assert result["rewards"]["multiplier"] == 1.5
-    assert result["rewards"]["xp"] == 75  # 50 * 1.5 = 75 XP
-    # Gold might be returned as float (37.5) or int (37/38), accept both
-    assert result["rewards"]["gold"] in [37, 38, 37.5]
-
-    # Skip user stats verification since gold_balance field expects int but might get float
-    # This is a known issue with 1.5x multiplier creating fractional gold values
+    assert result["rewards"]["corruption_debuff"] == 0.95  # -5% debuff (1 corrupted quest)
+    assert result["rewards"]["base_xp"] == 50
+    assert result["rewards"]["base_gold"] == 25
+    # After debuff: 50 * 0.95 = 47 XP, 25 * 0.95 = 23 gold (floored to int)
+    assert result["rewards"]["xp"] == 47
+    assert result["rewards"]["gold"] == 23
 
 
 def test_future_due_date_not_corrupted(client: TestClient, home_with_user_and_template):
@@ -303,7 +302,7 @@ def test_corruption_timestamp_set_correctly(client: TestClient, home_with_user_a
 
 
 def test_daily_bounty_and_corruption_combined(client: TestClient, home_with_user_and_template):
-    """Test that a quest can be both a daily bounty and corrupted (should apply higher multiplier)"""
+    """Test that a quest can be both a daily bounty and corrupted (debuff + bounty multiplier apply)"""
     home_id, user_id, template_id = home_with_user_and_template
 
     # Get today's bounty
@@ -331,9 +330,11 @@ def test_daily_bounty_and_corruption_combined(client: TestClient, home_with_user
     assert result["rewards"]["is_daily_bounty"] is True
     assert result["rewards"]["is_corrupted"] is True
 
-    # Multiplier should be the higher one (bounty 2x > corruption 1.5x)
-    # Or they could stack - check implementation
-    assert result["rewards"]["multiplier"] >= 1.5
+    # Check that both debuff and bounty multiplier are applied
+    # Debuff: -5% (0.95) for 1 corrupted quest, Bounty: 2x
+    assert result["rewards"]["corruption_debuff"] == 0.95
+    assert result["rewards"]["bounty_multiplier"] == 2
+    # Calculation: base * 0.95 * 2 = base * 1.9 (net positive due to bounty)
 
 
 def test_update_quest_due_date(client: TestClient, home_with_user_and_template):
