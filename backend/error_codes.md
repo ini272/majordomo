@@ -57,6 +57,7 @@ All error responses follow a consistent structure:
 |-----------|---------|----------------|
 | `QUEST_ALREADY_COMPLETED` | "Quest is already completed" | Attempting to complete an already-completed quest |
 | `ACHIEVEMENT_ALREADY_UNLOCKED` | "Achievement already unlocked" | User already has this achievement |
+| `CONSUMABLE_ALREADY_ACTIVE` | "Consumable is already active" | Attempting to purchase a consumable that's already active (non-stacking) |
 
 ### Authorization Errors (403)
 
@@ -194,6 +195,27 @@ HTTP/1.1 400 Bad Request
     "details": {
       "username": "john",
       "home_id": 1
+    }
+  }
+}
+```
+
+### Consumable Already Active
+
+```http
+POST /api/rewards/5/claim?user_id=1
+```
+
+```json
+HTTP/1.1 400 Bad Request
+{
+  "detail": {
+    "code": "CONSUMABLE_ALREADY_ACTIVE",
+    "message": "Heroic Elixir is active (2 quests remaining)",
+    "details": {
+      "reward_name": "Heroic Elixir",
+      "remaining_count": 2,
+      "user_id": 1
     }
   }
 }

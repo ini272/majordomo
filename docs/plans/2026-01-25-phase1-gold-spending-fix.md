@@ -513,5 +513,40 @@ See `docs/plans/2026-01-25-gold-economy-corruption-design.md` for full roadmap.
 ---
 
 **Estimated Effort:** 1-2 hours
-**Actual Effort:** _[Fill in after completion]_
-**Completion Date:** _[Fill in after completion]_
+**Actual Effort:** Completed as part of larger consumable system implementation
+**Completion Date:** 2026-01-26
+**Status:** ✅ IMPLEMENTED
+
+---
+
+## Implementation Notes (2026-01-26)
+
+**Completion Summary:**
+
+Phase 1 (gold validation and deduction) was implemented as part of the larger consumable system work. The implementation went beyond the original spec by also adding:
+
+1. **Consumable Activation Logic** (Phase 2 & 4):
+   - Heroic Elixir activation (`active_xp_boost_count = 3`)
+   - Purification Shield activation (`active_shield_expiry = now + 24h`)
+   - Non-stacking validation (raises `CONSUMABLE_ALREADY_ACTIVE` error)
+
+2. **Enhanced Error Handling**:
+   - Added `ErrorCode.CONSUMABLE_ALREADY_ACTIVE` to errors.py
+   - Detailed error messages showing remaining count/time
+
+3. **All Tests Passing**:
+   - Original test suite: `test_claim_reward_insufficient_gold`, `test_claim_reward_deducts_gold`, etc.
+   - All 118 backend tests passing
+
+**Files Modified:**
+- `backend/app/crud/reward.py` - Gold validation + consumable activation
+- `backend/app/routes/reward.py` - Error handling (already had try/catch)
+- `backend/app/errors.py` - Added CONSUMABLE_ALREADY_ACTIVE
+- `backend/tests/test_rewards.py` - Tests already existed and passing
+
+**Git Commits:**
+- `ac9263e` - User model + migration
+- `b03f5bc` - Consumable system (includes Phase 1 gold validation)
+- `1f22540` - Test updates
+
+**Next Steps:** Frontend integration (Market page error handling, consumable indicators)
