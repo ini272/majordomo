@@ -23,6 +23,10 @@ class User(SQLModel, table=True):
     gold_balance: int = Field(default=0, ge=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+    # Consumable effects tracking
+    active_xp_boost_count: int = Field(default=0, ge=0)  # Remaining boosted quests (Heroic Elixir)
+    active_shield_expiry: Optional[datetime] = None  # Shield expires at this time (Purification Shield)
+
     # Relationships
     home: "Home" = Relationship(back_populates="users")
     quests: list["Quest"] = Relationship(back_populates="user")
@@ -41,6 +45,8 @@ class UserRead(SQLModel):
     xp: int
     gold_balance: int
     created_at: datetime
+    active_xp_boost_count: int
+    active_shield_expiry: Optional[datetime] = None
 
 
 class UserCreate(SQLModel):
