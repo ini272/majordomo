@@ -88,9 +88,7 @@ def delete_achievement(db: Session, achievement_id: int) -> bool:
 
 def get_user_quests_completed_count(db: Session, user_id: int) -> int:
     """Get total number of quests completed by a user"""
-    result = db.exec(
-        select(func.count(Quest.id)).where(Quest.user_id == user_id).where(Quest.completed)
-    ).first()
+    result = db.exec(select(func.count(Quest.id)).where(Quest.user_id == user_id).where(Quest.completed)).first()
     return result or 0
 
 

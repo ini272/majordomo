@@ -22,40 +22,40 @@ export interface FontDebugInfo {
  * Enable comprehensive font loading debugging
  */
 export function debugFontLoading(): void {
-  console.group('🔤 Font Loading Debug');
+  console.group("🔤 Font Loading Debug");
 
   // Check if Font Loading API is available
-  if (!('fonts' in document)) {
-    console.warn('⚠️ Font Loading API not available in this browser');
+  if (!("fonts" in document)) {
+    console.warn("⚠️ Font Loading API not available in this browser");
     console.groupEnd();
     return;
   }
 
-  console.log('📦 Font Loading API available');
-  console.log('🔄 Current font loading status:', document.fonts.status);
-  console.log('📊 Fonts currently available:', document.fonts.size);
+  console.log("📦 Font Loading API available");
+  console.log("🔄 Current font loading status:", document.fonts.status);
+  console.log("📊 Fonts currently available:", document.fonts.size);
 
   // Log all currently loaded fonts
   logCurrentFonts();
 
   // Wait for all fonts to load
   document.fonts.ready.then(() => {
-    console.log('✅ All fonts loaded!');
-    console.log('📊 Total fonts loaded:', document.fonts.size);
+    console.log("✅ All fonts loaded!");
+    console.log("📊 Total fonts loaded:", document.fonts.size);
     logCurrentFonts();
     console.groupEnd();
   });
 
   // Listen for individual font loading events
-  document.fonts.addEventListener('loadingdone', (event: FontFaceSetLoadEvent) => {
-    console.log('✅ Font loading done:', event.fontfaces);
+  document.fonts.addEventListener("loadingdone", (event: FontFaceSetLoadEvent) => {
+    console.log("✅ Font loading done:", event.fontfaces);
     event.fontfaces.forEach(font => {
       console.log(`  Loaded: ${font.family} ${font.weight} ${font.style}`);
     });
   });
 
-  document.fonts.addEventListener('loadingerror', (event: FontFaceSetLoadEvent) => {
-    console.error('❌ Font loading error!', event.fontfaces);
+  document.fonts.addEventListener("loadingerror", (event: FontFaceSetLoadEvent) => {
+    console.error("❌ Font loading error!", event.fontfaces);
     event.fontfaces.forEach(font => {
       console.error(`  Failed: ${font.family} ${font.weight} ${font.style}`);
     });
@@ -75,7 +75,7 @@ function logCurrentFonts(): void {
   if (fontsList.length > 0) {
     console.table(fontsList);
   } else {
-    console.log('No fonts registered yet');
+    console.log("No fonts registered yet");
   }
 }
 
@@ -93,20 +93,20 @@ export function debugElementFont(selector: string): void {
   const computed = window.getComputedStyle(element);
 
   console.group(`🎯 Font Debug for: ${selector}`);
-  console.log('font-family:', computed.fontFamily);
-  console.log('font-weight:', computed.fontWeight);
-  console.log('font-style:', computed.fontStyle);
-  console.log('font-size:', computed.fontSize);
+  console.log("font-family:", computed.fontFamily);
+  console.log("font-weight:", computed.fontWeight);
+  console.log("font-style:", computed.fontStyle);
+  console.log("font-size:", computed.fontSize);
 
   // Try to determine which font is actually being used
-  const fontFamily = computed.fontFamily.split(',')[0].replace(/['"]/g, '').trim();
-  console.log('Primary font requested:', fontFamily);
+  const fontFamily = computed.fontFamily.split(",")[0].replace(/['"]/g, "").trim();
+  console.log("Primary font requested:", fontFamily);
 
   // Check if this font is loaded
-  if ('fonts' in document) {
+  if ("fonts" in document) {
     const fontFaces: FontFace[] = [];
     document.fonts.forEach((font: FontFace) => {
-      if (font.family.replace(/['"]/g, '') === fontFamily) {
+      if (font.family.replace(/['"]/g, "") === fontFamily) {
         fontFaces.push(font);
       }
     });
@@ -132,7 +132,7 @@ export function getFontDebugInfo(): FontDebugInfo {
     status: string;
   }> = [];
 
-  if ('fonts' in document) {
+  if ("fonts" in document) {
     document.fonts.forEach((font: FontFace) => {
       availableFonts.push({
         family: font.family,
@@ -144,7 +144,7 @@ export function getFontDebugInfo(): FontDebugInfo {
   }
 
   return {
-    fontsLoaded: document.fonts?.status === 'loaded',
+    fontsLoaded: document.fonts?.status === "loaded",
     availableFonts,
     timestamp: Date.now(),
   };
@@ -154,13 +154,13 @@ export function getFontDebugInfo(): FontDebugInfo {
  * Check if a specific font family is loaded
  */
 export function isFontLoaded(fontFamily: string): boolean {
-  if (!('fonts' in document)) {
+  if (!("fonts" in document)) {
     return false;
   }
 
   let found = false;
   document.fonts.forEach((font: FontFace) => {
-    if (font.family.replace(/['"]/g, '') === fontFamily && font.status === 'loaded') {
+    if (font.family.replace(/['"]/g, "") === fontFamily && font.status === "loaded") {
       found = true;
     }
   });
@@ -173,11 +173,11 @@ export function isFontLoaded(fontFamily: string): boolean {
  */
 export async function waitForFont(
   fontFamily: string,
-  weight: string = '400',
-  style: string = 'normal',
+  weight: string = "400",
+  style: string = "normal",
   timeout: number = 5000
 ): Promise<boolean> {
-  if (!('fonts' in document)) {
+  if (!("fonts" in document)) {
     return false;
   }
 

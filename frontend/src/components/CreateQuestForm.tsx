@@ -238,9 +238,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
               className="flex-1 py-2 px-3 font-serif font-semibold text-xs uppercase tracking-wider transition-all"
               style={{
                 backgroundColor:
-                  mode === "from-template"
-                    ? `rgba(212, 175, 55, 0.3)`
-                    : `rgba(212, 175, 55, 0.1)`,
+                  mode === "from-template" ? `rgba(212, 175, 55, 0.3)` : `rgba(212, 175, 55, 0.1)`,
                 borderColor: COLORS.gold,
                 borderWidth: "2px",
                 color: COLORS.gold,
@@ -267,153 +265,155 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
 
           {mode === "ai-scribe" && (
             <form onSubmit={handleSubmit}>
-            <div className="mb-6">
-              <label
-                className="block text-sm uppercase tracking-wider mb-2 font-serif"
-                style={{ color: COLORS.gold }}
-              >
-                Quest Title
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="e.g., Clean Kitchen"
-                className="w-full px-3 py-2 font-serif focus:outline-none focus:shadow-lg transition-all"
-                style={{
-                  backgroundColor: COLORS.black,
-                  borderColor: COLORS.gold,
-                  borderWidth: "2px",
-                  color: COLORS.parchment,
-                }}
-                disabled={loading}
-              />
-            </div>
-
-            <div className="mb-6">
-              <label
-                className="block text-sm uppercase tracking-wider mb-2 font-serif"
-                style={{ color: COLORS.gold }}
-              >
-                Tags (Optional)
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {AVAILABLE_TAGS.map(tag => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => {
-                      if (selectedTags.includes(tag)) {
-                        setSelectedTags(selectedTags.filter(t => t !== tag));
-                      } else {
-                        setSelectedTags([...selectedTags, tag]);
-                      }
-                    }}
-                    className="px-3 py-1 text-xs uppercase tracking-wider font-serif rounded transition-all"
-                    style={{
-                      backgroundColor: selectedTags.includes(tag)
-                        ? COLORS.gold
-                        : `rgba(212, 175, 55, 0.2)`,
-                      color: selectedTags.includes(tag) ? COLORS.darkPanel : COLORS.gold,
-                      border: `1px solid ${COLORS.gold}`,
-                      cursor: loading ? "not-allowed" : "pointer",
-                    }}
-                    disabled={loading}
-                  >
-                    {tag}
-                  </button>
-                ))}
+              <div className="mb-6">
+                <label
+                  className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                  style={{ color: COLORS.gold }}
+                >
+                  Quest Title
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder="e.g., Clean Kitchen"
+                  className="w-full px-3 py-2 font-serif focus:outline-none focus:shadow-lg transition-all"
+                  style={{
+                    backgroundColor: COLORS.black,
+                    borderColor: COLORS.gold,
+                    borderWidth: "2px",
+                    color: COLORS.parchment,
+                  }}
+                  disabled={loading}
+                />
               </div>
-            </div>
 
-            {/* Due Date Field */}
-            <div className="mb-6">
-              <label
-                className="block text-sm uppercase tracking-wider mb-2 font-serif"
-                style={{ color: COLORS.gold }}
-              >
-                Due Date (Optional)
-              </label>
-              <input
-                type="datetime-local"
-                value={dueDate}
-                onChange={e => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 font-serif focus:outline-none focus:shadow-lg transition-all"
-                style={{
-                  backgroundColor: COLORS.black,
-                  borderColor: COLORS.gold,
-                  borderWidth: "2px",
-                  color: COLORS.parchment,
-                  colorScheme: "dark",
-                }}
-                disabled={loading}
-              />
-              <p className="text-xs mt-1 font-serif italic" style={{ color: COLORS.parchment }}>
-                Quest will become corrupted (1.5x rewards) if not completed by this time
-              </p>
-            </div>
+              <div className="mb-6">
+                <label
+                  className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                  style={{ color: COLORS.gold }}
+                >
+                  Tags (Optional)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {AVAILABLE_TAGS.map(tag => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        if (selectedTags.includes(tag)) {
+                          setSelectedTags(selectedTags.filter(t => t !== tag));
+                        } else {
+                          setSelectedTags([...selectedTags, tag]);
+                        }
+                      }}
+                      className="px-3 py-1 text-xs uppercase tracking-wider font-serif rounded transition-all"
+                      style={{
+                        backgroundColor: selectedTags.includes(tag)
+                          ? COLORS.gold
+                          : `rgba(212, 175, 55, 0.2)`,
+                        color: selectedTags.includes(tag) ? COLORS.darkPanel : COLORS.gold,
+                        border: `1px solid ${COLORS.gold}`,
+                        cursor: loading ? "not-allowed" : "pointer",
+                      }}
+                      disabled={loading}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-            {/* Skip AI Scribe Checkbox */}
-            <div className="mb-6 flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="skipAI"
-                checked={skipAI}
-                onChange={e => setSkipAI(e.target.checked)}
-                className="w-4 h-4"
-                style={{ accentColor: COLORS.gold }}
-                disabled={loading}
-              />
-              <label
-                htmlFor="skipAI"
-                className="text-xs uppercase tracking-wider font-serif"
-                style={{
-                  color: COLORS.gold,
-                  cursor: loading ? "not-allowed" : "pointer",
-                }}
-              >
-                Skip AI Scribe (testing)
-              </label>
-            </div>
+              {/* Due Date Field */}
+              <div className="mb-6">
+                <label
+                  className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                  style={{ color: COLORS.gold }}
+                >
+                  Due Date (Optional)
+                </label>
+                <input
+                  type="datetime-local"
+                  value={dueDate}
+                  onChange={e => setDueDate(e.target.value)}
+                  className="w-full px-3 py-2 font-serif focus:outline-none focus:shadow-lg transition-all"
+                  style={{
+                    backgroundColor: COLORS.black,
+                    borderColor: COLORS.gold,
+                    borderWidth: "2px",
+                    color: COLORS.parchment,
+                    colorScheme: "dark",
+                  }}
+                  disabled={loading}
+                />
+                <p className="text-xs mt-1 font-serif italic" style={{ color: COLORS.parchment }}>
+                  Quest will become corrupted (1.5x rewards) if not completed by this time
+                </p>
+              </div>
 
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                disabled={loading || !title.trim()}
-                className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
-                style={{
-                  backgroundColor:
-                    loading || !title.trim()
-                      ? `rgba(212, 175, 55, 0.1)`
-                      : `rgba(212, 175, 55, 0.2)`,
-                  borderColor: COLORS.gold,
-                  borderWidth: "2px",
-                  color: COLORS.gold,
-                  cursor: loading || !title.trim() ? "not-allowed" : "pointer",
-                  opacity: loading || !title.trim() ? 0.5 : 1,
-                }}
-              >
-                {loading ? "Creating..." : "Create Quest"}
-              </button>
-              <button
-                type="button"
-                onClick={handleRandomQuest}
-                disabled={loading}
-                className="py-3 px-4 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
-                style={{
-                  backgroundColor: loading ? `rgba(107, 95, 183, 0.1)` : `rgba(107, 95, 183, 0.3)`,
-                  borderColor: "#6b5fb7",
-                  borderWidth: "2px",
-                  color: "#9d84ff",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  opacity: loading ? 0.5 : 1,
-                }}
-                title="Create a random test quest with pre-filled content"
-              >
-                Random
-              </button>
-            </div>
-          </form>
+              {/* Skip AI Scribe Checkbox */}
+              <div className="mb-6 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="skipAI"
+                  checked={skipAI}
+                  onChange={e => setSkipAI(e.target.checked)}
+                  className="w-4 h-4"
+                  style={{ accentColor: COLORS.gold }}
+                  disabled={loading}
+                />
+                <label
+                  htmlFor="skipAI"
+                  className="text-xs uppercase tracking-wider font-serif"
+                  style={{
+                    color: COLORS.gold,
+                    cursor: loading ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Skip AI Scribe (testing)
+                </label>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={loading || !title.trim()}
+                  className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
+                  style={{
+                    backgroundColor:
+                      loading || !title.trim()
+                        ? `rgba(212, 175, 55, 0.1)`
+                        : `rgba(212, 175, 55, 0.2)`,
+                    borderColor: COLORS.gold,
+                    borderWidth: "2px",
+                    color: COLORS.gold,
+                    cursor: loading || !title.trim() ? "not-allowed" : "pointer",
+                    opacity: loading || !title.trim() ? 0.5 : 1,
+                  }}
+                >
+                  {loading ? "Creating..." : "Create Quest"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRandomQuest}
+                  disabled={loading}
+                  className="py-3 px-4 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
+                  style={{
+                    backgroundColor: loading
+                      ? `rgba(107, 95, 183, 0.1)`
+                      : `rgba(107, 95, 183, 0.3)`,
+                    borderColor: "#6b5fb7",
+                    borderWidth: "2px",
+                    color: "#9d84ff",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    opacity: loading ? 0.5 : 1,
+                  }}
+                  title="Create a random test quest with pre-filled content"
+                >
+                  Random
+                </button>
+              </div>
+            </form>
           )}
 
           {mode === "from-template" && (
@@ -437,11 +437,12 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
                       <div
                         className="p-4 transition-all"
                         style={{
-                          backgroundColor: selectedTemplate?.id === template.id
-                            ? `rgba(212, 175, 55, 0.25)`
-                            : isHighlighted
-                            ? `rgba(212, 175, 55, 0.1)`
-                            : "transparent",
+                          backgroundColor:
+                            selectedTemplate?.id === template.id
+                              ? `rgba(212, 175, 55, 0.25)`
+                              : isHighlighted
+                                ? `rgba(212, 175, 55, 0.1)`
+                                : "transparent",
                         }}
                       >
                         <div className="flex justify-between items-start mb-2">

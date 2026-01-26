@@ -27,9 +27,7 @@ def upgrade() -> None:
             server_default="0",
         ),
     )
-    op.add_column(
-        "user", sa.Column("active_shield_expiry", sa.DateTime(), nullable=True)
-    )
+    op.add_column("user", sa.Column("active_shield_expiry", sa.DateTime(), nullable=True))
 
 
 def downgrade() -> None:

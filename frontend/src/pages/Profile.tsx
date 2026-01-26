@@ -88,7 +88,9 @@ export default function Profile({ token }: ProfileProps) {
   };
 
   // Helper function to calculate progress toward an achievement
-  const getAchievementProgress = (achievement: Achievement): { current: number; max: number; percent: number } => {
+  const getAchievementProgress = (
+    achievement: Achievement
+  ): { current: number; max: number; percent: number } => {
     if (!userStats) return { current: 0, max: achievement.criteria_value, percent: 0 };
 
     let current = 0;
@@ -338,10 +340,7 @@ export default function Profile({ token }: ProfileProps) {
                       >
                         {achievement.name}
                       </h4>
-                      <p
-                        className="text-sm font-serif"
-                        style={{ color: COLORS.brown }}
-                      >
+                      <p className="text-sm font-serif" style={{ color: COLORS.brown }}>
                         {achievement.description}
                       </p>
                     </div>
@@ -390,8 +389,10 @@ export default function Profile({ token }: ProfileProps) {
                   {unlocked && (
                     <div className="mt-2">
                       <p className="text-xs" style={{ color: COLORS.brown }}>
-                        Unlocked {new Date(
-                          userAchievements.find(ua => ua.achievement_id === achievement.id)?.unlocked_at || ""
+                        Unlocked{" "}
+                        {new Date(
+                          userAchievements.find(ua => ua.achievement_id === achievement.id)
+                            ?.unlocked_at || ""
                         ).toLocaleDateString()}
                       </p>
                     </div>

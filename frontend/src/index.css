@@ -17,7 +17,13 @@
   --color-brown: #8b7355;
 
   /* Custom background images */
-  --background-image-parchment-texture: repeating-linear-gradient(0deg, rgba(212, 175, 55, 0.02) 0px, rgba(212, 175, 55, 0.02) 2px, transparent 2px, transparent 4px);
+  --background-image-parchment-texture: repeating-linear-gradient(
+    0deg,
+    rgba(212, 175, 55, 0.02) 0px,
+    rgba(212, 175, 55, 0.02) 2px,
+    transparent 2px,
+    transparent 4px
+  );
 }
 
 body {
