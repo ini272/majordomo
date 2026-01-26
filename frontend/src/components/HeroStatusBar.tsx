@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
+import type { User } from "../types/api";
 
 interface HeroStatusBarProps {
   username: string;
@@ -9,11 +10,7 @@ interface HeroStatusBarProps {
 }
 
 export default function HeroStatusBar({ username, token, refreshTrigger }: HeroStatusBarProps) {
-  const [userStats, setUserStats] = useState({
-    level: 1,
-    xp: 0,
-    gold_balance: 0,
-  });
+  const [userStats, setUserStats] = useState<User | null>(null);
 
   useEffect(() => {
     const fetchUserStats = async () => {
@@ -29,6 +26,27 @@ export default function HeroStatusBar({ username, token, refreshTrigger }: HeroS
       fetchUserStats();
     }
   }, [token, username, refreshTrigger]);
+
+  // Calculate time remaining for shield
+  const getShieldTimeRemaining = () => {
+    if (!userStats?.active_shield_expiry) return null;
+    const expiry = new Date(userStats.active_shield_expiry);
+    const now = new Date();
+    const diff = expiry.getTime() - now.getTime();
+
+    if (diff < 0) return null;
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  };
+
+  const hasElixir = userStats?.active_xp_boost_count && userStats.active_xp_boost_count > 0;
+  const hasShield =
+    userStats?.active_shield_expiry && new Date(userStats.active_shield_expiry) > new Date();
+  const shieldTime = getShieldTimeRemaining();
 
   return (
     <div
@@ -58,7 +76,7 @@ export default function HeroStatusBar({ username, token, refreshTrigger }: HeroS
               Level
             </p>
             <p className="text-2xl md:text-3xl font-bold" style={{ color: COLORS.gold }}>
-              {userStats.level ?? 1}
+              {userStats?.level ?? 1}
             </p>
           </div>
 
@@ -68,7 +86,7 @@ export default function HeroStatusBar({ username, token, refreshTrigger }: HeroS
               XP
             </p>
             <p className="text-2xl md:text-3xl font-bold" style={{ color: COLORS.gold }}>
-              {userStats.xp ?? 0}
+              {userStats?.xp ?? 0}
             </p>
           </div>
 
@@ -78,11 +96,52 @@ export default function HeroStatusBar({ username, token, refreshTrigger }: HeroS
               Gold
             </p>
             <p className="text-2xl md:text-3xl font-bold" style={{ color: COLORS.gold }}>
-              {userStats.gold_balance ?? 0}
+              {userStats?.gold_balance ?? 0}
             </p>
           </div>
         </div>
       </div>
+
+      {/* Active Consumables */}
+      {(hasElixir || hasShield) && (
+        <div className="mt-4 pt-4 border-t" style={{ borderColor: COLORS.brown }}>
+          <p className="text-xs uppercase tracking-widest mb-2" style={{ color: COLORS.brown }}>
+            Active Effects
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {hasElixir && (
+              <div
+                className="px-3 py-1.5 rounded text-sm font-bold flex items-center gap-2 animate-pulse"
+                style={{
+                  backgroundColor: "rgba(107, 95, 183, 0.3)",
+                  color: "#9d84ff",
+                  borderColor: "#6b5fb7",
+                  borderWidth: "1px",
+                  borderStyle: "solid",
+                }}
+              >
+                <span>⚗️</span>
+                <span>Heroic Elixir ({userStats?.active_xp_boost_count} quests)</span>
+              </div>
+            )}
+            {hasShield && shieldTime && (
+              <div
+                className="px-3 py-1.5 rounded text-sm font-bold flex items-center gap-2 animate-pulse"
+                style={{
+                  backgroundColor: "rgba(74, 124, 155, 0.3)",
+                  color: "#5fb7d4",
+                  borderColor: "#4a7c9b",
+                  borderWidth: "1px",
+                  borderStyle: "solid",
+                }}
+              >
+                <span>🛡️</span>
+                <span>Purification Shield ({shieldTime})</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

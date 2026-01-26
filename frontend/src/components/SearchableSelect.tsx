@@ -140,9 +140,7 @@ export default function SearchableSelect<T>({
               className="cursor-pointer transition-all"
               style={{
                 backgroundColor:
-                  index === highlightedIndex
-                    ? `rgba(212, 175, 55, 0.15)`
-                    : "transparent",
+                  index === highlightedIndex ? `rgba(212, 175, 55, 0.15)` : "transparent",
                 borderBottomColor: COLORS.goldDarker,
                 borderBottomWidth: index < filteredItems.length - 1 ? "1px" : "0",
               }}
@@ -154,10 +152,7 @@ export default function SearchableSelect<T>({
       </div>
 
       {/* Keyboard Hints */}
-      <div
-        className="mt-3 text-xs font-serif text-center"
-        style={{ color: COLORS.goldDarker }}
-      >
+      <div className="mt-3 text-xs font-serif text-center" style={{ color: COLORS.goldDarker }}>
         ↑↓ Navigate • Enter Select • Esc Clear
       </div>
     </div>

@@ -1,7 +1,7 @@
 # Gold Economy & Corruption System Design
 
 **Date**: 2026-01-25
-**Status**: Approved for Implementation
+**Status**: ✅ Implemented (2026-01-26)
 **Target**: MVP Gold Economy v1 + Corruption Mechanics
 
 ---
@@ -91,8 +91,7 @@ This design establishes a two-loop gold economy and corruption system for Majord
 
 ### C. Gold Spending Flow
 
-**Current Bug**: Gold is tracked but not deducted when claiming rewards
-**Fix Required**: Modify `claim_reward()` to validate and deduct gold
+**Implementation Status**: ✅ Gold validation and deduction implemented in `claim_reward()`
 
 **Purchase Flow**:
 1. User navigates to Market page
@@ -127,30 +126,30 @@ This design establishes a two-loop gold economy and corruption system for Majord
 
 **Quest States**:
 - `quest_type` field tracks current state: "standard", "bounty", or "corrupted"
-- `is_bounty` flag tracks if quest has bonus rewards (independent from corruption)
-- `deadline` field (optional datetime) determines corruption eligibility
+- Bounty status determined dynamically: quest's `quest_template_id` matches today's `DailyBounty` entry
+- `due_date` field (optional datetime) determines corruption eligibility
 - `corrupted_at` timestamp records when corruption occurred
 
 **State Combinations** (bounty and corruption are independent):
-- Standard quest: No bounty, no deadline, never corrupts
-- Bounty quest: Bonus rewards, may have deadline, can corrupt if deadline missed
-- Corrupted quest: Deadline missed, house debuff active, may still have bounty rewards
-- Bounty + Corrupted: Featured quest that went overdue - keeps bonus rewards, triggers debuff
+- Standard quest: No due date, never corrupts, template not today's bounty
+- Bounty quest: Template matches today's daily bounty → gets 2x rewards
+- Corrupted quest: `due_date` passed, household suffers -5% debuff per corrupted quest
+- Bounty + Corrupted: Featured quest gone overdue → still gets 2x bounty rewards, household suffers debuff
 
 ### B. Corruption Trigger Logic
 
 **When Does Corruption Happen?**
-- Instant corruption when `deadline` timestamp passes
-- Checked on every API call or via background job
-- No grace period - midnight or exact timestamp triggers it
+- Instant corruption when `due_date` timestamp passes
+- Checked on API calls via `check_and_corrupt_overdue_quests()` helper
+- No grace period - exact timestamp triggers corruption
 
 **Corruption Process**:
-1. Check if `now > quest.deadline` and `quest.corrupted_at is None`
+1. Check if `now > quest.due_date` and `quest.corrupted_at is None`
 2. If true:
    - Set `quest.quest_type = "corrupted"`
    - Set `quest.corrupted_at = now`
    - Persist to database
-3. Recalculate house debuff for home
+3. House debuff recalculated automatically on next quest completion
 
 **Clearing Corruption** (permanent fix):
 - Complete the quest → removes from corruption count
@@ -237,13 +236,13 @@ class User(SQLModel, table=True):
 class Quest(SQLModel, table=True):
     # ... existing fields ...
 
-    # Quest type (existing, but ensure values correct)
+    # Corruption system fields
     quest_type: str = Field(default="standard")  # "standard", "bounty", "corrupted"
-
-    # Deadline & corruption (NEW)
-    deadline: Optional[datetime] = None  # When quest is due
+    due_date: Optional[datetime] = None  # When quest should be completed (optional)
     corrupted_at: Optional[datetime] = None  # When corruption occurred
-    is_bounty: bool = Field(default=False)  # Independent bounty flag
+
+    # Note: Bounty status determined dynamically by checking if quest_template_id
+    # matches today's DailyBounty entry (no separate field needed)
 ```
 
 ### C. Reward Model Extensions
@@ -264,72 +263,72 @@ class Reward(SQLModel, table=True):
 
 ## V. Implementation Roadmap
 
-### Phase 1: Fix Gold Spending (Foundational)
+### Phase 1: Fix Gold Spending (Foundational) ✅ IMPLEMENTED
 **Goal**: Make gold economy functional
 
 **Tasks**:
-1. Modify `crud/reward.py::claim_reward()`:
-   - Add gold balance validation
-   - Deduct `reward.cost` from `user.gold_balance`
-   - Return error if insufficient funds
-2. Add backend tests for gold validation
-3. Update frontend Market page to handle errors
+1. ✅ Modified `crud/reward.py::claim_reward()`:
+   - Added gold balance validation
+   - Deducts `reward.cost` from `user.gold_balance`
+   - Returns `INSUFFICIENT_GOLD` error if insufficient funds
+2. ✅ Backend tests updated for gold validation
+3. Frontend tasks (pending):
+   - Update Market page to handle errors
 
-**Files**:
+**Files Modified**:
 - `backend/app/crud/reward.py`
 - `backend/app/routes/reward.py`
-- `backend/tests/test_reward.py`
+- `backend/tests/test_rewards.py`
 
-**Estimated Effort**: 1-2 hours
-
-### Phase 2: Heroic Elixir (MVP Gold Value)
+### Phase 2: Heroic Elixir (MVP Gold Value) ✅ IMPLEMENTED
 **Goal**: First consumable that demonstrates gold's value
 
 **Tasks**:
-1. Add `active_xp_boost_count` field to User model (migration)
-2. Create Heroic Elixir reward in database (seed data or admin action)
-3. Modify `claim_reward()` to activate elixir:
-   - Check if `reward.name == "Heroic Elixir"` (or use `effect_type`)
-   - Set `user.active_xp_boost_count = 3`
-4. Modify `complete_quest()` in `crud/quest.py`:
-   - Check if `user.active_xp_boost_count > 0`
-   - If yes: `xp_reward *= 2`, decrement counter
-5. Add frontend indicator in Hero Status Bar
-6. Add frontend boost feedback in quest completion toast
+1. ✅ Added `active_xp_boost_count` field to User model (migration)
+2. Database task (pending): Create Heroic Elixir reward via INSERT or admin UI
+3. ✅ Modified `claim_reward()` to activate elixir:
+   - Checks if `reward.name == "Heroic Elixir"`
+   - Sets `user.active_xp_boost_count = 3`
+   - Prevents double-purchase (raises `CONSUMABLE_ALREADY_ACTIVE` error)
+4. ✅ Modified `complete_quest()` in `routes/quest.py`:
+   - Checks if `user.active_xp_boost_count > 0`
+   - Applies 2x XP multiplier, decrements counter
+   - Returns boost status in response
+5. Frontend tasks (pending):
+   - Add indicator in Hero Status Bar
+   - Add boost feedback in quest completion toast
 
-**Files**:
+**Files Modified**:
 - `backend/app/models/user.py` (migration)
 - `backend/app/crud/reward.py`
-- `backend/app/crud/quest.py`
-- `frontend/src/components/HeroStatusBar.tsx`
-- `frontend/src/pages/Board.tsx` (completion feedback)
+- `backend/app/routes/quest.py`
+- `backend/migrations/versions/add_consumable_tracking_fields.py`
 
-**Estimated Effort**: 2-3 hours
-
-### Phase 3: Corruption System (Enables Shield Value)
+### Phase 3: Corruption System (Enables Shield Value) ✅ IMPLEMENTED
 **Goal**: Deadline pressure and house debuff
 
 **Tasks**:
-1. Add fields to Quest model (migration):
-   - `deadline: Optional[datetime]`
+1. ✅ Add fields to Quest model (migration):
+   - `due_date: Optional[datetime]`
    - `corrupted_at: Optional[datetime]`
-   - `is_bounty: bool`
-2. Add corruption check logic:
-   - Option A: Background job (cron, runs every 5 min)
-   - Option B: API middleware (check on every request)
-   - Recommended: Option B for MVP (simpler, no scheduler needed)
-3. Implement `check_and_corrupt_quests(home_id)`:
-   - Query all non-corrupted quests with deadlines
-   - Filter where `now > deadline`
-   - Update to corrupted state
-4. Implement `calculate_house_debuff(home_id, user)`:
-   - Count corrupted quests
-   - Apply -5% per quest, cap at -50%
-   - Check shield expiry, return 1.0 if active
-5. Modify `complete_quest()` to apply debuff to XP/Gold
-6. Add deadline field to quest creation/edit forms
-7. Add corruption visual styling to QuestCard component
-8. Add house debuff banner to Board page
+2. ✅ Add corruption check logic:
+   - Implemented in `check_and_corrupt_overdue_quests(db)` helper
+   - Called on quest list endpoints to auto-check corruption
+3. ✅ Implement `check_and_corrupt_overdue_quests()`:
+   - Queries all non-corrupted quests with due_date set
+   - Filters where `now > due_date`
+   - Updates to corrupted state
+4. ✅ Implement `_calculate_corruption_debuff(db, home_id, user)`:
+   - Counts corrupted quests in home
+   - Applies -5% per quest, capped at -50%
+   - Checks shield expiry, returns 1.0 if active
+5. ✅ Modified `complete_quest()` to apply debuff:
+   - Order: base → debuff → bounty → xp_boost
+   - Returns detailed breakdown in response
+6. Frontend tasks (pending):
+   - Add due_date field to quest creation/edit forms
+   - Add corruption visual styling to QuestCard component
+   - Add house debuff banner to Board page
 
 **Files**:
 - `backend/app/models/quest.py` (migration)
@@ -341,26 +340,28 @@ class Reward(SQLModel, table=True):
 
 **Estimated Effort**: 3-4 hours
 
-### Phase 4: Purification Shield (Completes MVP)
+### Phase 4: Purification Shield (Completes MVP) ✅ IMPLEMENTED
 **Goal**: Second consumable that mitigates corruption
 
 **Tasks**:
-1. Add `active_shield_expiry` field to User model (migration)
-2. Create Purification Shield reward in database
-3. Modify `claim_reward()` to activate shield:
-   - Check if `reward.name == "Purification Shield"`
-   - Set `user.active_shield_expiry = now + 24 hours`
-4. Ensure `calculate_house_debuff()` respects shield (already in Phase 3)
-5. Add frontend shield indicator (Board header, Hero Status Bar)
-6. Add countdown timer display
+1. ✅ Added `active_shield_expiry` field to User model (migration)
+2. Database task (pending): Create Purification Shield reward via INSERT or admin UI
+3. ✅ Modified `claim_reward()` to activate shield:
+   - Checks if `reward.name == "Purification Shield"`
+   - Sets `user.active_shield_expiry = now + 24 hours`
+   - Prevents double-purchase (raises `CONSUMABLE_ALREADY_ACTIVE` error)
+4. ✅ `_calculate_corruption_debuff()` respects shield:
+   - Returns 1.0 (no debuff) if shield active
+   - Returns debuff multiplier otherwise
+5. Frontend tasks (pending):
+   - Add shield indicator (Board header, Hero Status Bar)
+   - Add countdown timer display
 
-**Files**:
+**Files Modified**:
 - `backend/app/models/user.py` (migration)
 - `backend/app/crud/reward.py`
-- `frontend/src/components/HeroStatusBar.tsx`
-- `frontend/src/pages/Board.tsx` (shield banner)
-
-**Estimated Effort**: 2-3 hours
+- `backend/app/routes/quest.py`
+- `backend/migrations/versions/add_consumable_tracking_fields.py`
 
 ---
 
@@ -524,4 +525,75 @@ Together, these systems give gold ongoing value and create meaningful purchase d
 
 **Document Owner**: jvr
 **Reviewers**: N/A (solo project)
-**Last Updated**: 2026-01-25
+**Last Updated**: 2026-01-26
+
+---
+
+## XI. Implementation Notes (Added 2026-01-26)
+
+### Backend Implementation Complete ✅
+
+**Commits**:
+- `ac9263e` - User model + migration (consumable tracking fields)
+- `b03f5bc` - Consumable system implementation (Heroic Elixir + Purification Shield)
+- `1f22540` - Test updates for new corruption behavior
+
+**Key Implementation Details**:
+
+1. **Field Names**:
+   - Used `due_date` instead of `deadline` (clearer naming)
+   - No separate `is_bounty` flag - bounty status determined dynamically
+
+2. **Bounty System**:
+   - Bounty status checked by matching `quest.quest_template_id` with `DailyBounty.quest_template_id`
+   - Quest instances don't store bounty flag, only templates are matched
+
+3. **Corruption Debuff** (NOT bonus rewards):
+   - Each corrupted quest adds -5% penalty to household
+   - Applies to ALL users in home (house-wide)
+   - Capped at -50% (10 corrupted quests)
+   - Shield suppresses debuff (returns 1.0 multiplier)
+
+4. **Reward Calculation Order**:
+   ```
+   base_reward → corruption_debuff → bounty_multiplier → xp_boost
+   ```
+
+5. **API Response Structure**:
+   ```json
+   {
+     "rewards": {
+       "xp": 68,
+       "gold": 17,
+       "base_xp": 20,
+       "base_gold": 10,
+       "corruption_debuff": 0.85,
+       "bounty_multiplier": 2,
+       "xp_boost_active": true,
+       "xp_boost_remaining": 2
+     }
+   }
+   ```
+
+### Remaining Work (Frontend + Database)
+
+1. **Database Setup**:
+   - Run migration: `alembic upgrade head`
+   - Insert consumable rewards:
+     ```sql
+     INSERT INTO reward (home_id, name, description, cost) VALUES
+     (your_home_id, 'Heroic Elixir', 'Double XP for your next 3 completed quests', 150),
+     (your_home_id, 'Purification Shield', 'Protect household from corruption debuff for 24h', 200);
+     ```
+
+2. **Frontend Implementation**:
+   - Market page error handling
+   - Hero Status Bar: Show active elixir count, shield timer, debuff penalty
+   - Quest Board: Corruption banner, shield banner, corrupted quest styling
+   - Quest completion: Show boost/debuff breakdown in feedback toast
+   - Quest creation/edit: Add due_date picker
+
+3. **Testing**:
+   - Manual end-to-end testing of consumable purchase flow
+   - Verify corruption debuff calculation
+   - Test shield suppression behavior

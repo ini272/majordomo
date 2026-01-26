@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlmodel import Session, select
@@ -38,11 +39,12 @@ def claim_reward(db: Session, user_id: int, reward_id: int) -> Optional[UserRewa
     Validates:
     - Reward exists
     - User has sufficient gold balance
+    - Consumable not already active (for non-stacking items)
 
-    Deducts reward cost from user's gold balance.
+    Deducts reward cost from user's gold balance and activates consumable effects.
 
     Raises:
-        ValueError: If user has insufficient gold (caught by route handler)
+        ValueError: If user has insufficient gold or consumable already active
 
     Returns:
         UserRewardClaim if successful, None if reward not found
@@ -70,8 +72,45 @@ def claim_reward(db: Session, user_id: int, reward_id: int) -> Optional[UserRewa
             )
         )
 
+    # Check if consumable is already active (non-stacking)
+    now = datetime.now(timezone.utc)
+    if reward.name == "Heroic Elixir" and user.active_xp_boost_count > 0:
+        raise ValueError(
+            create_error_detail(
+                ErrorCode.CONSUMABLE_ALREADY_ACTIVE,
+                message=f"Heroic Elixir is active ({user.active_xp_boost_count} quests remaining)",
+                details={
+                    "reward_name": reward.name,
+                    "remaining_count": user.active_xp_boost_count,
+                    "user_id": user_id,
+                },
+            )
+        )
+
+    if reward.name == "Purification Shield" and user.active_shield_expiry and user.active_shield_expiry > now:
+        time_remaining = int((user.active_shield_expiry - now).total_seconds() / 3600)
+        raise ValueError(
+            create_error_detail(
+                ErrorCode.CONSUMABLE_ALREADY_ACTIVE,
+                message=f"Purification Shield is active ({time_remaining}h remaining)",
+                details={
+                    "reward_name": reward.name,
+                    "expiry": user.active_shield_expiry.isoformat(),
+                    "user_id": user_id,
+                },
+            )
+        )
+
     # Deduct gold using add_gold helper (safe, handles validation)
     crud_user.add_gold(db, user_id, -reward.cost)
+
+    # Activate consumable effects
+    if reward.name == "Heroic Elixir":
+        user.active_xp_boost_count = 3
+        db.add(user)
+    elif reward.name == "Purification Shield":
+        user.active_shield_expiry = now + timedelta(hours=24)
+        db.add(user)
 
     # Create claim record
     claim = UserRewardClaim(user_id=user_id, reward_id=reward_id)
