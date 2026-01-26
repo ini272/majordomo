@@ -1,7 +1,8 @@
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.auth import get_current_user
 from app.crud import achievement as crud_achievement
@@ -12,6 +13,7 @@ from app.crud import user as crud_user
 from app.database import get_db
 from app.errors import ErrorCode, create_error_detail
 from app.models.quest import (
+    Quest,
     QuestCreate,
     QuestRead,
     QuestTemplateCreate,
@@ -19,9 +21,40 @@ from app.models.quest import (
     QuestTemplateUpdate,
     QuestUpdate,
 )
+from app.models.user import User
 from app.services.scribe import generate_quest_content
 
 router = APIRouter(prefix="/api/quests", tags=["quests"])
+
+
+def _calculate_corruption_debuff(db: Session, home_id: int, user: User) -> float:
+    """
+    Calculate house-wide corruption debuff multiplier.
+
+    Returns multiplier to apply to rewards (1.0 = no debuff, 0.85 = -15% debuff, etc.)
+
+    Debuff calculation:
+    - Each corrupted quest in the home adds -5% penalty
+    - Stacks up to -50% cap (10 corrupted quests)
+    - Shield suppresses debuff temporarily (returns 1.0 if active)
+    """
+    # Check if user has active shield
+    now = datetime.now(timezone.utc)
+    if user.active_shield_expiry and user.active_shield_expiry > now:
+        return 1.0  # No debuff - shield protects
+
+    # Count corrupted quests in the home
+    corrupted_count = db.exec(
+        select(Quest).where((Quest.home_id == home_id) & (Quest.quest_type == "corrupted") & (Quest.completed == False))  # noqa: E712
+    ).all()
+
+    corrupted_count = len(corrupted_count)
+
+    # Calculate debuff: -5% per corrupted quest, cap at -50%
+    debuff_percent = min(corrupted_count * 5, 50)
+    multiplier = 1.0 - (debuff_percent / 100.0)
+
+    return multiplier
 
 
 # GET endpoints
@@ -121,9 +154,21 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
     - **quest_id**: Quest instance ID to complete
 
     Automatically awards XP and gold from the quest template.
-    **Daily Bounty Bonus**: If this quest matches today's daily bounty, rewards are doubled (2x multiplier).
 
-    Returns quest details and reward breakdown including XP, gold, and bounty status.
+    **Reward Calculation Order**:
+    1. Base rewards from template
+    2. Apply corruption debuff (-5% per corrupted quest in home, capped at -50%)
+    3. Apply bounty multiplier (2x if daily bounty)
+    4. Apply XP boost (2x if Heroic Elixir active)
+
+    **Corruption System**: House-wide debuff applies when ANY quests are corrupted (overdue).
+    Purification Shield suppresses this debuff for 24 hours.
+
+    **Consumables**:
+    - Heroic Elixir: 2x XP for next 3 completed quests
+    - Purification Shield: Suppresses corruption debuff for 24 hours
+
+    Returns quest details and reward breakdown including XP, gold, bounty status, and active effects.
     """
     quest = crud_quest.get_quest(db, quest_id)
     if not quest or quest.home_id != auth["home_id"]:
@@ -145,32 +190,55 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
             ),
         )
 
+    # Get user for consumable checks and debuff calculation
+    user = crud_user.get_user(db, quest.user_id)
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail=create_error_detail(ErrorCode.USER_NOT_FOUND, details={"user_id": quest.user_id}),
+        )
+
     # Check if this quest's template is today's daily bounty
     today_bounty = crud_daily_bounty.get_today_bounty(db, auth["home_id"])
     is_daily_bounty = today_bounty and today_bounty.quest_template_id == quest.quest_template_id
 
-    # Check if quest is corrupted (overdue)
+    # Check if quest is corrupted (overdue) - for display purposes only (not bonus rewards)
     is_corrupted = quest.quest_type == "corrupted"
 
-    # Apply multipliers: daily bounty (2x) or corrupted (1.5x)
-    # If both, apply higher multiplier (daily bounty)
-    if is_daily_bounty:
-        multiplier = 2
-    elif is_corrupted:
-        multiplier = 1.5
-    else:
-        multiplier = 1
+    # Calculate corruption debuff (house-wide penalty)
+    corruption_debuff_multiplier = _calculate_corruption_debuff(db, auth["home_id"], user)
+
+    # Check for active XP boost (Heroic Elixir)
+    has_xp_boost = user.active_xp_boost_count > 0
 
     # Mark quest as completed
     quest = crud_quest.complete_quest(db, quest_id)
 
-    # Award XP and gold to user from template (with bounty multiplier)
-    # Floor values to integers to avoid fractional XP/gold (e.g., 1.5x multiplier)
+    # Award XP and gold to user from template
+    # Apply order: base → corruption_debuff → bounty_multiplier → xp_boost
     xp_awarded = 0
     gold_awarded = 0
+    base_xp = 0
+    base_gold = 0
+    bounty_multiplier = 2 if is_daily_bounty else 1
+    xp_boost_multiplier = 2 if has_xp_boost else 1
+
     if quest.template:
-        xp_awarded = int(quest.template.xp_reward * multiplier)
-        gold_awarded = int(quest.template.gold_reward * multiplier)
+        base_xp = quest.template.xp_reward
+        base_gold = quest.template.gold_reward
+
+        # Apply corruption debuff to both XP and gold
+        xp_after_debuff = base_xp * corruption_debuff_multiplier
+        gold_after_debuff = base_gold * corruption_debuff_multiplier
+
+        # Apply bounty multiplier to both
+        xp_after_bounty = xp_after_debuff * bounty_multiplier
+        gold_after_bounty = gold_after_debuff * bounty_multiplier
+
+        # Apply XP boost only to XP (not gold)
+        xp_awarded = int(xp_after_bounty * xp_boost_multiplier)
+        gold_awarded = int(gold_after_bounty)
+
         try:
             crud_user.add_xp(db, quest.user_id, xp_awarded)
             crud_user.add_gold(db, quest.user_id, gold_awarded)
@@ -189,6 +257,12 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
                 detail=create_error_detail(error_code, message=error_msg, details={"quest_id": quest_id}),
             )
 
+    # Decrement XP boost counter if active
+    if has_xp_boost:
+        user.active_xp_boost_count -= 1
+        db.add(user)
+        db.commit()
+
     # Check and award any newly earned achievements
     newly_awarded_achievements = crud_achievement.check_and_award_achievements(db, quest.user_id)
 
@@ -197,9 +271,14 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
         "rewards": {
             "xp": xp_awarded,
             "gold": gold_awarded,
+            "base_xp": base_xp,
+            "base_gold": base_gold,
             "is_daily_bounty": is_daily_bounty,
             "is_corrupted": is_corrupted,
-            "multiplier": multiplier,
+            "corruption_debuff": corruption_debuff_multiplier,
+            "bounty_multiplier": bounty_multiplier,
+            "xp_boost_active": has_xp_boost,
+            "xp_boost_remaining": user.active_xp_boost_count,  # After decrement
         },
         "achievements": [{"id": ua.achievement_id, "unlocked_at": ua.unlocked_at} for ua in newly_awarded_achievements],
     }

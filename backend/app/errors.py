@@ -36,6 +36,7 @@ class ErrorCode(str, Enum):
     # State errors (400)
     QUEST_ALREADY_COMPLETED = "QUEST_ALREADY_COMPLETED"
     ACHIEVEMENT_ALREADY_UNLOCKED = "ACHIEVEMENT_ALREADY_UNLOCKED"
+    CONSUMABLE_ALREADY_ACTIVE = "CONSUMABLE_ALREADY_ACTIVE"
 
     # Authorization errors (403)
     UNAUTHORIZED_ACCESS = "UNAUTHORIZED_ACCESS"
@@ -78,6 +79,7 @@ ERROR_MESSAGES = {
     ErrorCode.NEGATIVE_AMOUNT: "Amount cannot be negative",
     ErrorCode.QUEST_ALREADY_COMPLETED: "Quest is already completed",
     ErrorCode.ACHIEVEMENT_ALREADY_UNLOCKED: "Achievement already unlocked",
+    ErrorCode.CONSUMABLE_ALREADY_ACTIVE: "Consumable is already active",
     ErrorCode.UNAUTHORIZED_ACCESS: "You are not authorized to access this resource",
     ErrorCode.FORBIDDEN: "Access forbidden",
     ErrorCode.INVALID_CREDENTIALS: "Invalid username or password",
