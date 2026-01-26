@@ -36,23 +36,46 @@ Gamified household chore management system. Transform chores into quests with XP
 ## Core Models & Concepts
 
 ### Database Models
-- **User**: Authentication, profile, gold, XP, level, home membership
-- **Quest**: Task management, assignment, completion tracking, quest_type (standard/bounty/corrupted)
+- **User**: Authentication, profile, gold, XP, level, home membership, consumable tracking (`active_xp_boost_count`, `active_shield_expiry`)
+- **Quest**: Task management, assignment, completion tracking, quest_type (standard/bounty/corrupted), due_date, corrupted_at
 - **QuestTemplate**: Reusable quest definitions for recurring chores
-- **DailyBounty**: Time-limited bonus quests
-- **Reward**: Marketplace items purchasable with gold
+- **DailyBounty**: Time-limited bonus quests (tracks which template is featured each day)
+- **Reward**: Marketplace items purchasable with gold (consumables and future cosmetics)
 - **Home**: Household/family groups
+- **Achievement**: Unlockable feats with criteria tracking
+- **UserRewardClaim**: Tracks reward purchases and claim history
 
 ### Key Concepts
-- **Quest Types**: Standard (regular), Bounty (time-limited bonus), Corrupted (overdue, higher rewards)
+- **Quest Types**:
+  - Standard (regular), Bounty (2x rewards when template matches today's DailyBounty), Corrupted (overdue, triggers house-wide -5% debuff per quest)
+  - Bounty status is determined dynamically (not stored on quest), quest_type tracks corruption state
+- **Corruption System**: Overdue quests trigger household-wide penalties (-5% XP/Gold per corrupted quest, stacks to -50%)
+- **Consumables**:
+  - Heroic Elixir (150g): 2x XP for next 3 quests
+  - Purification Shield (200g): Suppresses corruption debuff for 24h
 - **XP/Leveling**: Exponential curve: `XP_for_Next_Level = 100 * (current_level ^ 1.5)`
 - **Scribe**: Background AI service (Groq) for generating quest descriptions
 
 ## Current Development Phase
 
-**MVP**: Core gameplay loop functional. Users can log in, view quests, complete them, and gain XP/gold. Quest types (standard, bounty, corrupted) are implemented.
+**MVP Complete (Backend)** ✅:
+- Core gameplay loop functional
+- User authentication and home management
+- Quest system with templates and instances
+- Daily bounty system (random template selection)
+- Corruption system (overdue quests trigger house-wide debuff)
+- Gold economy with consumable shop (Heroic Elixir, Purification Shield)
+- Achievement system with criteria tracking
+- All 118 backend tests passing
 
-**Next**: Phase 1 features - difficulty levels, categories, filtering, Profile/Market/Heroes pages.
+**Frontend Work In Progress**:
+- Basic quest board and user management implemented
+- Market page for gold spending (needs consumable indicators)
+- Hero Status Bar (needs active consumable/debuff display)
+- Quest completion feedback (needs boost/debuff breakdown)
+- Corruption visual styling (needs red borders, warning banners)
+
+**Next**: Frontend integration for consumables + corruption system UI, then Phase 1 features (difficulty levels, categories, filtering enhancements).
 
 ## Development
 

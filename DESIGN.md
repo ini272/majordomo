@@ -55,14 +55,18 @@ The system is built on a foundation of proven RPG mechanics to ensure long-term 
 -   **Icon/Emoji:** Each quest displays a thematic icon or emoji for quick visual recognition and flavor. Icons are assigned per quest or per category to reinforce identity and make the board more visually engaging.
 
 ### 5. Advanced Gameplay Concepts
--   **The "Corruption" System:** Quests not completed by their deadline can become "Corrupted." Each quest instance tracks its own `quest_type` (standard, bounty, corrupted) independently from its template. When a quest becomes overdue, its `quest_type` is changed to "corrupted" and a `corrupted_at` timestamp is recorded. Corrupted quests are worth more XP/Gold but may apply a minor household "debuff" until cleared, creating urgency. This allows the same template to spawn quests with different types and states without affecting the template itself.
+-   **The "Corruption" System (✅ Implemented):** Quests with due dates that are not completed by their deadline become "Corrupted." Each quest instance tracks its own `quest_type` (standard, bounty, corrupted) independently from its template. When a quest becomes overdue, its `quest_type` is changed to "corrupted" and a `corrupted_at` timestamp is recorded. Corrupted quests trigger a **house-wide debuff** where each corrupted quest applies a -5% penalty to XP and Gold rewards for ALL household members (stacks up to -50%). This creates household-wide accountability and urgency to clear overdue tasks. The Purification Shield consumable can temporarily suppress this debuff for 24 hours.
 -   **Player Classes:** At a milestone level (e.g., Level 10), players can choose a Class (e.g., **Guardian, Forager, Berserker**) that provides passive XP bonuses to certain quest types, encouraging specialization and identity.
 -   **Achievements & Titles:** A "Feats of Strength" system tracks long-term stats, unlocking cosmetic "Titles" that players can display next to their name (e.g., "Kitchen Scourge," "Bane of the Pungent").
 -   **Boss Quests & Subtasks:** Large household challenges ("The Garage Dragon") can be broken into subtasks and completed collaboratively by multiple users. Progress tracking per subtask incentivizes teamwork and provides a sense of progression through larger endeavors.
 
 ### 6. Character Progression & Economy
 -   **XP & Levels:** Users have profiles with an XP bar and a level. Completing quests grants XP, and leveling up can unlock new in-game abilities (e.g., "Quest Veto").
--   **Gold & Shop:** Quests also reward Gold, a currency used in a virtual shop to buy cosmetic items (app themes, avatars) or consumable "potions" (e.g., "Double XP for 1 hour").
+-   **Gold & Shop (✅ Implemented):** Quests also reward Gold, a currency used in a virtual shop to buy items:
+    -   **Consumables (Loop 1):** Strategic single-use items that create recurring gold value and immediate gameplay impact:
+        -   **Heroic Elixir (150g):** Next 3 completed quests grant 2x XP. Quest-count based (persists until 3 quests completed). Cannot stack.
+        -   **Purification Shield (200g):** Suppresses household corruption debuff for 24 hours (real-time). Quests still remain corrupted but rewards aren't penalized. Cannot stack.
+    -   **Cosmetics (Loop 2 - Future):** Permanent unlocks like app themes, avatars, and titles for long-term goals (500-2000g range).
 
 ### 7. Time-Based Events
 -   **Daily Bounties:** Special time-limited quests with bonus rewards, flagged by the server.
@@ -122,7 +126,7 @@ The app will make heavy use of "juice" to feel satisfying.
 
 ## VI. Development Phases
 
-### MVP (Current)
+### MVP (Current) ✅ Complete
 **Goal:** Validate the core gameplay loop. A user can log in, see quests, complete them, gain XP, and level up.
 
 **Features:**
@@ -132,6 +136,9 @@ The app will make heavy use of "juice" to feel satisfying.
 - Hero Status Bar (Level, XP, Gold)
 - Bottom Tab Navigation structure (Board functional, others as stubs)
 - Quest type distinctions (Standard, Bounty, Corrupted)
+- **Daily Bounty System:** Random quest template selected daily with 2x rewards
+- **Gold Economy:** Consumable shop with Heroic Elixir (XP boost) and Purification Shield (debuff suppression)
+- **Corruption System:** Overdue quests trigger house-wide -5% debuff per corrupted quest (capped at -50%)
 - Responsive design (mobile + desktop)
 
 ### Phase 1
@@ -153,9 +160,9 @@ The app will make heavy use of "juice" to feel satisfying.
 **Features:**
 - Boss Quests with subtasks and collaborative completion
 - NFC tag integration for location-based quests
-- AI-generated quest descriptions (Asynchronous Scribe)
+- AI-generated quest descriptions (Asynchronous Scribe) - **Partially implemented**: Backend ready, frontend integration pending
 - Sound effects and Framer Motion animations ("juice")
-- Corruption system (overdue quests degrade)
+- ~~Corruption system (overdue quests degrade)~~ - ✅ **Implemented in MVP**
 - Player Classes with specialization bonuses
 
 ### Future

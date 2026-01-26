@@ -32,36 +32,46 @@ app/
 
 All models inherit from `SQLModel` with `table=True`:
 
-- **user.py**: User (id, email, hashed_password, username, gold, xp, home_id)
-- **home.py**: Home (id, name, created_at, users relationship)
-- **quest.py**: Quest (id, title, description, gold_reward, xp_reward, difficulty, is_completed, assigned_to, home_id, quest_template_id)
-- **quest.py**: QuestTemplate (id, title, description_template, gold_reward, xp_reward, difficulty, home_id)
-- **daily_bounty.py**: DailyBounty (id, title, description, gold_reward, xp_reward, expires_at, home_id, claimed_by)
-- **reward.py**: Reward (id, name, description, cost, home_id)
+- **user.py**: User (id, email, password_hash, username, gold_balance, xp, level, home_id, active_xp_boost_count, active_shield_expiry)
+- **home.py**: Home (id, name, invite_code, created_at, relationships: users, quest_templates, quests, rewards, achievements)
+- **quest.py**:
+  - Quest (id, home_id, user_id, quest_template_id, completed, completed_at, quest_type, due_date, corrupted_at)
+  - QuestTemplate (id, home_id, title, display_name, description, tags, xp_reward, gold_reward, quest_type, recurrence, system, created_by)
+- **daily_bounty.py**: DailyBounty (id, home_id, quest_template_id, bounty_date, created_at) - tracks which template is featured each day
+- **reward.py**:
+  - Reward (id, home_id, name, description, cost)
+  - UserRewardClaim (id, user_id, reward_id, claimed_at) - purchase history
+- **achievement.py**:
+  - Achievement (id, home_id, name, description, icon, criteria_type, criteria_value, is_system)
+  - UserAchievement (id, user_id, achievement_id, unlocked_at)
 
 ## CRUD Operations (`app/crud/`)
 
-Each CRUD module provides async database operations:
+Each CRUD module provides database operations:
 
-- **user.py**: create_user, get_user_by_email, get_user_by_id, update_user_gold_xp
-- **home.py**: create_home, get_home, add_user_to_home
-- **quest.py**: create_quest, get_quests_by_home, get_quest, update_quest, delete_quest, complete_quest
-- **quest_template.py**: create_quest_template, get_quest_templates_by_home, delete_quest_template
-- **daily_bounty.py**: create_daily_bounty, get_active_bounties, claim_bounty
-- **reward.py**: create_reward, get_rewards_by_home, purchase_reward
+- **user.py**: create_user, get_user, get_user_by_email, update_user, add_xp, add_gold (with validation)
+- **home.py**: create_home, get_home, get_home_by_invite_code, get_home_users, delete_home
+- **quest.py**: create_quest, get_quest, get_quests_by_home, get_quests_by_user, update_quest, delete_quest, complete_quest, check_and_corrupt_overdue_quests
+- **quest_template.py**: create_quest_template, get_quest_template, get_home_quest_templates, update_quest_template, delete_quest_template
+- **daily_bounty.py**: get_today_bounty, create_bounty, refresh_bounty, is_template_daily_bounty
+- **reward.py**: create_reward, get_reward, get_home_rewards, claim_reward (validates gold, activates consumables), get_user_reward_claims, delete_reward
+- **achievement.py**: create_achievement, get_achievement, get_home_achievements, get_user_achievements, award_achievement, check_and_award_achievements
 
 ## API Routes (`app/routes/`)
 
 All routes prefixed with `/api`:
 
-- **auth.py**: `/auth/register`, `/auth/login` (JWT token generation)
-- **user.py**: `/users/me`, `/users/{user_id}` (requires JWT)
-- **home.py**: `/homes/`, `/homes/{home_id}` (create, get home info)
-- **quest.py**: `/quests/`, `/quests/{quest_id}`, `/quests/{quest_id}/complete` (CRUD + completion)
-- **quest.py**: `/quest-templates/` (template management)
-- **bounty.py**: `/bounties/`, `/bounties/{bounty_id}/claim` (daily bounty system)
-- **reward.py**: `/rewards/`, `/rewards/{reward_id}/purchase` (marketplace)
-- **triggers.py**: `/triggers/nfc` (NFC tag handling)
+- **auth.py**: `/auth/signup` (email+password), `/auth/signup-home` (username+password), `/auth/login-email`, `/auth/login` (username+password), `/auth/join` (join existing home)
+- **user.py**: `/users/me`, `/users/{user_id}` (get/update user), `/users/{user_id}/xp` (add XP), `/users/{user_id}/gold` (add gold)
+- **home.py**: `/homes/`, `/homes/{home_id}`, `/homes/{home_id}/users` (CRUD, user listing)
+- **quest.py**:
+  - Quests: `/quests/` (list all), `/quests/{quest_id}` (get/update/delete), `/quests/{quest_id}/complete` (complete with rewards)
+  - Templates: `/quests/templates` (create), `/quests/templates/all` (list), `/quests/templates/{template_id}` (get/update/delete)
+  - Corruption: `/quests/check-corruption` (manual corruption check)
+- **bounty.py**: `/bounty/today` (get/create today's bounty), `/bounty/refresh` (refresh bounty), `/bounty/check/{template_id}` (check if template is bounty)
+- **reward.py**: `/rewards/` (list/create), `/rewards/{reward_id}` (get/delete), `/rewards/{reward_id}/claim` (purchase with gold), `/rewards/user/{user_id}/claims` (claim history)
+- **achievement.py**: `/achievements/` (list/create), `/achievements/{achievement_id}` (get/delete), `/achievements/{achievement_id}/award` (award to user), `/achievements/user/{user_id}` (user achievements), `/achievements/me` (my achievements)
+- **triggers.py**: `/triggers/quest/{quest_id}` (NFC/trigger completion)
 
 ## Services (`app/services/`)
 
