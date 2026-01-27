@@ -471,19 +471,9 @@ def test_generate_sets_due_date_from_template(db: Session):
 # ============================================================================
 
 
-def test_create_template_with_daily_schedule(client: TestClient):
+def test_create_template_with_daily_schedule(client: TestClient, home_with_user):
     """Test creating a quest template with daily schedule"""
-    # Setup
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "test@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Create template with daily schedule
     template_data = {
@@ -504,18 +494,9 @@ def test_create_template_with_daily_schedule(client: TestClient):
     assert data["due_in_hours"] == 24
 
 
-def test_create_template_with_weekly_schedule(client: TestClient):
+def test_create_template_with_weekly_schedule(client: TestClient, home_with_user):
     """Test creating a quest template with weekly schedule"""
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "test@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     template_data = {
         "title": "Take out trash",
@@ -532,18 +513,9 @@ def test_create_template_with_weekly_schedule(client: TestClient):
     assert data["recurrence"] == "weekly"
 
 
-def test_create_template_with_monthly_schedule(client: TestClient):
+def test_create_template_with_monthly_schedule(client: TestClient, home_with_user):
     """Test creating a quest template with monthly schedule"""
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "test@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     template_data = {
         "title": "Pay bills",
@@ -560,18 +532,9 @@ def test_create_template_with_monthly_schedule(client: TestClient):
     assert data["recurrence"] == "monthly"
 
 
-def test_create_template_validation_rejects_mismatched_schedule(client: TestClient):
+def test_create_template_validation_rejects_mismatched_schedule(client: TestClient, home_with_user):
     """Test that validation rejects schedule type mismatch"""
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "test@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Recurrence is "daily" but schedule type is "weekly"
     template_data = {
@@ -588,18 +551,9 @@ def test_create_template_validation_rejects_mismatched_schedule(client: TestClie
     assert "must match recurrence" in response.json()["detail"]
 
 
-def test_create_template_validation_rejects_invalid_time(client: TestClient):
+def test_create_template_validation_rejects_invalid_time(client: TestClient, home_with_user):
     """Test that validation rejects invalid time format"""
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "test@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     template_data = {
         "title": "Test",
@@ -615,18 +569,9 @@ def test_create_template_validation_rejects_invalid_time(client: TestClient):
     assert "Invalid time format" in response.json()["detail"]
 
 
-def test_create_template_validation_rejects_invalid_day(client: TestClient):
+def test_create_template_validation_rejects_invalid_day(client: TestClient, home_with_user):
     """Test that validation rejects invalid day for weekly schedule"""
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "test@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     template_data = {
         "title": "Test",
@@ -642,19 +587,9 @@ def test_create_template_validation_rejects_invalid_day(client: TestClient):
     assert "Invalid day" in response.json()["detail"]
 
 
-def test_manual_generation_endpoint(client: TestClient):
+def test_manual_generation_endpoint(client: TestClient, home_with_user):
     """Test the manual quest instance generation endpoint"""
-    # Setup
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "test@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Create template
     template_data = {
@@ -680,19 +615,9 @@ def test_manual_generation_endpoint(client: TestClient):
     assert data["due_date"] is not None  # Should have due date from template
 
 
-def test_quest_board_triggers_generation(client: TestClient):
+def test_quest_board_triggers_generation(client: TestClient, home_with_user):
     """Test that fetching quest board triggers automatic generation"""
-    # Setup
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "test@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Create recurring template
     template_data = {
