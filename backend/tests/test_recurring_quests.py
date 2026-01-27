@@ -291,32 +291,9 @@ def test_monthly_year_rollover():
 # ============================================================================
 
 
-def test_generate_creates_instance_when_due(db: Session):
+def test_generate_creates_instance_when_due(db: Session, db_home_with_users):
     """Test that generation creates quest instances when due"""
-    from app.models.home import Home
-    from app.models.user import User
-
-    # Create test home and users
-    home = Home(name="Test Home", invite_code="TEST123")
-    db.add(home)
-    db.commit()
-    db.refresh(home)
-
-    user1 = User(
-        username="user1",
-        email="user1@test.com",
-        password_hash="$2b$12$test_hash_1",
-        home_id=home.id,
-    )
-    user2 = User(
-        username="user2",
-        email="user2@test.com",
-        password_hash="$2b$12$test_hash_2",
-        home_id=home.id,
-    )
-    db.add(user1)
-    db.add(user2)
-    db.commit()
+    home, user1, user2 = db_home_with_users
 
     # Create recurring template that's due
     template = QuestTemplate(
@@ -354,25 +331,9 @@ def test_generate_creates_instance_when_due(db: Session):
     assert template.last_generated_at is not None
 
 
-def test_generate_skips_when_incomplete_exists(db: Session):
+def test_generate_skips_when_incomplete_exists(db: Session, db_home_with_users):
     """Test that generation skips if incomplete quest exists"""
-    from app.models.home import Home
-    from app.models.user import User
-
-    # Create test home and user
-    home = Home(name="Test Home", invite_code="TEST123")
-    db.add(home)
-    db.commit()
-    db.refresh(home)
-
-    user = User(
-        username="user1",
-        email="user1@test.com",
-        password_hash="$2b$12$test_hash",
-        home_id=home.id,
-    )
-    db.add(user)
-    db.commit()
+    home, user, _user2 = db_home_with_users
 
     # Create recurring template
     template = QuestTemplate(
@@ -410,25 +371,9 @@ def test_generate_skips_when_incomplete_exists(db: Session):
     assert len(quests) == 1  # Only the existing one
 
 
-def test_generate_sets_due_date_from_template(db: Session):
+def test_generate_sets_due_date_from_template(db: Session, db_home_with_users):
     """Test that generation sets due_date based on template's due_in_hours"""
-    from app.models.home import Home
-    from app.models.user import User
-
-    # Create test home and user
-    home = Home(name="Test Home", invite_code="TEST123")
-    db.add(home)
-    db.commit()
-    db.refresh(home)
-
-    user = User(
-        username="user1",
-        email="user1@test.com",
-        password_hash="$2b$12$test_hash",
-        home_id=home.id,
-    )
-    db.add(user)
-    db.commit()
+    home, user, _user2 = db_home_with_users
 
     # Create recurring template with due_in_hours set
     template = QuestTemplate(
