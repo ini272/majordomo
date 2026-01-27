@@ -480,8 +480,12 @@ export default function Profile({ token }: ProfileProps) {
                       Completed {new Date(quest.completed_at!).toLocaleDateString()}
                     </p>
                     <div className="flex gap-3">
-                      <span style={{ color: COLORS.gold }}>+{quest.template.xp_reward} XP</span>
-                      <span style={{ color: COLORS.gold }}>+{quest.template.gold_reward} Gold</span>
+                      <span style={{ color: COLORS.gold }}>
+                        +{quest.xp_awarded ?? quest.template.xp_reward} XP
+                      </span>
+                      <span style={{ color: COLORS.gold }}>
+                        +{quest.gold_awarded ?? quest.template.gold_reward} Gold
+                      </span>
                     </div>
                   </div>
                 </div>
