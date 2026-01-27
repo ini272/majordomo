@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -22,6 +22,7 @@ from app.models.quest import (
     QuestUpdate,
 )
 from app.models.user import User
+from app.services.recurring_quests import generate_due_quests
 from app.services.scribe import generate_quest_content
 
 router = APIRouter(prefix="/api/quests", tags=["quests"])
@@ -72,8 +73,12 @@ def get_all_quests(db: Session = Depends(get_db), auth: dict = Depends(get_curre
     Returns all active and completed quests for the household.
     Results are sorted by creation date (newest first).
 
-    Automatically checks for overdue quests and marks them as corrupted.
+    Automatically generates any due recurring quest instances and
+    checks for overdue quests and marks them as corrupted.
     """
+    # Generate any recurring quests that are due
+    generate_due_quests(auth["home_id"], db)
+
     # Check and corrupt any overdue quests before returning the list
     crud_quest.check_and_corrupt_overdue_quests(db)
 
@@ -144,6 +149,60 @@ def create_quest(
         raise HTTPException(status_code=404, detail="Quest template not found in home")
 
     return crud_quest.create_quest(db, home_id, user_id, quest)
+
+
+@router.post("/templates/{template_id}/generate-instance", response_model=QuestRead)
+def generate_quest_instance(
+    template_id: int,
+    db: Session = Depends(get_db),
+    auth: dict = Depends(get_current_user),
+):
+    """
+    Manually generate a quest instance from this template.
+
+    Creates a new quest instance for the requesting user immediately,
+    bypassing the "skip if incomplete" check. Updates the template's
+    last_generated_at timestamp to prevent duplicate auto-generation.
+
+    Useful for:
+    - Manual "Generate Now" button in UI
+    - Creating extra instances on demand
+    - Testing and debugging
+    """
+    template = crud_quest_template.get_quest_template(db, template_id)
+    if not template or template.home_id != auth["home_id"]:
+        raise HTTPException(
+            status_code=404,
+            detail=create_error_detail(
+                ErrorCode.QUEST_TEMPLATE_NOT_FOUND,
+                details={"template_id": template_id},
+            ),
+        )
+
+    now = datetime.now(timezone.utc)
+
+    # Calculate due date if template specifies
+    due_date = None
+    if template.due_in_hours:
+        due_date = now + timedelta(hours=template.due_in_hours)
+
+    # Create quest instance for requesting user only
+    new_quest = Quest(
+        home_id=auth["home_id"],
+        user_id=auth["user_id"],
+        quest_template_id=template.id,
+        quest_type="standard",
+        due_date=due_date,
+    )
+    db.add(new_quest)
+
+    # Update last_generated_at
+    template.last_generated_at = now
+    db.add(template)
+    db.commit()
+    db.refresh(new_quest)
+
+    return QuestRead.model_validate(new_quest)
 
 
 @router.post("/{quest_id}/complete")
@@ -284,6 +343,75 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
     }
 
 
+def _validate_quest_schedule(recurrence: str, schedule: Optional[str]) -> None:
+    """
+    Validate quest template schedule configuration.
+
+    Raises:
+        HTTPException: If schedule is invalid
+    """
+    import json
+
+    # One-off quests don't need schedule validation
+    if recurrence == "one-off":
+        return
+
+    # Recurring quests must have a schedule
+    if not schedule:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Schedule is required for {recurrence} recurrence",
+        )
+
+    # Parse and validate JSON
+    try:
+        schedule_data = json.loads(schedule)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail="Schedule must be valid JSON",
+        )
+
+    # Validate schedule type matches recurrence
+    schedule_type = schedule_data.get("type")
+    if schedule_type != recurrence:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Schedule type '{schedule_type}' must match recurrence '{recurrence}'",
+        )
+
+    # Validate time format
+    time_str = schedule_data.get("time", "00:00")
+    try:
+        hour, minute = map(int, time_str.split(":"))
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            raise ValueError()
+    except (ValueError, AttributeError):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid time format: {time_str}. Expected HH:MM (00:00 to 23:59)",
+        )
+
+    # Validate day for weekly schedules
+    if schedule_type == "weekly":
+        day_name = schedule_data.get("day", "").lower()
+        valid_days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+        if day_name not in valid_days:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid day: {day_name}. Must be one of {', '.join(valid_days)}",
+            )
+
+    # Validate day for monthly schedules
+    if schedule_type == "monthly":
+        day = schedule_data.get("day")
+        if not isinstance(day, int) or not (1 <= day <= 31):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid day: {day}. Must be an integer between 1 and 31",
+            )
+
+
 def _generate_and_update_quest_template(template_id: int, quest_title: str):
     """Background task to generate quest content and update template"""
     import time
@@ -349,6 +477,11 @@ def create_quest_template(
     - Appropriate tags
     - Calculated XP/gold rewards based on time/effort/dread ratings
 
+    **Recurring Quests**: Templates can have schedules (daily, weekly, monthly).
+    - Recurrence types: "one-off", "daily", "weekly", "monthly"
+    - Schedule format: JSON string with type, time, and day (for weekly/monthly)
+    - Optional due_in_hours: Relative deadline for auto-generated instances
+
     Template is created immediately; AI content is populated in the background.
     """
     home_id = auth["home_id"]
@@ -357,6 +490,9 @@ def create_quest_template(
     user = crud_user.get_user(db, created_by)
     if not user or user.home_id != home_id:
         raise HTTPException(status_code=404, detail="User not found in home")
+
+    # Validate schedule configuration
+    _validate_quest_schedule(template.recurrence, template.schedule)
 
     # Create template with defaults
     new_template = crud_quest_template.create_quest_template(db, home_id, created_by, template)
@@ -380,10 +516,16 @@ def update_quest_template(
     db: Session = Depends(get_db),
     auth: dict = Depends(get_current_user),
 ):
-    """Update quest template"""
+    """Update quest template including schedule configuration"""
     template = crud_quest_template.get_quest_template(db, template_id)
     if not template or template.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="Quest template not found")
+
+    # If recurrence or schedule is being updated, validate the combination
+    new_recurrence = template_update.recurrence if template_update.recurrence is not None else template.recurrence
+    new_schedule = template_update.schedule if template_update.schedule is not None else template.schedule
+
+    _validate_quest_schedule(new_recurrence, new_schedule)
 
     template = crud_quest_template.update_quest_template(db, template_id, template_update)
     return template
