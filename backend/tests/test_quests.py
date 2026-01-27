@@ -718,14 +718,42 @@ def test_quest_template_different_quest_types(client: TestClient, home_with_user
 
 def test_quest_template_different_recurrences(client: TestClient, home_with_user):
     """Test creating quest templates with different recurrence values"""
+    import json
+
     home_id, user_id, invite_code = home_with_user
 
-    recurrences = ["one-off", "daily", "weekly"]
+    # Test data with proper schedule configurations for recurring types
+    test_cases = [
+        {
+            "recurrence": "one-off",
+            "schedule": None,
+        },
+        {
+            "recurrence": "daily",
+            "schedule": json.dumps({"type": "daily", "time": "08:00"}),
+        },
+        {
+            "recurrence": "weekly",
+            "schedule": json.dumps({"type": "weekly", "day": "monday", "time": "18:00"}),
+        },
+    ]
 
-    for recurrence in recurrences:
+    for test_case in test_cases:
+        recurrence = test_case["recurrence"]
+        payload = {
+            "title": f"Quest {recurrence}",
+            "recurrence": recurrence,
+            "xp_reward": 10,
+            "gold_reward": 5,
+        }
+
+        # Add schedule if provided
+        if test_case["schedule"] is not None:
+            payload["schedule"] = test_case["schedule"]
+
         response = client.post(
-            f"/api/quests/templates?created_by={user_id}",
-            json={"title": f"Quest {recurrence}", "recurrence": recurrence, "xp_reward": 10, "gold_reward": 5},
+            f"/api/quests/templates?created_by={user_id}&skip_ai=true",
+            json=payload,
         )
 
         assert response.status_code == 200
