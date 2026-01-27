@@ -119,3 +119,31 @@ def db_home_with_users(db: Session):
     db.refresh(user2)
 
     return home, user1, user2
+
+
+@pytest.fixture
+def home_with_templates(client: TestClient, home_with_user):
+    """
+    Create a home with user and quest templates for testing.
+
+    Useful for tests that need pre-created quest templates,
+    such as bounty tests and template-related tests.
+
+    Returns:
+        tuple: (home_id, user_id, templates) - home, user, and list of 3 templates
+    """
+    home_id, user_id, invite_code = home_with_user
+
+    # Create quest templates
+    templates = []
+    template_data = [
+        {"title": "Clean Kitchen", "xp_reward": 25, "gold_reward": 10},
+        {"title": "Do Laundry", "xp_reward": 30, "gold_reward": 15},
+        {"title": "Vacuum", "xp_reward": 20, "gold_reward": 10},
+    ]
+
+    for data in template_data:
+        response = client.post(f"/api/quests/templates?created_by={user_id}&skip_ai=true", json=data)
+        templates.append(response.json())
+
+    return home_id, user_id, templates

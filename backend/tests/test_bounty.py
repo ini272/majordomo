@@ -1,38 +1,6 @@
 from datetime import date
 
-import pytest
 from fastapi.testclient import TestClient
-
-
-@pytest.fixture
-def home_with_templates(client: TestClient):
-    """Create a home with user and quest templates for bounty testing"""
-    # Create home and user via signup
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "testuser@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    home_id = signup.json()["home_id"]
-    user_id = signup.json()["user_id"]
-
-    # Create quest templates
-    templates = []
-    template_data = [
-        {"title": "Clean Kitchen", "xp_reward": 25, "gold_reward": 10},
-        {"title": "Do Laundry", "xp_reward": 30, "gold_reward": 15},
-        {"title": "Vacuum", "xp_reward": 20, "gold_reward": 10},
-    ]
-
-    for data in template_data:
-        response = client.post(f"/api/quests/templates?created_by={user_id}&skip_ai=true", json=data)
-        templates.append(response.json())
-
-    return home_id, user_id, templates
 
 
 def test_get_today_bounty_creates_new(client: TestClient, home_with_templates):

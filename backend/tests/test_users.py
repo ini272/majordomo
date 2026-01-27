@@ -1,19 +1,9 @@
 from fastapi.testclient import TestClient
 
 
-def test_get_user(client: TestClient):
+def test_get_user(client: TestClient, home_with_user):
     """Test retrieving a user"""
-    # Create home and user via signup
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "testuser@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Retrieve user
     response = client.get(f"/api/users/{user_id}")
@@ -27,19 +17,9 @@ def test_get_user_not_found(client: TestClient):
     assert response.status_code == 404
 
 
-def test_update_user(client: TestClient):
+def test_update_user(client: TestClient, home_with_user):
     """Test updating a user"""
-    # Create user via signup
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "testuser@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Update user
     response = client.put(f"/api/users/{user_id}", json={"xp": 100})
@@ -47,19 +27,9 @@ def test_update_user(client: TestClient):
     assert response.json()["xp"] == 100
 
 
-def test_add_xp_to_user(client: TestClient):
+def test_add_xp_to_user(client: TestClient, home_with_user):
     """Test adding XP to a user"""
-    # Create user
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "testuser@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Add XP
     response = client.post(f"/api/users/{user_id}/xp?amount=100")
@@ -67,19 +37,9 @@ def test_add_xp_to_user(client: TestClient):
     assert response.json()["xp"] == 100
 
 
-def test_level_progression(client: TestClient):
+def test_level_progression(client: TestClient, home_with_user):
     """Test that level increases with XP"""
-    # Create user
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "testuser@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Add XP to reach level 2 (requires 100 XP)
     response = client.post(f"/api/users/{user_id}/xp?amount=100")
@@ -88,19 +48,9 @@ def test_level_progression(client: TestClient):
     assert response.json()["xp"] == 100
 
 
-def test_add_gold_to_user(client: TestClient):
+def test_add_gold_to_user(client: TestClient, home_with_user):
     """Test adding gold to a user"""
-    # Create user
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "testuser@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Add gold
     response = client.post(f"/api/users/{user_id}/gold?amount=50")
@@ -108,19 +58,9 @@ def test_add_gold_to_user(client: TestClient):
     assert response.json()["gold_balance"] == 50
 
 
-def test_delete_user(client: TestClient):
+def test_delete_user(client: TestClient, home_with_user):
     """Test deleting a user"""
-    # Create user
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "testuser@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Test Home",
-        },
-    )
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Delete user
     response = client.delete(f"/api/users/{user_id}")

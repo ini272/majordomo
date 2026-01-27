@@ -1,20 +1,9 @@
 from fastapi.testclient import TestClient
 
 
-def test_create_quest_template(client: TestClient):
+def test_create_quest_template(client: TestClient, home_with_user):
     """Test creating a quest template"""
-    # Create home and user
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "creator@example.com",
-            "username": "creator",
-            "password": "creatorpass",
-            "home_name": "Test Home",
-        },
-    )
-    signup.json()["home_id"]
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Create template
     template_data = {
@@ -30,20 +19,9 @@ def test_create_quest_template(client: TestClient):
     assert response.json()["system"] is False
 
 
-def test_create_quest_template_with_tags(client: TestClient):
+def test_create_quest_template_with_tags(client: TestClient, home_with_user):
     """Test creating a quest template with tags"""
-    # Create home and user
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "creator@example.com",
-            "username": "creator",
-            "password": "creatorpass",
-            "home_name": "Test Home",
-        },
-    )
-    signup.json()["home_id"]
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Create template with tags
     template_data = {
@@ -60,20 +38,9 @@ def test_create_quest_template_with_tags(client: TestClient):
     assert response.json()["tags"] == "chores,cleaning,kitchen"
 
 
-def test_create_quest_template_without_tags(client: TestClient):
+def test_create_quest_template_without_tags(client: TestClient, home_with_user):
     """Test creating a quest template without tags (should be null)"""
-    # Create home and user
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "creator@example.com",
-            "username": "creator",
-            "password": "creatorpass",
-            "home_name": "Test Home",
-        },
-    )
-    signup.json()["home_id"]
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Create template without tags
     template_data = {
@@ -86,20 +53,9 @@ def test_create_quest_template_without_tags(client: TestClient):
     assert response.json()["tags"] is None
 
 
-def test_get_quest_template(client: TestClient):
+def test_get_quest_template(client: TestClient, home_with_user):
     """Test retrieving a quest template"""
-    # Setup
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "creator@example.com",
-            "username": "creator",
-            "password": "creatorpass",
-            "home_name": "Test Home",
-        },
-    )
-    signup.json()["home_id"]
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Create template
     template_response = client.post(
@@ -113,20 +69,9 @@ def test_get_quest_template(client: TestClient):
     assert response.json()["title"] == "Test quest"
 
 
-def test_get_home_quest_templates(client: TestClient):
+def test_get_home_quest_templates(client: TestClient, home_with_user):
     """Test retrieving all quest templates in a home"""
-    # Setup
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "creator@example.com",
-            "username": "creator",
-            "password": "creatorpass",
-            "home_name": "Test Home",
-        },
-    )
-    signup.json()["home_id"]
-    user_id = signup.json()["user_id"]
+    home_id, user_id, invite_code = home_with_user
 
     # Create templates
     for i in range(2):
