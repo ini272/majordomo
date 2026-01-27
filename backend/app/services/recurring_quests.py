@@ -60,19 +60,16 @@ def calculate_next_generation_time(
         today_scheduled = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
         if last_generated_at is None:
-            # Never generated - use today if time hasn't passed, else tomorrow
-            return (
-                today_scheduled
-                if now < today_scheduled
-                else today_scheduled + timedelta(days=1)
-            )
+            # Never generated - generate immediately (return today's time)
+            # This handles initial template creation and server downtime scenarios
+            return today_scheduled
 
         # Already generated today? Next occurrence is tomorrow
         if last_generated_at.date() == now.date():
             return today_scheduled + timedelta(days=1)
 
-        # Last generated yesterday or earlier
-        return today_scheduled if now >= today_scheduled else today_scheduled
+        # Last generated yesterday or earlier - return today's scheduled time
+        return today_scheduled
 
     elif schedule_type == "weekly":
         day_name = schedule.get("day", "monday").lower()
@@ -117,7 +114,28 @@ def calculate_next_generation_time(
         time_str = schedule.get("time", "00:00")
         hour, minute = parse_time(time_str)
 
-        # Calculate next occurrence
+        # Check if already generated this month
+        if (
+            last_generated_at
+            and last_generated_at.month == now.month
+            and last_generated_at.year == now.year
+        ):
+            # Already generated this month - calculate next month's date
+            if now.month == 12:
+                target_date = now.replace(year=now.year + 1, month=1, day=1, hour=hour, minute=minute, second=0, microsecond=0)
+            else:
+                target_date = now.replace(month=now.month + 1, day=1, hour=hour, minute=minute, second=0, microsecond=0)
+
+            # Handle day overflow for next month
+            try:
+                target_date = target_date.replace(day=day_of_month)
+            except ValueError:
+                last_day = calendar.monthrange(target_date.year, target_date.month)[1]
+                target_date = target_date.replace(day=last_day)
+
+            return target_date
+
+        # Calculate this month's scheduled date
         target_date = now.replace(day=1, hour=hour, minute=minute, second=0, microsecond=0)
 
         # Try setting the target day (handle months with fewer days)
@@ -137,25 +155,6 @@ def calculate_next_generation_time(
                 target_date = target_date.replace(month=now.month + 1)
 
             # Handle day overflow again for next month
-            try:
-                target_date = target_date.replace(day=day_of_month)
-            except ValueError:
-                last_day = calendar.monthrange(target_date.year, target_date.month)[1]
-                target_date = target_date.replace(day=last_day)
-
-        # Check if already generated this month
-        if (
-            last_generated_at
-            and last_generated_at.month == now.month
-            and last_generated_at.year == now.year
-        ):
-            # Already generated this month - skip to next month
-            if target_date.month == 12:
-                target_date = target_date.replace(year=target_date.year + 1, month=1)
-            else:
-                target_date = target_date.replace(month=target_date.month + 1)
-
-            # Handle day overflow for next month
             try:
                 target_date = target_date.replace(day=day_of_month)
             except ValueError:
