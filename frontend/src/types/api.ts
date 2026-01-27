@@ -27,6 +27,8 @@ export interface Quest {
   quest_type: string;
   due_date: string | null;
   corrupted_at: string | null;
+  xp_awarded: number | null;
+  gold_awarded: number | null;
   template: QuestTemplate;
 }
 
