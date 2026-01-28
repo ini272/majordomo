@@ -22,7 +22,10 @@ class QuestTemplate(SQLModel, table=True):
     xp_reward: int = Field(default=10, ge=0, le=10000)
     gold_reward: int = Field(default=5, ge=0, le=10000)
     quest_type: str = Field(default="standard")  # standard, corrupted
-    recurrence: str = Field(default="one-off")  # one-off, daily, weekly
+    recurrence: str = Field(default="one-off")  # one-off, daily, weekly, monthly
+    schedule: Optional[str] = Field(default=None)  # JSON string with schedule details
+    last_generated_at: Optional[datetime] = None  # when last instance was created
+    due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)  # relative deadline (1h-1yr)
     system: bool = Field(default=False)  # true = system default, false = user created
     created_by: int = Field(foreign_key="user.id")  # user who created it
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -45,6 +48,9 @@ class QuestTemplateRead(SQLModel):
     gold_reward: int
     quest_type: str
     recurrence: str
+    schedule: Optional[str]
+    last_generated_at: Optional[datetime]
+    due_in_hours: Optional[int]
     system: bool
     created_by: int
     created_at: datetime
@@ -61,6 +67,8 @@ class QuestTemplateCreate(SQLModel):
     gold_reward: int = Field(default=5, ge=0, le=10000)
     quest_type: str = Field(default="standard")
     recurrence: str = Field(default="one-off")
+    schedule: Optional[str] = None
+    due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)
 
 
 class QuestTemplateUpdate(SQLModel):
@@ -73,6 +81,8 @@ class QuestTemplateUpdate(SQLModel):
     gold_reward: Optional[int] = Field(default=None, ge=0, le=10000)
     quest_type: Optional[str] = Field(default=None)
     recurrence: Optional[str] = Field(default=None)
+    schedule: Optional[str] = None
+    due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)
 
 
 class Quest(SQLModel, table=True):

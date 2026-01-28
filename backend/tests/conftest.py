@@ -74,3 +74,76 @@ def home_with_user(client: TestClient):
     invite_code = signup.json()["invite_code"]
 
     return home_id, user_id, invite_code
+
+
+@pytest.fixture
+def db_home_with_users(db: Session):
+    """
+    Create a home with users directly in the database for unit tests.
+
+    This fixture is useful for testing service layer functions that
+    work directly with the database, bypassing the API.
+
+    Returns:
+        tuple: (home, user1, user2) - home and two users
+    """
+    from app.models.home import Home
+    from app.models.user import User
+
+    # Create home
+    home = Home(name="Test Home", invite_code="TEST123")
+    db.add(home)
+    db.commit()
+    db.refresh(home)
+
+    # Create first user
+    user1 = User(
+        username="user1",
+        email="user1@test.com",
+        password_hash="$2b$12$test_hash_1",
+        home_id=home.id,
+    )
+    db.add(user1)
+
+    # Create second user
+    user2 = User(
+        username="user2",
+        email="user2@test.com",
+        password_hash="$2b$12$test_hash_2",
+        home_id=home.id,
+    )
+    db.add(user2)
+
+    db.commit()
+    db.refresh(user1)
+    db.refresh(user2)
+
+    return home, user1, user2
+
+
+@pytest.fixture
+def home_with_templates(client: TestClient, home_with_user):
+    """
+    Create a home with user and quest templates for testing.
+
+    Useful for tests that need pre-created quest templates,
+    such as bounty tests and template-related tests.
+
+    Returns:
+        tuple: (home_id, user_id, templates) - home, user, and list of 3 templates
+    """
+    home_id, user_id, invite_code = home_with_user
+
+    # Create quest templates
+    templates = []
+    template_data = [
+        {"title": "Clean Kitchen", "xp_reward": 25, "gold_reward": 10},
+        {"title": "Do Laundry", "xp_reward": 30, "gold_reward": 15},
+        {"title": "Vacuum", "xp_reward": 20, "gold_reward": 10},
+    ]
+
+    for data in template_data:
+        response = client.post(f"/api/quests/templates?created_by={user_id}&skip_ai=true", json=data)
+        templates.append(response.json())
+
+    return home_id, user_id, templates
