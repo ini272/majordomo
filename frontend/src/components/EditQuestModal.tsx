@@ -34,6 +34,15 @@ export default function EditQuestModal({
   const [showTypeWriter, setShowTypeWriter] = useState(false);
   const [nameAnimationDone, setNameAnimationDone] = useState(false);
 
+  // Recurring quest fields
+  const [recurrence, setRecurrence] = useState<"one-off" | "daily" | "weekly" | "monthly">(
+    "one-off"
+  );
+  const [scheduleTime, setScheduleTime] = useState("08:00");
+  const [scheduleDay, setScheduleDay] = useState<string>("monday");
+  const [scheduleDayOfMonth, setScheduleDayOfMonth] = useState<number>(1);
+  const [dueInHours, setDueInHours] = useState<string>("");
+
   // Fetch template and wait for Groq to populate it (unless skipAI is true)
   useEffect(() => {
     const fetchTemplate = async () => {
@@ -60,6 +69,23 @@ export default function EditQuestModal({
           setSelectedTags(tags);
         }
 
+        // Parse recurring quest settings
+        setRecurrence(response.recurrence as "one-off" | "daily" | "weekly" | "monthly");
+        if (response.schedule) {
+          try {
+            const schedule = JSON.parse(response.schedule);
+            if (schedule.time) setScheduleTime(schedule.time);
+            if (schedule.day && typeof schedule.day === "string") setScheduleDay(schedule.day);
+            if (schedule.day && typeof schedule.day === "number")
+              setScheduleDayOfMonth(schedule.day);
+          } catch (err) {
+            console.error("Failed to parse schedule:", err);
+          }
+        }
+        if (response.due_in_hours) {
+          setDueInHours(response.due_in_hours.toString());
+        }
+
         setLoading(false);
         // Show typewriter animation after loading completes and has content
         if (response.display_name || response.description) {
@@ -83,6 +109,22 @@ export default function EditQuestModal({
       const baseXP = (time + effort + dread) * 2;
       const baseGold = Math.floor(baseXP / 2);
 
+      // Build schedule JSON if recurring
+      let schedule: string | null = null;
+      if (recurrence !== "one-off") {
+        if (recurrence === "daily") {
+          schedule = JSON.stringify({ type: "daily", time: scheduleTime });
+        } else if (recurrence === "weekly") {
+          schedule = JSON.stringify({ type: "weekly", day: scheduleDay, time: scheduleTime });
+        } else if (recurrence === "monthly") {
+          schedule = JSON.stringify({
+            type: "monthly",
+            day: scheduleDayOfMonth,
+            time: scheduleTime,
+          });
+        }
+      }
+
       const updateData: QuestTemplateUpdateRequest = {
         ...(displayName.trim() && { display_name: displayName.trim() }),
         ...(description.trim() && { description: description.trim() }),
@@ -91,6 +133,9 @@ export default function EditQuestModal({
         }),
         xp_reward: baseXP,
         gold_reward: baseGold,
+        recurrence: recurrence,
+        schedule: schedule,
+        due_in_hours: dueInHours ? parseInt(dueInHours) : null,
       };
 
       const updated = await api.quests.updateTemplate(templateId, updateData, token);
@@ -108,6 +153,11 @@ export default function EditQuestModal({
     displayName,
     description,
     selectedTags,
+    recurrence,
+    scheduleTime,
+    scheduleDay,
+    scheduleDayOfMonth,
+    dueInHours,
     templateId,
     token,
     onSave,
@@ -331,6 +381,227 @@ export default function EditQuestModal({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Recurrence Configuration */}
+              <div className="mb-6">
+                <label
+                  className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                  style={{ color: COLORS.gold }}
+                >
+                  Recurrence
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                  {(["one-off", "daily", "weekly", "monthly"] as const).map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setRecurrence(type)}
+                      className="py-2 px-3 font-serif font-semibold text-xs uppercase tracking-wider transition-all"
+                      style={{
+                        backgroundColor:
+                          recurrence === type ? COLORS.gold : `rgba(212, 175, 55, 0.2)`,
+                        color: recurrence === type ? COLORS.darkPanel : COLORS.gold,
+                        border: `2px solid ${COLORS.gold}`,
+                        cursor: saving ? "not-allowed" : "pointer",
+                      }}
+                      disabled={saving}
+                    >
+                      {type === "one-off"
+                        ? "One-off"
+                        : type.charAt(0).toUpperCase() + type.slice(1)}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Schedule Configuration */}
+                {recurrence !== "one-off" && (
+                  <div
+                    className="space-y-3 p-3 rounded"
+                    style={{
+                      backgroundColor: `rgba(212, 175, 55, 0.1)`,
+                      border: `1px solid ${COLORS.gold}`,
+                    }}
+                  >
+                    {recurrence === "daily" && (
+                      <div>
+                        <label
+                          className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                          style={{ color: COLORS.parchment }}
+                        >
+                          Time
+                        </label>
+                        <input
+                          type="time"
+                          value={scheduleTime}
+                          onChange={e => setScheduleTime(e.target.value)}
+                          className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                          style={{
+                            backgroundColor: COLORS.black,
+                            borderColor: COLORS.gold,
+                            borderWidth: "2px",
+                            color: COLORS.parchment,
+                            colorScheme: "dark",
+                          }}
+                          disabled={saving}
+                        />
+                      </div>
+                    )}
+
+                    {recurrence === "weekly" && (
+                      <>
+                        <div>
+                          <label
+                            className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                            style={{ color: COLORS.parchment }}
+                          >
+                            Day of Week
+                          </label>
+                          <select
+                            value={scheduleDay}
+                            onChange={e => setScheduleDay(e.target.value)}
+                            className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                            style={{
+                              backgroundColor: COLORS.black,
+                              borderColor: COLORS.gold,
+                              borderWidth: "2px",
+                              color: COLORS.parchment,
+                            }}
+                            disabled={saving}
+                          >
+                            {[
+                              "monday",
+                              "tuesday",
+                              "wednesday",
+                              "thursday",
+                              "friday",
+                              "saturday",
+                              "sunday",
+                            ].map(day => (
+                              <option key={day} value={day}>
+                                {day.charAt(0).toUpperCase() + day.slice(1)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label
+                            className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                            style={{ color: COLORS.parchment }}
+                          >
+                            Time
+                          </label>
+                          <input
+                            type="time"
+                            value={scheduleTime}
+                            onChange={e => setScheduleTime(e.target.value)}
+                            className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                            style={{
+                              backgroundColor: COLORS.black,
+                              borderColor: COLORS.gold,
+                              borderWidth: "2px",
+                              color: COLORS.parchment,
+                              colorScheme: "dark",
+                            }}
+                            disabled={saving}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {recurrence === "monthly" && (
+                      <>
+                        <div>
+                          <label
+                            className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                            style={{ color: COLORS.parchment }}
+                          >
+                            Day of Month
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="31"
+                            value={scheduleDayOfMonth}
+                            onChange={e => setScheduleDayOfMonth(parseInt(e.target.value) || 1)}
+                            className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                            style={{
+                              backgroundColor: COLORS.black,
+                              borderColor: COLORS.gold,
+                              borderWidth: "2px",
+                              color: COLORS.parchment,
+                            }}
+                            disabled={saving}
+                          />
+                          <p
+                            className="text-xs mt-1 font-serif italic"
+                            style={{ color: COLORS.parchment }}
+                          >
+                            If day doesn't exist in month, uses last day
+                          </p>
+                        </div>
+                        <div>
+                          <label
+                            className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                            style={{ color: COLORS.parchment }}
+                          >
+                            Time
+                          </label>
+                          <input
+                            type="time"
+                            value={scheduleTime}
+                            onChange={e => setScheduleTime(e.target.value)}
+                            className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                            style={{
+                              backgroundColor: COLORS.black,
+                              borderColor: COLORS.gold,
+                              borderWidth: "2px",
+                              color: COLORS.parchment,
+                              colorScheme: "dark",
+                            }}
+                            disabled={saving}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {/* Optional Auto-Deadline */}
+                    <div>
+                      <label
+                        className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                        style={{ color: COLORS.parchment }}
+                      >
+                        Auto-Deadline (Optional)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="8760"
+                        value={dueInHours}
+                        onChange={e => setDueInHours(e.target.value)}
+                        placeholder="Hours until corruption"
+                        className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                        style={{
+                          backgroundColor: COLORS.black,
+                          borderColor: COLORS.gold,
+                          borderWidth: "2px",
+                          color: COLORS.parchment,
+                        }}
+                        disabled={saving}
+                      />
+                      {dueInHours && parseInt(dueInHours) > 0 && (
+                        <p
+                          className="text-xs mt-1 font-serif italic"
+                          style={{ color: COLORS.parchment }}
+                        >
+                          {parseInt(dueInHours) < 24
+                            ? `${dueInHours} hours`
+                            : `${Math.floor(parseInt(dueInHours) / 24)} days${parseInt(dueInHours) % 24 ? ` ${parseInt(dueInHours) % 24}h` : ""}`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Sliders */}
