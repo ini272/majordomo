@@ -174,8 +174,7 @@ export function isFontLoaded(fontFamily: string): boolean {
 export async function waitForFont(
   fontFamily: string,
   weight: string = "400",
-  style: string = "normal",
-  timeout: number = 5000
+  style: string = "normal"
 ): Promise<boolean> {
   if (!("fonts" in document)) {
     return false;
