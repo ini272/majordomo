@@ -151,3 +151,28 @@ export interface UserRewardClaim {
   reward_id: number;
   claimed_at: string;
 }
+
+export interface UserTemplateSubscription {
+  id: number;
+  user_id: number;
+  quest_template_id: number;
+  recurrence: string;
+  schedule: string | null;
+  due_in_hours: number | null;
+  last_generated_at: string | null;
+  is_active: boolean;
+}
+
+export interface UserTemplateSubscriptionCreate {
+  quest_template_id: number;
+  recurrence: string;
+  schedule?: string | null;
+  due_in_hours?: number | null;
+}
+
+export interface UserTemplateSubscriptionUpdate {
+  recurrence?: string;
+  schedule?: string | null;
+  due_in_hours?: number | null;
+  is_active?: boolean;
+}
