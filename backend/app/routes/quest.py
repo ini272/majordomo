@@ -148,7 +148,7 @@ def create_quest(
     if not template or template.home_id != home_id:
         raise HTTPException(status_code=404, detail="Quest template not found in home")
 
-    return crud_quest.create_quest(db, home_id, user_id, quest)
+    return crud_quest.create_quest(db, home_id, user_id, quest, template)
 
 
 @router.post("/templates/{template_id}/generate-instance", response_model=QuestRead)
@@ -186,11 +186,18 @@ def generate_quest_instance(
     if template.due_in_hours:
         due_date = now + timedelta(hours=template.due_in_hours)
 
-    # Create quest instance for requesting user only
+    # Create quest instance for requesting user only, snapshotting template data
     new_quest = Quest(
         home_id=auth["home_id"],
         user_id=auth["user_id"],
         quest_template_id=template.id,
+        # Snapshot template data
+        title=template.title,
+        display_name=template.display_name,
+        description=template.description,
+        tags=template.tags,
+        xp_reward=template.xp_reward,
+        gold_reward=template.gold_reward,
         quest_type="standard",
         due_date=due_date,
     )
@@ -279,43 +286,42 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
     bounty_multiplier = 2 if is_daily_bounty else 1
     xp_boost_multiplier = 2 if has_xp_boost else 1
 
-    if quest.template:
-        base_xp = quest.template.xp_reward
-        base_gold = quest.template.gold_reward
+    # Use quest's snapshot fields as base values
+    base_xp = quest.xp_reward
+    base_gold = quest.gold_reward
 
-        # Apply corruption debuff to both XP and gold
-        xp_after_debuff = base_xp * corruption_debuff_multiplier
-        gold_after_debuff = base_gold * corruption_debuff_multiplier
+    # Apply corruption debuff to both XP and gold
+    xp_after_debuff = base_xp * corruption_debuff_multiplier
+    gold_after_debuff = base_gold * corruption_debuff_multiplier
 
-        # Apply bounty multiplier to both
-        xp_after_bounty = xp_after_debuff * bounty_multiplier
-        gold_after_bounty = gold_after_debuff * bounty_multiplier
+    # Apply bounty multiplier to both
+    xp_after_bounty = xp_after_debuff * bounty_multiplier
+    gold_after_bounty = gold_after_debuff * bounty_multiplier
 
-        # Apply XP boost only to XP (not gold)
-        xp_awarded = int(xp_after_bounty * xp_boost_multiplier)
-        gold_awarded = int(gold_after_bounty)
+    # Apply XP boost only to XP (not gold)
+    xp_awarded = int(xp_after_bounty * xp_boost_multiplier)
+    gold_awarded = int(gold_after_bounty)
 
     # Mark quest as completed and store actual earned rewards
-    quest = crud_quest.complete_quest(db, quest_id, xp_awarded=xp_awarded, gold_awarded=gold_awarded)
+    quest = crud_quest.complete_quest(db, quest_id, final_xp=xp_awarded, final_gold=gold_awarded)
 
-    if quest.template:
-        try:
-            crud_user.add_xp(db, quest.user_id, xp_awarded)
-            crud_user.add_gold(db, quest.user_id, gold_awarded)
-        except ValueError as e:
-            error_msg = str(e)
-            # Determine error code based on error message
-            if "XP amount" in error_msg:
-                error_code = ErrorCode.NEGATIVE_XP
-            elif "Insufficient gold" in error_msg:
-                error_code = ErrorCode.INSUFFICIENT_GOLD
-            else:
-                error_code = ErrorCode.INVALID_INPUT
+    try:
+        crud_user.add_xp(db, quest.user_id, xp_awarded)
+        crud_user.add_gold(db, quest.user_id, gold_awarded)
+    except ValueError as e:
+        error_msg = str(e)
+        # Determine error code based on error message
+        if "XP amount" in error_msg:
+            error_code = ErrorCode.NEGATIVE_XP
+        elif "Insufficient gold" in error_msg:
+            error_code = ErrorCode.INSUFFICIENT_GOLD
+        else:
+            error_code = ErrorCode.INVALID_INPUT
 
-            raise HTTPException(
-                status_code=400,
-                detail=create_error_detail(error_code, message=error_msg, details={"quest_id": quest_id}),
-            )
+        raise HTTPException(
+            status_code=400,
+            detail=create_error_detail(error_code, message=error_msg, details={"quest_id": quest_id}),
+        )
 
     # Decrement XP boost counter if active
     if has_xp_boost:

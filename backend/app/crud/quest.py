@@ -3,7 +3,7 @@ from typing import Optional
 
 from sqlmodel import Session, select
 
-from app.models.quest import Quest, QuestCreate, QuestUpdate
+from app.models.quest import Quest, QuestCreate, QuestTemplate, QuestUpdate
 
 
 def get_quest(db: Session, quest_id: int) -> Optional[Quest]:
@@ -31,12 +31,19 @@ def get_quests_by_user(db: Session, home_id: int, user_id: int, completed: Optio
     return db.exec(query.order_by(Quest.created_at.desc())).all()
 
 
-def create_quest(db: Session, home_id: int, user_id: int, quest_in: QuestCreate) -> Quest:
-    """Create a new quest instance for a user from a template"""
+def create_quest(db: Session, home_id: int, user_id: int, quest_in: QuestCreate, template: QuestTemplate) -> Quest:
+    """Create a new quest instance for a user from a template, snapshotting template data"""
     db_quest = Quest(
         home_id=home_id,
         user_id=user_id,
-        quest_template_id=quest_in.quest_template_id,
+        quest_template_id=template.id,
+        # Snapshot template data
+        title=template.title,
+        display_name=template.display_name,
+        description=template.description,
+        tags=template.tags,
+        xp_reward=template.xp_reward,
+        gold_reward=template.gold_reward,
         due_date=quest_in.due_date,
     )
     db.add(db_quest)
@@ -46,19 +53,20 @@ def create_quest(db: Session, home_id: int, user_id: int, quest_in: QuestCreate)
 
 
 def complete_quest(
-    db: Session, quest_id: int, xp_awarded: Optional[int] = None, gold_awarded: Optional[int] = None
+    db: Session, quest_id: int, final_xp: Optional[int] = None, final_gold: Optional[int] = None
 ) -> Optional[Quest]:
-    """Mark quest as completed and store actual earned rewards"""
+    """Mark quest as completed and update rewards to actual earned amounts"""
     db_quest = get_quest(db, quest_id)
     if not db_quest:
         return None
 
     db_quest.completed = True
     db_quest.completed_at = datetime.now(timezone.utc)
-    if xp_awarded is not None:
-        db_quest.xp_awarded = xp_awarded
-    if gold_awarded is not None:
-        db_quest.gold_awarded = gold_awarded
+    # Update reward fields to actual earned amounts
+    if final_xp is not None:
+        db_quest.xp_reward = final_xp
+    if final_gold is not None:
+        db_quest.gold_reward = final_gold
 
     db.add(db_quest)
     db.commit()

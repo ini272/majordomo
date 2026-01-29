@@ -91,24 +91,30 @@ class Quest(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     home_id: int = Field(foreign_key="home.id", index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
-    quest_template_id: int = Field(foreign_key="quest_template.id", index=True)
+    quest_template_id: Optional[int] = Field(default=None, foreign_key="quest_template.id", index=True)
     completed: bool = Field(default=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: Optional[datetime] = None
+
+    # Snapshot fields (copied from template at creation, or set directly for standalone quests)
+    title: str = Field(default="", max_length=200)
+    display_name: Optional[str] = Field(default=None, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    tags: Optional[str] = Field(default=None, max_length=500)
+
+    # Rewards: base value at creation, updated to actual earned at completion
+    xp_reward: int = Field(default=0, ge=0)
+    gold_reward: int = Field(default=0, ge=0)
 
     # Corruption system fields
     quest_type: str = Field(default="standard")  # standard, bounty, corrupted
     due_date: Optional[datetime] = None  # when quest should be completed (optional, user-set)
     corrupted_at: Optional[datetime] = None  # when quest became corrupted
 
-    # Actual earned rewards (stored on completion for history display)
-    xp_awarded: Optional[int] = None  # actual XP earned (after multipliers/debuffs)
-    gold_awarded: Optional[int] = None  # actual gold earned (after multipliers/debuffs)
-
     # Relationships
     home: "Home" = Relationship(back_populates="quests")
     user: "User" = Relationship(back_populates="quests")
-    template: QuestTemplate = Relationship(back_populates="quests")
+    template: Optional[QuestTemplate] = Relationship(back_populates="quests")
 
 
 class QuestRead(SQLModel):
@@ -117,17 +123,24 @@ class QuestRead(SQLModel):
     id: int
     home_id: int
     user_id: int
-    quest_template_id: int
+    quest_template_id: Optional[int]
     completed: bool
     created_at: datetime
     completed_at: Optional[datetime]
+
+    # Snapshot fields
+    title: str
+    display_name: Optional[str]
+    description: Optional[str]
+    tags: Optional[str]
+    xp_reward: int
+    gold_reward: int
+
     quest_type: str
     due_date: Optional[datetime]
     corrupted_at: Optional[datetime]
-    xp_awarded: Optional[int]
-    gold_awarded: Optional[int]
-    # Include template data for convenience
-    template: QuestTemplateRead
+    # Include template data for convenience (may be null for standalone quests)
+    template: Optional[QuestTemplateRead]
 
 
 class QuestCreate(SQLModel):
@@ -135,6 +148,18 @@ class QuestCreate(SQLModel):
 
     quest_template_id: int
     due_date: Optional[datetime] = None  # optional user-set deadline
+
+
+class QuestCreateStandalone(SQLModel):
+    """Schema for creating a standalone quest without a template"""
+
+    title: str = Field(min_length=1, max_length=200)
+    display_name: Optional[str] = Field(default=None, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    tags: Optional[str] = Field(default=None, max_length=500)
+    xp_reward: int = Field(default=10, ge=0, le=10000)
+    gold_reward: int = Field(default=5, ge=0, le=10000)
+    due_date: Optional[datetime] = None
 
 
 class QuestUpdate(SQLModel):
