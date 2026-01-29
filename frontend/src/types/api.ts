@@ -11,6 +11,9 @@ export interface QuestTemplate {
   gold_reward: number;
   quest_type: string;
   recurrence: string;
+  schedule: string | null;
+  last_generated_at: string | null;
+  due_in_hours: number | null;
   system: boolean;
   created_by: number;
   created_at: string;
@@ -92,6 +95,8 @@ export interface QuestTemplateCreateRequest {
   gold_reward?: number;
   quest_type?: string;
   recurrence?: string;
+  schedule?: string | null;
+  due_in_hours?: number | null;
 }
 
 export interface QuestTemplateUpdateRequest {
@@ -102,6 +107,8 @@ export interface QuestTemplateUpdateRequest {
   gold_reward?: number;
   quest_type?: string;
   recurrence?: string;
+  schedule?: string | null;
+  due_in_hours?: number | null;
 }
 
 export interface QuestCreateRequest {

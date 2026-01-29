@@ -59,6 +59,29 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
     return "Due soon";
   };
 
+  // Format recurring schedule for display
+  const formatSchedule = () => {
+    if (quest.template.recurrence === "one-off" || !quest.template.schedule) return null;
+
+    try {
+      const schedule = JSON.parse(quest.template.schedule);
+      if (quest.template.recurrence === "daily") {
+        return `Daily ${schedule.time}`;
+      } else if (quest.template.recurrence === "weekly") {
+        const day = schedule.day.charAt(0).toUpperCase() + schedule.day.slice(1);
+        return `${day}s ${schedule.time}`;
+      } else if (quest.template.recurrence === "monthly") {
+        return `Monthly ${schedule.day}${schedule.day === 1 ? "st" : schedule.day === 2 ? "nd" : schedule.day === 3 ? "rd" : "th"} ${schedule.time}`;
+      }
+    } catch (err) {
+      console.error("Failed to parse schedule:", err);
+    }
+    return null;
+  };
+
+  const scheduleInfo = formatSchedule();
+  const isRecurring = quest.template.recurrence !== "one-off";
+
   return (
     <div
       className="relative p-6 md:p-8 mb-6 md:mb-8 shadow-lg"
@@ -82,6 +105,19 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
         >
           {quest.quest_type}
         </span>
+        {isRecurring && scheduleInfo && (
+          <span
+            className="px-2 py-1 rounded text-xs font-serif font-bold"
+            style={{
+              backgroundColor: "rgba(100, 149, 237, 0.2)",
+              color: "#6495ED",
+              border: "1px solid #6495ED",
+            }}
+            title="Recurring Quest"
+          >
+            🔄 {scheduleInfo}
+          </span>
+        )}
         {isDailyBounty && (
           <span
             className="px-2 py-1 rounded text-xs uppercase font-serif font-bold"
