@@ -26,6 +26,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   const [error, setError] = useState<string | null>(null);
   const [skipAI, setSkipAI] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCreateMode, setShowCreateMode] = useState(false);  // True when EditQuestModal should create quest on save
   const [createdTemplateId, setCreatedTemplateId] = useState<number | null>(null);
   const [templates, setTemplates] = useState<QuestTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<QuestTemplate | null>(null);
@@ -203,26 +204,25 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    if (openEditModal) {
+      // Open edit modal to customize before creating quest
+      setCreatedTemplateId(selectedTemplate.id);
+      setShowEditModal(true);
+      setShowCreateMode(true);  // Flag to create quest on save
+    } else {
+      // Quick create - create quest immediately
+      setLoading(true);
+      setError(null);
 
-    try {
-      // Create quest instance from selected template
-      await api.quests.create({ quest_template_id: selectedTemplate.id }, token, userId);
-
-      if (openEditModal) {
-        // Open edit modal to review/adjust before finalizing
-        setCreatedTemplateId(selectedTemplate.id);
-        setShowEditModal(true);
-      } else {
-        // Quick create - close modal and notify parent
+      try {
+        await api.quests.create({ quest_template_id: selectedTemplate.id }, token, userId);
         onQuestCreated();
         onClose();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to create quest from template");
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create quest from template");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -843,14 +843,17 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
           templateId={createdTemplateId}
           token={token}
           skipAI={skipAI}
+          createQuestOnSave={showCreateMode}
           onSave={() => {
             // After save, close and notify parent to refetch quests
             setShowEditModal(false);
+            setShowCreateMode(false);  // Reset create mode
             onQuestCreated();
             onClose();
           }}
           onClose={() => {
             setShowEditModal(false);
+            setShowCreateMode(false);  // Reset create mode
             onQuestCreated();
             onClose();
           }}

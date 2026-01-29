@@ -11,6 +11,7 @@ interface EditQuestModalProps {
   templateId: number;
   token: string;
   skipAI: boolean;
+  createQuestOnSave?: boolean;  // If true, creates a quest with customized values instead of updating template
   onSave?: (updated: QuestTemplate) => void;
   onClose?: () => void;
 }
@@ -19,6 +20,7 @@ export default function EditQuestModal({
   templateId,
   token,
   skipAI,
+  createQuestOnSave = false,
   onSave,
   onClose,
 }: EditQuestModalProps) {
@@ -151,40 +153,76 @@ export default function EditQuestModal({
         due_in_hours: dueInHours ? parseInt(dueInHours) : null,
       };
 
-      const updated = await api.quests.updateTemplate(templateId, updateData, token);
+      if (createQuestOnSave) {
+        // CREATE MODE: Update template with customized values, then create quest
+        const userId = parseInt(localStorage.getItem("userId") || "");
+        if (!userId) {
+          throw new Error("User ID not found in session");
+        }
 
-      // Handle subscription changes (Phase 3)
-      if (originalRecurrence === "one-off" && recurrence !== "one-off") {
-        // Changed from one-off to recurring - create subscription
-        await api.subscriptions.create(
+        // First, update the template with customized values
+        await api.quests.updateTemplate(templateId, updateData, token);
+
+        // Then create quest (which will snapshot the updated template)
+        await api.quests.create(
           {
             quest_template_id: templateId,
-            recurrence: recurrence,
-            ...(schedule && { schedule }),
-            ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
           },
-          token
+          token,
+          userId
         );
-      } else if (originalRecurrence !== "one-off" && recurrence === "one-off") {
-        // Changed from recurring to one-off - delete subscription
-        if (subscription) {
-          await api.subscriptions.delete(subscription.id, token);
-        }
-      } else if (recurrence !== "one-off" && subscription) {
-        // Still recurring - update subscription
-        await api.subscriptions.update(
-          subscription.id,
-          {
-            recurrence: recurrence,
-            schedule: schedule,
-            due_in_hours: dueInHours ? parseInt(dueInHours) : null,
-          },
-          token
-        );
-      }
 
-      onSave?.(updated);
-      onClose?.();
+        // If recurring, create subscription for this user
+        if (recurrence !== "one-off") {
+          await api.subscriptions.create(
+            {
+              quest_template_id: templateId,
+              recurrence: recurrence,
+              ...(schedule && { schedule }),
+              ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
+            },
+            token
+          );
+        }
+
+        onClose?.();
+      } else {
+        // EDIT MODE: Update the template and handle subscriptions
+        const updated = await api.quests.updateTemplate(templateId, updateData, token);
+
+        // Handle subscription changes (Phase 3)
+        if (originalRecurrence === "one-off" && recurrence !== "one-off") {
+          // Changed from one-off to recurring - create subscription
+          await api.subscriptions.create(
+            {
+              quest_template_id: templateId,
+              recurrence: recurrence,
+              ...(schedule && { schedule }),
+              ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
+            },
+            token
+          );
+        } else if (originalRecurrence !== "one-off" && recurrence === "one-off") {
+          // Changed from recurring to one-off - delete subscription
+          if (subscription) {
+            await api.subscriptions.delete(subscription.id, token);
+          }
+        } else if (recurrence !== "one-off" && subscription) {
+          // Still recurring - update subscription
+          await api.subscriptions.update(
+            subscription.id,
+            {
+              recurrence: recurrence,
+              schedule: schedule,
+              due_in_hours: dueInHours ? parseInt(dueInHours) : null,
+            },
+            token
+          );
+        }
+
+        onSave?.(updated);
+        onClose?.();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save template");
     } finally {
