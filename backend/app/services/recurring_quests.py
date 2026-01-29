@@ -262,6 +262,9 @@ def generate_due_quests(home_id: int, session: Session) -> None:
                     xp_reward=template.xp_reward,
                     gold_reward=template.gold_reward,
                     quest_type="standard",
+                    # Snapshot subscription schedule (Phase 3: per-user schedules)
+                    recurrence=subscription.recurrence,
+                    schedule=subscription.schedule,
                     due_date=due_date,
                 )
                 session.add(new_quest)

@@ -35,6 +35,8 @@ export interface Quest {
   tags: string | null;
   xp_reward: number;  // Base at creation, actual earned after completion
   gold_reward: number;
+  recurrence: string;  // Snapshot of recurrence when quest was created
+  schedule: string | null;  // Snapshot of schedule when quest was created
 
   quest_type: string;
   due_date: string | null;

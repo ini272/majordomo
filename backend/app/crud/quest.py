@@ -44,6 +44,8 @@ def create_quest(db: Session, home_id: int, user_id: int, quest_in: QuestCreate,
         tags=template.tags,
         xp_reward=template.xp_reward,
         gold_reward=template.gold_reward,
+        recurrence=template.recurrence,
+        schedule=template.schedule,
         due_date=quest_in.due_date,
     )
     db.add(db_quest)

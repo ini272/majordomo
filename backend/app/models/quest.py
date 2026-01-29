@@ -141,6 +141,10 @@ class Quest(SQLModel, table=True):
     xp_reward: int = Field(default=0, ge=0)
     gold_reward: int = Field(default=0, ge=0)
 
+    # Recurrence snapshot (for display context - shows what schedule this quest was created from)
+    recurrence: str = Field(default="one-off")  # one-off, daily, weekly, monthly
+    schedule: Optional[str] = Field(default=None)  # JSON string with schedule details
+
     # Corruption system fields
     quest_type: str = Field(default="standard")  # standard, bounty, corrupted
     due_date: Optional[datetime] = None  # when quest should be completed (optional, user-set)
@@ -170,6 +174,8 @@ class QuestRead(SQLModel):
     tags: Optional[str]
     xp_reward: int
     gold_reward: int
+    recurrence: str
+    schedule: Optional[str]
 
     quest_type: str
     due_date: Optional[datetime]
