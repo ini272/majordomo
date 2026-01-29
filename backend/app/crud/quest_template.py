@@ -1,8 +1,8 @@
 from typing import Optional
 
-from sqlmodel import Session, select
+from sqlmodel import Session, select, update
 
-from app.models.quest import QuestTemplate, QuestTemplateCreate, QuestTemplateUpdate
+from app.models.quest import Quest, QuestTemplate, QuestTemplateCreate, QuestTemplateUpdate
 
 
 def get_quest_template(db: Session, template_id: int) -> Optional[QuestTemplate]:
@@ -48,10 +48,14 @@ def update_quest_template(db: Session, template_id: int, template_in: QuestTempl
 
 
 def delete_quest_template(db: Session, template_id: int) -> bool:
-    """Delete quest template"""
+    """Delete quest template, orphaning any existing quests by setting their template_id to NULL"""
     db_template = get_quest_template(db, template_id)
     if not db_template:
         return False
+
+    # Set quest_template_id to NULL for all quests referencing this template
+    # This preserves the quests and their snapshot data while removing the template link
+    db.exec(update(Quest).where(Quest.quest_template_id == template_id).values(quest_template_id=None))
 
     db.delete(db_template)
     db.commit()

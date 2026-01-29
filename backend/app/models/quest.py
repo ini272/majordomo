@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 if TYPE_CHECKING:
     from app.models.home import Home
@@ -33,6 +33,41 @@ class QuestTemplate(SQLModel, table=True):
     # Relationships
     home: "Home" = Relationship(back_populates="quest_templates")
     quests: list["Quest"] = Relationship(back_populates="template")
+    subscriptions: list["UserTemplateSubscription"] = Relationship(back_populates="template")
+
+
+class UserTemplateSubscription(SQLModel, table=True):
+    """
+    Links a user to a quest template with personalized schedule settings.
+
+    This enables:
+    - User A: "Clean Kitchen" daily at 8am
+    - User B: "Clean Kitchen" weekly on Monday at 6pm
+    - Same template, different schedules per user
+    """
+    __tablename__ = "user_template_subscription"
+    __table_args__ = (
+        UniqueConstraint("user_id", "quest_template_id", name="unique_user_template_subscription"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    quest_template_id: int = Field(foreign_key="quest_template.id", index=True)
+
+    # Per-user schedule settings
+    recurrence: str = Field(default="one-off")  # one-off, daily, weekly, monthly
+    schedule: Optional[str] = Field(default=None)  # JSON: {"type": "daily", "time": "08:00"}
+    due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)
+
+    # Generation tracking (PER USER, not per template)
+    last_generated_at: Optional[datetime] = None
+    is_active: bool = Field(default=True)  # Pause/resume functionality
+
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    user: "User" = Relationship(back_populates="template_subscriptions")
+    template: QuestTemplate = Relationship(back_populates="subscriptions")
 
 
 class QuestTemplateRead(SQLModel):
@@ -168,3 +203,37 @@ class QuestUpdate(SQLModel):
     completed: Optional[bool] = None
     quest_type: Optional[str] = None
     due_date: Optional[datetime] = None
+
+
+class UserTemplateSubscriptionRead(SQLModel):
+    """Schema for reading subscription data"""
+
+    id: int
+    user_id: int
+    quest_template_id: int
+    recurrence: str
+    schedule: Optional[str]
+    due_in_hours: Optional[int]
+    last_generated_at: Optional[datetime]
+    is_active: bool
+    created_at: datetime
+    # Include template data for convenience
+    template: Optional[QuestTemplateRead] = None
+
+
+class UserTemplateSubscriptionCreate(SQLModel):
+    """Schema for creating a subscription"""
+
+    quest_template_id: int
+    recurrence: str = Field(default="one-off")
+    schedule: Optional[str] = None
+    due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)
+
+
+class UserTemplateSubscriptionUpdate(SQLModel):
+    """Schema for updating a subscription"""
+
+    recurrence: Optional[str] = None
+    schedule: Optional[str] = None
+    due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)
+    is_active: Optional[bool] = None

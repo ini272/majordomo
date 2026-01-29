@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app.models.quest import Quest, QuestTemplate
+from app.models.quest import Quest, QuestTemplate, UserTemplateSubscription
 from app.services.recurring_quests import (
     calculate_next_generation_time,
     generate_due_quests,
@@ -292,28 +292,44 @@ def test_monthly_year_rollover():
 
 
 def test_generate_creates_instance_when_due(db: Session, db_home_with_users):
-    """Test that generation creates quest instances when due"""
+    """Test that generation creates quest instances when due (Phase 3: uses subscriptions)"""
     home, user1, user2 = db_home_with_users
 
-    # Create recurring template that's due
+    # Create template
     template = QuestTemplate(
         home_id=home.id,
         title="Morning routine",
-        recurrence="daily",
-        schedule=json.dumps({"type": "daily", "time": "08:00"}),
-        last_generated_at=None,
+        xp_reward=10,
+        gold_reward=5,
         created_by=user1.id,
     )
     db.add(template)
     db.commit()
     db.refresh(template)
 
+    # Create subscriptions for both users (Phase 3)
+    subscription1 = UserTemplateSubscription(
+        user_id=user1.id,
+        quest_template_id=template.id,
+        recurrence="daily",
+        schedule=json.dumps({"type": "daily", "time": "08:00"}),
+        is_active=True,
+    )
+    subscription2 = UserTemplateSubscription(
+        user_id=user2.id,
+        quest_template_id=template.id,
+        recurrence="daily",
+        schedule=json.dumps({"type": "daily", "time": "08:00"}),
+        is_active=True,
+    )
+    db.add(subscription1)
+    db.add(subscription2)
+    db.commit()
+
     # Mock time as 9:00 AM (after scheduled time)
     mock_now = datetime(2026, 1, 27, 9, 0, tzinfo=timezone.utc)
 
     # Create a mock datetime class that properly handles both now() and constructor
-    original_datetime = datetime
-
     class MockDatetime(datetime):
         @classmethod
         def now(cls, tz=None):
@@ -326,33 +342,48 @@ def test_generate_creates_instance_when_due(db: Session, db_home_with_users):
     quests = db.exec(select(Quest).where(Quest.quest_template_id == template.id)).all()
     assert len(quests) == 2
 
-    # Verify template was updated
-    db.refresh(template)
-    assert template.last_generated_at is not None
+    # Verify subscriptions were updated
+    db.refresh(subscription1)
+    db.refresh(subscription2)
+    assert subscription1.last_generated_at is not None
+    assert subscription2.last_generated_at is not None
 
 
 def test_generate_skips_when_incomplete_exists(db: Session, db_home_with_users):
-    """Test that generation skips if incomplete quest exists"""
+    """Test that generation skips if incomplete quest exists (Phase 3: subscription-based)"""
     home, user, _user2 = db_home_with_users
 
-    # Create recurring template
+    # Create template
     template = QuestTemplate(
         home_id=home.id,
         title="Morning routine",
-        recurrence="daily",
-        schedule=json.dumps({"type": "daily", "time": "08:00"}),
-        last_generated_at=None,
+        xp_reward=10,
+        gold_reward=5,
         created_by=user.id,
     )
     db.add(template)
     db.commit()
     db.refresh(template)
 
+    # Create subscription (Phase 3)
+    subscription = UserTemplateSubscription(
+        user_id=user.id,
+        quest_template_id=template.id,
+        recurrence="daily",
+        schedule=json.dumps({"type": "daily", "time": "08:00"}),
+        is_active=True,
+    )
+    db.add(subscription)
+    db.commit()
+
     # Create existing incomplete quest
     existing_quest = Quest(
         home_id=home.id,
         user_id=user.id,
         quest_template_id=template.id,
+        title=template.title,
+        xp_reward=template.xp_reward,
+        gold_reward=template.gold_reward,
         completed=False,
     )
     db.add(existing_quest)
@@ -372,22 +403,32 @@ def test_generate_skips_when_incomplete_exists(db: Session, db_home_with_users):
 
 
 def test_generate_sets_due_date_from_template(db: Session, db_home_with_users):
-    """Test that generation sets due_date based on template's due_in_hours"""
+    """Test that generation sets due_date based on subscription's due_in_hours (Phase 3)"""
     home, user, _user2 = db_home_with_users
 
-    # Create recurring template with due_in_hours set
+    # Create template
     template = QuestTemplate(
         home_id=home.id,
         title="Morning routine",
-        recurrence="daily",
-        schedule=json.dumps({"type": "daily", "time": "08:00"}),
-        due_in_hours=48,  # 2 days
-        last_generated_at=None,
+        xp_reward=10,
+        gold_reward=5,
         created_by=user.id,
     )
     db.add(template)
     db.commit()
     db.refresh(template)
+
+    # Create subscription with due_in_hours set (Phase 3)
+    subscription = UserTemplateSubscription(
+        user_id=user.id,
+        quest_template_id=template.id,
+        recurrence="daily",
+        schedule=json.dumps({"type": "daily", "time": "08:00"}),
+        due_in_hours=48,  # 2 days
+        is_active=True,
+    )
+    db.add(subscription)
+    db.commit()
 
     # Mock time as 9:00 AM
     mock_now = datetime(2026, 1, 27, 9, 0, tzinfo=timezone.utc)
@@ -561,19 +602,28 @@ def test_manual_generation_endpoint(client: TestClient, home_with_user):
 
 
 def test_quest_board_triggers_generation(client: TestClient, home_with_user):
-    """Test that fetching quest board triggers automatic generation"""
+    """Test that fetching quest board triggers automatic generation (Phase 3: needs subscription)"""
     home_id, user_id, invite_code = home_with_user
 
-    # Create recurring template
+    # Create template
     template_data = {
         "title": "Daily quest",
-        "recurrence": "daily",
-        "schedule": json.dumps({"type": "daily", "time": "08:00"}),
+        "xp_reward": 10,
+        "gold_reward": 5,
     }
-    client.post(
+    template_response = client.post(
         f"/api/quests/templates?created_by={user_id}&skip_ai=true",
         json=template_data,
     )
+    template_id = template_response.json()["id"]
+
+    # Create subscription (Phase 3)
+    subscription_data = {
+        "quest_template_id": template_id,
+        "recurrence": "daily",
+        "schedule": json.dumps({"type": "daily", "time": "08:00"}),
+    }
+    client.post("/api/subscriptions", json=subscription_data)
 
     # Mock time as after scheduled time
     mock_now = datetime(2026, 1, 27, 9, 0, tzinfo=timezone.utc)

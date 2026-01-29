@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, ChangeEvent, FormEvent } from "react";
 import { api } from "../services/api";
 import { COLORS, PARCHMENT_STYLES } from "../constants/colors";
-import type { QuestTemplate, QuestTemplateUpdateRequest } from "../types/api";
+import type { QuestTemplate, QuestTemplateUpdateRequest, UserTemplateSubscription } from "../types/api";
 import StewardImage from "../assets/thesteward.png";
 import ParchmentTypeWriter from "./ParchmentTypeWriter";
 
@@ -33,6 +33,8 @@ export default function EditQuestModal({
   const [dread, setDread] = useState(2);
   const [showTypeWriter, setShowTypeWriter] = useState(false);
   const [nameAnimationDone, setNameAnimationDone] = useState(false);
+  const [subscription, setSubscription] = useState<UserTemplateSubscription | null>(null);
+  const [originalRecurrence, setOriginalRecurrence] = useState<"one-off" | "daily" | "weekly" | "monthly">("one-off");
 
   // Recurring quest fields
   const [recurrence, setRecurrence] = useState<"one-off" | "daily" | "weekly" | "monthly">(
@@ -55,6 +57,11 @@ export default function EditQuestModal({
         // Fetch the template
         const response = await api.quests.getTemplate(templateId, token);
 
+        // Fetch user's subscriptions to see if they're subscribed to this template
+        const subscriptions = await api.subscriptions.getAll(token);
+        const userSubscription = subscriptions.find(sub => sub.quest_template_id === templateId);
+        setSubscription(userSubscription || null);
+
         // Set form values from template
         setDisplayName(response.display_name || "");
         setDescription(response.description || "");
@@ -69,11 +76,17 @@ export default function EditQuestModal({
           setSelectedTags(tags);
         }
 
-        // Parse recurring quest settings
-        setRecurrence(response.recurrence as "one-off" | "daily" | "weekly" | "monthly");
-        if (response.schedule) {
+        // Parse recurring quest settings - prefer subscription over template (Phase 3)
+        const effectiveRecurrence = userSubscription ? userSubscription.recurrence : response.recurrence;
+        const effectiveSchedule = userSubscription?.schedule || response.schedule;
+        const effectiveDueInHours = userSubscription?.due_in_hours ?? response.due_in_hours;
+
+        setRecurrence(effectiveRecurrence as "one-off" | "daily" | "weekly" | "monthly");
+        setOriginalRecurrence(effectiveRecurrence as "one-off" | "daily" | "weekly" | "monthly");
+
+        if (effectiveSchedule) {
           try {
-            const schedule = JSON.parse(response.schedule);
+            const schedule = JSON.parse(effectiveSchedule);
             if (schedule.time) setScheduleTime(schedule.time);
             if (schedule.day && typeof schedule.day === "string") setScheduleDay(schedule.day);
             if (schedule.day && typeof schedule.day === "number")
@@ -82,8 +95,8 @@ export default function EditQuestModal({
             console.error("Failed to parse schedule:", err);
           }
         }
-        if (response.due_in_hours) {
-          setDueInHours(response.due_in_hours.toString());
+        if (effectiveDueInHours) {
+          setDueInHours(effectiveDueInHours.toString());
         }
 
         setLoading(false);
@@ -139,6 +152,37 @@ export default function EditQuestModal({
       };
 
       const updated = await api.quests.updateTemplate(templateId, updateData, token);
+
+      // Handle subscription changes (Phase 3)
+      if (originalRecurrence === "one-off" && recurrence !== "one-off") {
+        // Changed from one-off to recurring - create subscription
+        await api.subscriptions.create(
+          {
+            quest_template_id: templateId,
+            recurrence: recurrence,
+            ...(schedule && { schedule }),
+            ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
+          },
+          token
+        );
+      } else if (originalRecurrence !== "one-off" && recurrence === "one-off") {
+        // Changed from recurring to one-off - delete subscription
+        if (subscription) {
+          await api.subscriptions.delete(subscription.id, token);
+        }
+      } else if (recurrence !== "one-off" && subscription) {
+        // Still recurring - update subscription
+        await api.subscriptions.update(
+          subscription.id,
+          {
+            recurrence: recurrence,
+            schedule: schedule,
+            due_in_hours: dueInHours ? parseInt(dueInHours) : null,
+          },
+          token
+        );
+      }
+
       onSave?.(updated);
       onClose?.();
     } catch (err) {

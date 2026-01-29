@@ -94,13 +94,12 @@ def get_user_quests_completed_count(db: Session, user_id: int) -> int:
 
 def get_user_bounties_completed_count(db: Session, user_id: int) -> int:
     """Get total number of bounty quests completed by a user"""
-    # A bounty quest is identified by quest_type = "bounty" in the template
+    # A bounty quest is identified by quest_type = "bounty" on the quest itself
     result = db.exec(
         select(func.count(Quest.id))
-        .join(Quest.template)
         .where(Quest.user_id == user_id)
         .where(Quest.completed)
-        .where(Quest.template.has(quest_type="bounty"))
+        .where(Quest.quest_type == "bounty")
     ).first()
     return result or 0
 

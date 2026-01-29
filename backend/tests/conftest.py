@@ -31,9 +31,31 @@ def db():
         SQLModel.metadata.drop_all(bind=engine)
 
 
+class AuthContext:
+    """Context manager for switching authenticated users in tests"""
+    def __init__(self):
+        self.user_id = 1
+        self.home_id = 1
+
+    def set_user(self, user_id: int, home_id: int):
+        """Set the authenticated user context"""
+        self.user_id = user_id
+        self.home_id = home_id
+
+    def get_auth(self):
+        """Get current auth context"""
+        return {"user_id": self.user_id, "home_id": self.home_id}
+
+
 @pytest.fixture(scope="function")
-def client(db):
-    """Create a test client with database override."""
+def auth_context():
+    """Shared auth context for multi-user testing"""
+    return AuthContext()
+
+
+@pytest.fixture(scope="function")
+def client(db, auth_context):
+    """Create a test client with database override and flexible auth."""
 
     def override_get_db():
         try:
@@ -42,8 +64,8 @@ def client(db):
             pass
 
     async def override_get_current_user():
-        """Override auth to allow tests without tokens"""
-        return {"user_id": 1, "home_id": 1}
+        """Override auth to allow tests without tokens, using dynamic auth_context"""
+        return auth_context.get_auth()
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user

@@ -106,6 +106,19 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
         skipAI
       );
 
+      // For recurring quests, create a subscription (Phase 3)
+      if (recurrence !== "one-off") {
+        await api.subscriptions.create(
+          {
+            quest_template_id: newTemplate.id,
+            recurrence: recurrence,
+            ...(schedule && { schedule }),
+            ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
+          },
+          token
+        );
+      }
+
       // Create quest instance from template
       await api.quests.create(
         {

@@ -3,7 +3,7 @@ from typing import Optional
 
 from sqlmodel import Session, select
 
-from app.models.quest import Quest, QuestCreate, QuestTemplate, QuestUpdate
+from app.models.quest import Quest, QuestCreate, QuestCreateStandalone, QuestTemplate, QuestUpdate
 
 
 def get_quest(db: Session, quest_id: int) -> Optional[Quest]:
@@ -44,6 +44,27 @@ def create_quest(db: Session, home_id: int, user_id: int, quest_in: QuestCreate,
         tags=template.tags,
         xp_reward=template.xp_reward,
         gold_reward=template.gold_reward,
+        due_date=quest_in.due_date,
+    )
+    db.add(db_quest)
+    db.commit()
+    db.refresh(db_quest)
+    return db_quest
+
+
+def create_standalone_quest(db: Session, home_id: int, user_id: int, quest_in: QuestCreateStandalone) -> Quest:
+    """Create a standalone quest without a template"""
+    db_quest = Quest(
+        home_id=home_id,
+        user_id=user_id,
+        quest_template_id=None,  # No template
+        # Set fields directly from input
+        title=quest_in.title,
+        display_name=quest_in.display_name,
+        description=quest_in.description,
+        tags=quest_in.tags,
+        xp_reward=quest_in.xp_reward,
+        gold_reward=quest_in.gold_reward,
         due_date=quest_in.due_date,
     )
     db.add(db_quest)

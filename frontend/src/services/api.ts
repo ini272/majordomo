@@ -13,6 +13,9 @@ import type {
   UserAchievement,
   Reward,
   UserRewardClaim,
+  UserTemplateSubscription,
+  UserTemplateSubscriptionCreate,
+  UserTemplateSubscriptionUpdate,
 } from "../types/api";
 
 // Detect API URL at runtime
@@ -292,6 +295,60 @@ export const api = {
       });
       if (!res.ok) throw new Error("Failed to fetch reward claims");
       return res.json();
+    },
+  },
+
+  subscriptions: {
+    getAll: async (token: string): Promise<UserTemplateSubscription[]> => {
+      const res = await fetch(`${API_URL}/subscriptions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch subscriptions");
+      return res.json();
+    },
+
+    create: async (
+      subscriptionData: UserTemplateSubscriptionCreate,
+      token: string
+    ): Promise<UserTemplateSubscription> => {
+      const res = await fetch(`${API_URL}/subscriptions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(subscriptionData),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || "Failed to create subscription");
+      }
+      return res.json();
+    },
+
+    update: async (
+      subscriptionId: number,
+      subscriptionData: UserTemplateSubscriptionUpdate,
+      token: string
+    ): Promise<UserTemplateSubscription> => {
+      const res = await fetch(`${API_URL}/subscriptions/${subscriptionId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(subscriptionData),
+      });
+      if (!res.ok) throw new Error("Failed to update subscription");
+      return res.json();
+    },
+
+    delete: async (subscriptionId: number, token: string): Promise<void> => {
+      const res = await fetch(`${API_URL}/subscriptions/${subscriptionId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to delete subscription");
     },
   },
 };
