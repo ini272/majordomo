@@ -554,6 +554,21 @@ def update_quest_template(
     return template
 
 
+@router.delete("/templates/{template_id}")
+def delete_quest_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    auth: dict = Depends(get_current_user),
+):
+    """Delete quest template and orphan associated quests"""
+    template = crud_quest_template.get_quest_template(db, template_id)
+    if not template or template.home_id != auth["home_id"]:
+        raise HTTPException(status_code=404, detail="Quest template not found")
+
+    crud_quest_template.delete_quest_template(db, template_id)
+    return {"detail": "Quest template deleted"}
+
+
 @router.put("/{quest_id}", response_model=QuestRead)
 def update_quest(
     quest_id: int,

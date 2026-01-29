@@ -146,6 +146,14 @@ export const api = {
       return res.json();
     },
 
+    deleteTemplate: async (templateId: number, token: string): Promise<void> => {
+      const res = await fetch(`${API_URL}/quests/templates/${templateId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to delete quest template");
+    },
+
     complete: async (questId: number, token: string): Promise<QuestCompleteResponse> => {
       const res = await fetch(`${API_URL}/quests/${questId}/complete`, {
         method: "POST",

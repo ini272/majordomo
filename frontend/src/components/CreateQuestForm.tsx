@@ -827,11 +827,18 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
             onQuestCreated();
             onClose();
           }}
-          onClose={() => {
+          onClose={async () => {
+            // If in create mode and user cancels, delete the template (it was never used)
+            if (showCreateMode && createdTemplateId) {
+              try {
+                await api.quests.deleteTemplate(createdTemplateId, token);
+              } catch (err) {
+                console.error("Failed to cleanup template:", err);
+              }
+            }
             setShowEditModal(false);
             setShowCreateMode(false);  // Reset create mode
-            onQuestCreated();
-            onClose();
+            onClose();  // Close without calling onQuestCreated (no quest was created)
           }}
         />
       )}
