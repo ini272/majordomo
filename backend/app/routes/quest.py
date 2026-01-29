@@ -15,6 +15,7 @@ from app.errors import ErrorCode, create_error_detail
 from app.models.quest import (
     Quest,
     QuestCreate,
+    QuestCreateStandalone,
     QuestRead,
     QuestTemplateCreate,
     QuestTemplateRead,
@@ -149,6 +150,21 @@ def create_quest(
         raise HTTPException(status_code=404, detail="Quest template not found in home")
 
     return crud_quest.create_quest(db, home_id, user_id, quest, template)
+
+
+@router.post("/standalone", response_model=QuestRead)
+def create_standalone_quest(
+    quest: QuestCreateStandalone, user_id: int = Query(...), db: Session = Depends(get_db), auth: dict = Depends(get_current_user)
+):
+    """Create a standalone quest without a template"""
+    home_id = auth["home_id"]
+
+    # Verify user exists in home and belongs to authenticated home
+    user = crud_user.get_user(db, user_id)
+    if not user or user.home_id != home_id:
+        raise HTTPException(status_code=404, detail="User not found in home")
+
+    return crud_quest.create_standalone_quest(db, home_id, user_id, quest)
 
 
 @router.post("/templates/{template_id}/generate-instance", response_model=QuestRead)
