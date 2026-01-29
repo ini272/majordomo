@@ -40,10 +40,9 @@ class Quest(SQLModel, table=True):
     description: Optional[str] = Field(default=None, max_length=1000)
     tags: Optional[str] = Field(default=None, max_length=500)
 
-    # Rewards (with bounty applied at creation, debuffs/boosts applied at completion)
+    # Rewards (base at creation, updated to actual earned at completion)
     xp_reward: int = Field(default=0)
     gold_reward: int = Field(default=0)
-    is_bounty: bool = Field(default=False)  # Was this a bounty quest when created?
 
     # Status fields
     completed: bool = Field(default=False)
@@ -57,30 +56,32 @@ class Quest(SQLModel, table=True):
 ```
 
 **Key insight on rewards:**
-- At creation: `xp_reward` and `gold_reward` are set with **all known multipliers already applied**
-- Bounty (2x) is applied at creation if the quest is today's daily bounty
-- Corruption debuff is applied at completion (house state can change)
-- XP boost is applied at completion (user consumable state)
-- What you see is what you get - no surprises
+- At creation: `xp_reward` and `gold_reward` are **base values** (snapshot from template)
+- At display time: API returns expected reward with current multipliers applied
+- At completion: final reward calculated and stored in `xp_reward`/`gold_reward`
 - No need for separate `xp_awarded`/`gold_awarded` fields
 
-**Multiplier application timing:**
+**All multipliers are DYNAMIC (calculated at completion):**
 
-| Multiplier | When Applied | Why |
-|------------|--------------|-----|
-| Bounty (2x) | Creation | Quest "locks in" bounty status when assigned |
-| Corruption debuff | Completion | House corruption count can change |
-| XP Boost (Heroic Elixir) | Completion | Consumable activated at completion time |
+| Multiplier | When Calculated | Why Dynamic |
+|------------|-----------------|-------------|
+| Bounty (2x) | Completion | Bounty rotates daily - incentivizes completing TODAY |
+| Corruption debuff | Completion | House state changes as quests are cleared |
+| XP Boost (Heroic Elixir) | Completion | User activates consumable at completion time |
 
-**Why apply bounty at creation, not completion?**
-- Predictable: what you see is what you'll get
-- No "lost" bounty if you complete the next day
-- Simpler frontend: just display `quest.xp_reward` directly
-- Encourages completing bounty quests quickly (you already have the bonus locked in)
+**Why dynamic for everything:**
+- Bounty incentivizes completing quests on the bounty day, not just having them assigned
+- Corruption debuff reflects current house state (clearing corrupted quests helps everyone)
+- Simpler model: quest stores base value, multipliers calculated at point of action
+
+**Display behavior:**
+- Active quest: API returns `expected_xp` and `expected_gold` (base × current multipliers)
+- Completed quest: `quest.xp_reward` contains actual earned amount
 
 #### Removed Fields
-- `xp_awarded` - no longer needed (use `xp_reward`)
-- `gold_awarded` - no longer needed (use `gold_reward`)
+- `xp_awarded` - no longer needed (use `xp_reward` updated at completion)
+- `gold_awarded` - no longer needed (use `gold_reward` updated at completion)
+- `is_bounty` - not needed (bounty checked dynamically)
 
 #### Quest Creation Flow
 
@@ -90,18 +91,14 @@ def create_quest_from_template(
     template: QuestTemplate,
     user_id: int,
     home_id: int,
-    due_date: Optional[datetime] = None,
-    is_daily_bounty: bool = False
+    due_date: Optional[datetime] = None
 ) -> Quest:
     """
     Create quest instance with snapshot of template data.
 
-    Applies bounty multiplier at creation time if applicable.
-    The stored xp_reward/gold_reward reflect the expected payout.
+    Stores BASE rewards only. Multipliers (bounty, corruption, boosts)
+    are calculated dynamically at display time and completion time.
     """
-    # Apply bounty multiplier at creation (not completion)
-    bounty_multiplier = 2 if is_daily_bounty else 1
-
     return Quest(
         home_id=home_id,
         user_id=user_id,
@@ -111,11 +108,9 @@ def create_quest_from_template(
         display_name=template.display_name,
         description=template.description,
         tags=template.tags,
-        # Rewards with bounty already applied
-        xp_reward=template.xp_reward * bounty_multiplier,
-        gold_reward=template.gold_reward * bounty_multiplier,
-        # Track if this was a bounty quest (for display purposes)
-        is_bounty=is_daily_bounty,
+        # Base rewards (multipliers applied at completion)
+        xp_reward=template.xp_reward,
+        gold_reward=template.gold_reward,
         due_date=due_date,
     )
 
@@ -150,19 +145,30 @@ def complete_quest(
     home_id: int
 ) -> dict:
     """
-    Complete a quest and apply completion-time multipliers.
+    Complete a quest and apply ALL multipliers at completion time.
 
-    Bounty multiplier is already in xp_reward/gold_reward (applied at creation).
-    We apply corruption debuff and XP boost here.
+    All multipliers are dynamic and calculated at this moment:
+    - Bounty (2x if quest's template is today's bounty)
+    - Corruption debuff (based on current house corruption count)
+    - XP boost (if user has active Heroic Elixir)
     """
-    # Get the stored rewards (already includes bounty if applicable)
+    # Get base rewards (snapshot from template)
     base_xp = quest.xp_reward
     base_gold = quest.gold_reward
 
-    # Apply corruption debuff (house-wide penalty, can change over time)
+    # Check if this is today's bounty
+    today_bounty = get_today_bounty(db, home_id)
+    is_bounty = today_bounty and today_bounty.quest_template_id == quest.quest_template_id
+    bounty_multiplier = 2 if is_bounty else 1
+
+    # Apply bounty multiplier
+    xp_after_bounty = base_xp * bounty_multiplier
+    gold_after_bounty = base_gold * bounty_multiplier
+
+    # Apply corruption debuff (house-wide penalty)
     corruption_multiplier = calculate_corruption_debuff(db, home_id, user)
-    xp_after_debuff = int(base_xp * corruption_multiplier)
-    gold_after_debuff = int(base_gold * corruption_multiplier)
+    xp_after_debuff = int(xp_after_bounty * corruption_multiplier)
+    gold_after_debuff = int(gold_after_bounty * corruption_multiplier)
 
     # Apply XP boost if active (user consumable)
     xp_boost_multiplier = 2 if user.active_xp_boost_count > 0 else 1
@@ -190,7 +196,10 @@ def complete_quest(
         "rewards": {
             "xp": final_xp,
             "gold": final_gold,
-            "is_bounty": quest.is_bounty,
+            "base_xp": base_xp,
+            "base_gold": base_gold,
+            "is_bounty": is_bounty,
+            "bounty_multiplier": bounty_multiplier,
             "corruption_debuff": corruption_multiplier,
             "xp_boost_active": xp_boost_multiplier > 1,
         }
@@ -201,17 +210,43 @@ def complete_quest(
 
 ```
 Creation time:
-  xp_reward = template.xp_reward * bounty_multiplier (1x or 2x)
+  quest.xp_reward = template.xp_reward  (base value only)
 
 Completion time:
-  final_xp = xp_reward * corruption_debuff * xp_boost
-  quest.xp_reward = final_xp  (updated in place)
+  final = base × bounty × corruption_debuff × xp_boost
+  quest.xp_reward = final  (updated in place)
+```
+
+**API response for active quests:**
+
+```python
+def get_quest_with_expected_rewards(quest: Quest, home_id: int, user: User) -> dict:
+    """Return quest with calculated expected rewards based on current state"""
+    if quest.completed:
+        # Already completed - xp_reward is the actual earned
+        return {"quest": quest, "expected_xp": quest.xp_reward, "expected_gold": quest.gold_reward}
+
+    # Calculate expected based on current multipliers
+    today_bounty = get_today_bounty(db, home_id)
+    is_bounty = today_bounty and today_bounty.quest_template_id == quest.quest_template_id
+    bounty_mult = 2 if is_bounty else 1
+    corruption_mult = calculate_corruption_debuff(db, home_id, user)
+
+    expected_xp = int(quest.xp_reward * bounty_mult * corruption_mult)
+    expected_gold = int(quest.gold_reward * bounty_mult * corruption_mult)
+
+    return {
+        "quest": quest,
+        "expected_xp": expected_xp,
+        "expected_gold": expected_gold,
+        "is_bounty": is_bounty,
+        "corruption_debuff": corruption_mult,
+    }
 ```
 
 **Frontend display:**
-- Active quest: just show `quest.xp_reward` (bounty already included)
-- Completed quest: show `quest.xp_reward` (final earned amount)
-- No frontend calculations needed
+- Active quest: show `expected_xp` and `expected_gold` from API (reflects current multipliers)
+- Completed quest: show `quest.xp_reward` and `quest.gold_reward` (actual earned)
 
 ### 2. User Template Subscriptions (Per-User Schedules)
 
@@ -345,14 +380,8 @@ def generate_due_quests(user_id: int, db: Session) -> list[Quest]:
             if sub.due_in_hours:
                 due_date = now + timedelta(hours=sub.due_in_hours)
 
-            # Check if this template is today's bounty
-            today_bounty = get_today_bounty(db, user.home_id)
-            is_bounty = today_bounty and today_bounty.quest_template_id == sub.quest_template_id
-
-            # Apply bounty multiplier at creation time
-            bounty_multiplier = 2 if is_bounty else 1
-
-            # Create quest with snapshot (bounty already applied to rewards)
+            # Create quest with snapshot of BASE rewards
+            # (bounty/corruption applied dynamically at completion)
             template = sub.template
             new_quest = Quest(
                 home_id=user.home_id,
@@ -362,9 +391,8 @@ def generate_due_quests(user_id: int, db: Session) -> list[Quest]:
                 display_name=template.display_name,
                 description=template.description,
                 tags=template.tags,
-                xp_reward=template.xp_reward * bounty_multiplier,
-                gold_reward=template.gold_reward * bounty_multiplier,
-                is_bounty=is_bounty,
+                xp_reward=template.xp_reward,  # Base only
+                gold_reward=template.gold_reward,  # Base only
                 due_date=due_date,
             )
             db.add(new_quest)
