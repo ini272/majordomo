@@ -20,16 +20,23 @@ export interface Quest {
   id: number;
   home_id: number;
   user_id: number;
-  quest_template_id: number;
+  quest_template_id: number | null;  // Nullable for standalone quests
   completed: boolean;
   created_at: string;
   completed_at: string | null;
+
+  // Snapshot fields (copied from template at creation)
+  title: string;
+  display_name: string | null;
+  description: string | null;
+  tags: string | null;
+  xp_reward: number;  // Base at creation, actual earned after completion
+  gold_reward: number;
+
   quest_type: string;
   due_date: string | null;
   corrupted_at: string | null;
-  xp_awarded: number | null;
-  gold_awarded: number | null;
-  template: QuestTemplate;
+  template: QuestTemplate | null;  // Null for standalone quests
 }
 
 export interface User {

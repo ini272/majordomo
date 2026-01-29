@@ -100,7 +100,7 @@ export default function NFCTrigger() {
           Quest Complete!
         </h2>
         <p className="text-lg md:text-2xl font-serif mb-8" style={{ color: COLORS.gold }}>
-          {result.quest.template.display_name || result.quest.template.title}
+          {result.quest.display_name || result.quest.title}
         </p>
 
         {/* Rewards Display */}

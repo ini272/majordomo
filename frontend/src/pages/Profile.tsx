@@ -473,7 +473,7 @@ export default function Profile({ token }: ProfileProps) {
                   }}
                 >
                   <p className="font-serif font-bold mb-1" style={{ color: COLORS.parchment }}>
-                    {quest.template.display_name || quest.template.title}
+                    {quest.display_name || quest.title}
                   </p>
                   <div className="flex justify-between items-center text-xs">
                     <p style={{ color: COLORS.brown }}>
@@ -481,10 +481,10 @@ export default function Profile({ token }: ProfileProps) {
                     </p>
                     <div className="flex gap-3">
                       <span style={{ color: COLORS.gold }}>
-                        +{quest.xp_awarded ?? quest.template.xp_reward} XP
+                        +{quest.xp_reward} XP
                       </span>
                       <span style={{ color: COLORS.gold }}>
-                        +{quest.gold_awarded ?? quest.template.gold_reward} Gold
+                        +{quest.gold_reward} Gold
                       </span>
                     </div>
                   </div>

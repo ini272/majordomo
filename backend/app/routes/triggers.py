@@ -33,16 +33,18 @@ def trigger_quest(
     if template.home_id != auth["home_id"]:
         raise HTTPException(status_code=403, detail="Not authorized to trigger this quest")
 
-    # Create quest instance
+    # Create quest instance with snapshot of template data
     quest_in = QuestCreate(quest_template_id=quest_template_id)
-    quest = crud_quest.create_quest(db, auth["home_id"], auth["user_id"], quest_in)
+    quest = crud_quest.create_quest(db, auth["home_id"], auth["user_id"], quest_in, template)
 
-    # Complete the quest immediately
-    quest = crud_quest.complete_quest(db, quest.id)
+    # Complete the quest immediately with base rewards (no multipliers applied for NFC triggers)
+    base_xp = quest.xp_reward
+    base_gold = quest.gold_reward
+    quest = crud_quest.complete_quest(db, quest.id, final_xp=base_xp, final_gold=base_gold)
 
     # Award XP and gold
-    user = crud_user.add_xp(db, auth["user_id"], template.xp_reward)
-    user = crud_user.add_gold(db, auth["user_id"], template.gold_reward)
+    user = crud_user.add_xp(db, auth["user_id"], base_xp)
+    user = crud_user.add_gold(db, auth["user_id"], base_gold)
 
     return {
         "success": True,
@@ -53,7 +55,7 @@ def trigger_quest(
             "gold": user.gold_balance,
         },
         "rewards": {
-            "xp": template.xp_reward,
-            "gold": template.gold_reward,
+            "xp": base_xp,
+            "gold": base_gold,
         },
     }

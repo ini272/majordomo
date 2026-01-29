@@ -245,6 +245,13 @@ def generate_due_quests(home_id: int, session: Session) -> None:
                         home_id=home_id,
                         user_id=user.id,
                         quest_template_id=template.id,
+                        # Snapshot template data
+                        title=template.title,
+                        display_name=template.display_name,
+                        description=template.description,
+                        tags=template.tags,
+                        xp_reward=template.xp_reward,
+                        gold_reward=template.gold_reward,
                         quest_type="standard",
                         due_date=due_date,
                     )

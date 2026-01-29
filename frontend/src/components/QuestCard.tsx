@@ -116,7 +116,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
           borderBottomWidth: "2px",
         }}
       >
-        {quest.template.display_name || quest.template.title || "Unknown Quest"}
+        {quest.display_name || quest.title || "Unknown Quest"}
       </h2>
 
       {/* Description */}
@@ -124,13 +124,13 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
         className="italic leading-relaxed mb-6 md:mb-8 font-serif"
         style={{ color: COLORS.parchment }}
       >
-        {quest.template.description || "No description"}
+        {quest.description || "No description"}
       </p>
 
       {/* Tags */}
-      {quest.template.tags && (
+      {quest.tags && (
         <div className="flex flex-wrap gap-2 mb-6 md:mb-8">
-          {quest.template.tags.split(",").map(tag => (
+          {quest.tags.split(",").map(tag => (
             <span
               key={tag}
               className="px-2 py-1 text-xs uppercase font-serif rounded"
@@ -160,8 +160,8 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
           </div>
           <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
             {isDailyBounty && !quest.completed
-              ? (quest.template.xp_reward || 0) * 2
-              : quest.template.xp_reward || 0}
+              ? (quest.xp_reward || 0) * 2
+              : quest.xp_reward || 0}
             {isDailyBounty && !quest.completed && (
               <span className="text-sm ml-2" style={{ color: "#9d84ff" }}>
                 (2x)
@@ -178,8 +178,8 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
           </div>
           <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
             {isDailyBounty && !quest.completed
-              ? (quest.template.gold_reward || 0) * 2
-              : quest.template.gold_reward || 0}
+              ? (quest.gold_reward || 0) * 2
+              : quest.gold_reward || 0}
             {isDailyBounty && !quest.completed && (
               <span className="text-sm ml-2" style={{ color: "#9d84ff" }}>
                 (2x)
