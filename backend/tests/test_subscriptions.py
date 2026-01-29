@@ -219,55 +219,64 @@ def test_duplicate_subscription_fails(client: TestClient, home_with_user):
     assert "already subscribed" in response2.json()["detail"].lower()
 
 
-def test_per_user_schedules(db_home_with_users):
+def test_per_user_schedules(client: TestClient, home_with_user, auth_context):
     """Test that different users can have different schedules for the same template (Phase 3)"""
-    from app.models.quest import QuestTemplate, UserTemplateSubscription
+    home_id, user1_id, invite_code = home_with_user
 
-    home, user1, user2 = db_home_with_users
-
-    # Create shared template
-    template = QuestTemplate(
-        home_id=home.id,
-        title="Clean Kitchen",
-        xp_reward=25,
-        gold_reward=10,
-        created_by=user1.id,
+    # Create second user
+    user2_response = client.post(
+        "/api/auth/join",
+        json={
+            "invite_code": invite_code,
+            "email": "user2@example.com",
+            "username": "user2",
+            "password": "user2pass",
+        },
     )
-    db_home_with_users.add(template)
-    db_home_with_users.commit()
-    db_home_with_users.refresh(template)
+    user2_id = user2_response.json()["user_id"]
 
-    # User1 subscribes daily
-    user1_subscription = UserTemplateSubscription(
-        user_id=user1.id,
-        quest_template_id=template.id,
-        recurrence="daily",
-        schedule=json.dumps({"type": "daily", "time": "08:00"}),
-        is_active=True,
+    # Create shared template (as user1)
+    template_response = client.post(
+        f"/api/quests/templates?created_by={user1_id}",
+        json={"title": "Clean Kitchen", "xp_reward": 25, "gold_reward": 10},
     )
-    db_home_with_users.add(user1_subscription)
+    template_id = template_response.json()["id"]
+
+    # User1 subscribes daily (already authenticated as user1)
+    user1_sub = client.post(
+        "/api/subscriptions",
+        json={
+            "quest_template_id": template_id,
+            "recurrence": "daily",
+            "schedule": json.dumps({"type": "daily", "time": "08:00"}),
+        },
+    )
+    assert user1_sub.status_code == 201
+    user1_subscription = user1_sub.json()
+    assert user1_subscription["recurrence"] == "daily"
+    assert user1_subscription["user_id"] == user1_id
+
+    # Switch to user2 context
+    auth_context.set_user(user2_id, home_id)
 
     # User2 subscribes weekly (same template, different schedule)
-    user2_subscription = UserTemplateSubscription(
-        user_id=user2.id,
-        quest_template_id=template.id,
-        recurrence="weekly",
-        schedule=json.dumps({"type": "weekly", "day": "monday", "time": "18:00"}),
-        is_active=True,
+    user2_sub = client.post(
+        "/api/subscriptions",
+        json={
+            "quest_template_id": template_id,
+            "recurrence": "weekly",
+            "schedule": json.dumps({"type": "weekly", "day": "monday", "time": "18:00"}),
+        },
     )
-    db_home_with_users.add(user2_subscription)
-
-    db_home_with_users.commit()
-    db_home_with_users.refresh(user1_subscription)
-    db_home_with_users.refresh(user2_subscription)
+    assert user2_sub.status_code == 201
+    user2_subscription = user2_sub.json()
+    assert user2_subscription["recurrence"] == "weekly"
+    assert user2_subscription["user_id"] == user2_id
 
     # Verify they have different schedules for the same template
-    assert user1_subscription.recurrence == "daily"
-    assert user2_subscription.recurrence == "weekly"
-    assert user1_subscription.quest_template_id == user2_subscription.quest_template_id
-    assert user1_subscription.user_id != user2_subscription.user_id
-    assert user1_subscription.user_id == user1.id
-    assert user2_subscription.user_id == user2.id
+    assert user1_subscription["recurrence"] != user2_subscription["recurrence"]
+    assert user1_subscription["quest_template_id"] == user2_subscription["quest_template_id"]
+    assert user1_subscription["user_id"] != user2_subscription["user_id"]
 
 
 def test_filter_active_subscriptions(client: TestClient, home_with_user):
