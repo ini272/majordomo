@@ -101,6 +101,10 @@ class Quest(SQLModel, table=True):
     due_date: Optional[datetime] = None  # when quest should be completed (optional, user-set)
     corrupted_at: Optional[datetime] = None  # when quest became corrupted
 
+    # Actual earned rewards (stored on completion for history display)
+    xp_awarded: Optional[int] = None  # actual XP earned (after multipliers/debuffs)
+    gold_awarded: Optional[int] = None  # actual gold earned (after multipliers/debuffs)
+
     # Relationships
     home: "Home" = Relationship(back_populates="quests")
     user: "User" = Relationship(back_populates="quests")
@@ -120,6 +124,8 @@ class QuestRead(SQLModel):
     quest_type: str
     due_date: Optional[datetime]
     corrupted_at: Optional[datetime]
+    xp_awarded: Optional[int]
+    gold_awarded: Optional[int]
     # Include template data for convenience
     template: QuestTemplateRead
 

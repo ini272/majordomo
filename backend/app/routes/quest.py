@@ -270,9 +270,6 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
     # Check for active XP boost (Heroic Elixir)
     has_xp_boost = user.active_xp_boost_count > 0
 
-    # Mark quest as completed
-    quest = crud_quest.complete_quest(db, quest_id)
-
     # Award XP and gold to user from template
     # Apply order: base → corruption_debuff → bounty_multiplier → xp_boost
     xp_awarded = 0
@@ -298,6 +295,10 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
         xp_awarded = int(xp_after_bounty * xp_boost_multiplier)
         gold_awarded = int(gold_after_bounty)
 
+    # Mark quest as completed and store actual earned rewards
+    quest = crud_quest.complete_quest(db, quest_id, xp_awarded=xp_awarded, gold_awarded=gold_awarded)
+
+    if quest.template:
         try:
             crud_user.add_xp(db, quest.user_id, xp_awarded)
             crud_user.add_gold(db, quest.user_id, gold_awarded)

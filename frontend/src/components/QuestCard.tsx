@@ -93,17 +93,6 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
             2x Bounty
           </span>
         )}
-        {isCorrupted && (
-          <span
-            className="px-2 py-1 rounded text-xs uppercase font-serif font-bold"
-            style={{
-              backgroundColor: "rgba(139, 58, 58, 0.3)",
-              color: "#ff8080",
-            }}
-          >
-            1.5x Rewards
-          </span>
-        )}
         {quest.due_date && !quest.completed && (
           <span
             className="px-2 py-1 rounded text-xs font-serif font-bold"
@@ -170,10 +159,12 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
             XP Reward
           </div>
           <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
-            {quest.template.xp_reward || 0}
-            {isCorrupted && !quest.completed && (
-              <span className="text-sm ml-2" style={{ color: "#ff8080" }}>
-                (x1.5)
+            {isDailyBounty && !quest.completed
+              ? (quest.template.xp_reward || 0) * 2
+              : quest.template.xp_reward || 0}
+            {isDailyBounty && !quest.completed && (
+              <span className="text-sm ml-2" style={{ color: "#9d84ff" }}>
+                (2x)
               </span>
             )}
           </div>
@@ -186,10 +177,12 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
             Gold Reward
           </div>
           <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
-            {quest.template.gold_reward || 0}
-            {isCorrupted && !quest.completed && (
-              <span className="text-sm ml-2" style={{ color: "#ff8080" }}>
-                (x1.5)
+            {isDailyBounty && !quest.completed
+              ? (quest.template.gold_reward || 0) * 2
+              : quest.template.gold_reward || 0}
+            {isDailyBounty && !quest.completed && (
+              <span className="text-sm ml-2" style={{ color: "#9d84ff" }}>
+                (2x)
               </span>
             )}
           </div>

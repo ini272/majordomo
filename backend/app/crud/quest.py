@@ -45,14 +45,20 @@ def create_quest(db: Session, home_id: int, user_id: int, quest_in: QuestCreate)
     return db_quest
 
 
-def complete_quest(db: Session, quest_id: int) -> Optional[Quest]:
-    """Mark quest as completed"""
+def complete_quest(
+    db: Session, quest_id: int, xp_awarded: Optional[int] = None, gold_awarded: Optional[int] = None
+) -> Optional[Quest]:
+    """Mark quest as completed and store actual earned rewards"""
     db_quest = get_quest(db, quest_id)
     if not db_quest:
         return None
 
     db_quest.completed = True
     db_quest.completed_at = datetime.now(timezone.utc)
+    if xp_awarded is not None:
+        db_quest.xp_awarded = xp_awarded
+    if gold_awarded is not None:
+        db_quest.gold_awarded = gold_awarded
 
     db.add(db_quest)
     db.commit()
