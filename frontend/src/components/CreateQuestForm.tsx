@@ -107,32 +107,10 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
         skipAI
       );
 
-      // For recurring quests, create a subscription (Phase 3)
-      if (recurrence !== "one-off") {
-        await api.subscriptions.create(
-          {
-            quest_template_id: newTemplate.id,
-            recurrence: recurrence,
-            ...(schedule && { schedule }),
-            ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
-          },
-          token
-        );
-      }
-
-      // Create quest instance from template
-      await api.quests.create(
-        {
-          quest_template_id: newTemplate.id,
-          ...(dueDate && { due_date: new Date(dueDate).toISOString() }),
-        },
-        token,
-        userId
-      );
-
-      // Open edit modal instead of closing immediately
+      // Don't create quest yet - let EditQuestModal do it after user reviews
       setCreatedTemplateId(newTemplate.id);
       setShowEditModal(true);
+      setShowCreateMode(true);  // Create quest on save
       setTitle("");
       setSelectedTags([]);
       setDueDate("");
@@ -181,12 +159,10 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
         true // skipAI - content already provided
       );
 
-      // Create quest instance from template
-      await api.quests.create({ quest_template_id: newTemplate.id }, token, userId);
-
-      // Open edit modal to review/adjust
+      // Don't create quest yet - let EditQuestModal do it after user reviews
       setCreatedTemplateId(newTemplate.id);
       setShowEditModal(true);
+      setShowCreateMode(true);  // Create quest on save
       setSkipAI(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create quest");
