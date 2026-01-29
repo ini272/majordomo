@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from sqlmodel import SQLModel
 
-from app.routes import achievement, auth, bounty, home, quest, reward, triggers, user
+from app.routes import achievement, auth, bounty, home, quest, reward, subscription, triggers, user
 
 # Load environment variables from .env file
 load_dotenv()
@@ -71,6 +71,7 @@ app.include_router(reward.router)
 app.include_router(triggers.router)
 app.include_router(bounty.router)
 app.include_router(achievement.router)
+app.include_router(subscription.router)
 
 
 @app.get("/")

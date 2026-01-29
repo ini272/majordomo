@@ -7,7 +7,7 @@ from typing import Optional
 
 from sqlmodel import Session, or_, select
 
-from app.models.quest import Quest, QuestTemplate
+from app.models.quest import Quest, QuestTemplate, UserTemplateSubscription
 from app.models.user import User
 
 
@@ -184,26 +184,31 @@ def get_home_users(home_id: int, session: Session) -> list[User]:
 
 def generate_due_quests(home_id: int, session: Session) -> None:
     """
-    Check all recurring templates and generate overdue instances.
+    Check all active subscriptions and generate overdue instances.
 
     This function is idempotent - calling it multiple times in the same
     minute won't create duplicates. It skips creation if an incomplete
     instance already exists to prevent quest spam.
 
+    Phase 3: Uses per-user subscriptions instead of template-level schedules.
+
     Args:
         home_id: The home ID to generate quests for
         session: Database session
     """
-    # Get all recurring templates for this home that might need generation
-    templates = session.exec(
-        select(QuestTemplate)
-        .where(QuestTemplate.home_id == home_id)
-        .where(QuestTemplate.recurrence != "one-off")
+    # Get all active recurring subscriptions for users in this home
+    # Join with User to filter by home_id
+    subscriptions = session.exec(
+        select(UserTemplateSubscription)
+        .join(User, UserTemplateSubscription.user_id == User.id)
+        .where(User.home_id == home_id)
+        .where(UserTemplateSubscription.is_active == True)  # noqa: E712
+        .where(UserTemplateSubscription.recurrence != "one-off")
         .where(
-            # Performance optimization: skip recently generated templates
+            # Performance optimization: skip recently generated subscriptions
             or_(
-                QuestTemplate.last_generated_at.is_(None),
-                QuestTemplate.last_generated_at
+                UserTemplateSubscription.last_generated_at.is_(None),
+                UserTemplateSubscription.last_generated_at
                 < datetime.now(timezone.utc) - timedelta(hours=1),
             )
         )
@@ -211,59 +216,63 @@ def generate_due_quests(home_id: int, session: Session) -> None:
 
     now = datetime.now(timezone.utc)
 
-    for template in templates:
-        if not template.schedule:
-            continue  # Skip templates without schedule config
+    for subscription in subscriptions:
+        if not subscription.schedule:
+            continue  # Skip subscriptions without schedule config
 
         try:
-            schedule = json.loads(template.schedule)
+            schedule = json.loads(subscription.schedule)
             next_generation_time = calculate_next_generation_time(
-                template.last_generated_at, schedule
+                subscription.last_generated_at, schedule
             )
 
             # Check if it's time to generate
             if now >= next_generation_time:
-                # Check if incomplete instance already exists (skip if so)
+                # Check if incomplete instance already exists for THIS USER (skip if so)
                 existing = session.exec(
                     select(Quest)
-                    .where(Quest.quest_template_id == template.id)
+                    .where(Quest.quest_template_id == subscription.quest_template_id)
+                    .where(Quest.user_id == subscription.user_id)
                     .where(Quest.completed == False)  # noqa: E712
                 ).first()
 
                 if existing:
                     continue  # Skip creation to prevent spam
 
-                # Create new quest instance for each user in home
-                users = get_home_users(home_id, session)
-                for user in users:
-                    # Calculate due date if template specifies it
-                    due_date = None
-                    if template.due_in_hours:
-                        due_date = now + timedelta(hours=template.due_in_hours)
+                # Get template for snapshot data
+                template = session.get(QuestTemplate, subscription.quest_template_id)
+                if not template:
+                    continue  # Template was deleted
 
-                    new_quest = Quest(
-                        home_id=home_id,
-                        user_id=user.id,
-                        quest_template_id=template.id,
-                        # Snapshot template data
-                        title=template.title,
-                        display_name=template.display_name,
-                        description=template.description,
-                        tags=template.tags,
-                        xp_reward=template.xp_reward,
-                        gold_reward=template.gold_reward,
-                        quest_type="standard",
-                        due_date=due_date,
-                    )
-                    session.add(new_quest)
+                # Calculate due date if subscription specifies it
+                due_date = None
+                if subscription.due_in_hours:
+                    due_date = now + timedelta(hours=subscription.due_in_hours)
 
-                # Update last_generated_at to prevent duplicate generation
-                template.last_generated_at = now
-                session.add(template)
+                # Create new quest instance for THIS USER
+                new_quest = Quest(
+                    home_id=home_id,
+                    user_id=subscription.user_id,
+                    quest_template_id=template.id,
+                    # Snapshot template data
+                    title=template.title,
+                    display_name=template.display_name,
+                    description=template.description,
+                    tags=template.tags,
+                    xp_reward=template.xp_reward,
+                    gold_reward=template.gold_reward,
+                    quest_type="standard",
+                    due_date=due_date,
+                )
+                session.add(new_quest)
+
+                # Update subscription's last_generated_at to prevent duplicate generation
+                subscription.last_generated_at = now
+                session.add(subscription)
 
         except (json.JSONDecodeError, ValueError, KeyError) as e:
-            # Log error and skip this template if schedule is malformed
-            print(f"Error processing template {template.id}: {e}")
+            # Log error and skip this subscription if schedule is malformed
+            print(f"Error processing subscription {subscription.id}: {e}")
             continue
 
     session.commit()
