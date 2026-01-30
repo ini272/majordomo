@@ -1,58 +1,33 @@
 import { useState, useEffect, useCallback, ChangeEvent, FormEvent } from "react";
 import { api } from "../services/api";
 import { COLORS, PARCHMENT_STYLES } from "../constants/colors";
-import type { QuestTemplate, QuestTemplateUpdateRequest, UserTemplateSubscription } from "../types/api";
+import type { Quest, QuestTemplate, QuestTemplateUpdateRequest, UserTemplateSubscription } from "../types/api";
 import StewardImage from "../assets/thesteward.png";
 import ParchmentTypeWriter from "./ParchmentTypeWriter";
 
 const AVAILABLE_TAGS = ["Chores", "Learning", "Exercise", "Health", "Organization"];
 
-interface TemplateInitialData {
-  title: string;
-  display_name?: string;
-  description?: string;
-  tags?: string;
-  xp_reward?: number;
-  gold_reward?: number;
-  recurrence?: string;
-  schedule?: string;
-  due_in_hours?: number;
-}
-
 interface EditQuestModalProps {
-  // Edit mode: provide templateId to fetch and edit existing template
-  templateId?: number;
-  // Create mode: provide initialData to create new template on save
-  initialData?: TemplateInitialData;
+  // Edit existing quest (fetch by ID)
+  questId?: number;
 
   token: string;
   skipAI: boolean;
-  createQuestOnSave?: boolean;  // If true, creates a quest with customized values
-  onSave?: (updated: QuestTemplate) => void;
+  onSave?: () => void;
   onClose?: () => void;
 }
 
 export default function EditQuestModal({
-  templateId,
-  initialData,
+  questId,
   token,
   skipAI,
-  createQuestOnSave = false,
   onSave,
   onClose,
 }: EditQuestModalProps) {
-  // Validate: must provide either templateId or initialData, not both
-  if (!templateId && !initialData) {
-    throw new Error("EditQuestModal requires either templateId or initialData");
-  }
-  if (templateId && initialData) {
-    throw new Error("EditQuestModal cannot have both templateId and initialData");
-  }
-
-  const isCreateMode = !!initialData;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quest, setQuest] = useState<Quest | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -73,113 +48,69 @@ export default function EditQuestModal({
   const [scheduleDayOfMonth, setScheduleDayOfMonth] = useState<number>(1);
   const [dueInHours, setDueInHours] = useState<string>("");
 
-  // Fetch template (edit mode) or use initial data (create mode)
+  // Fetch quest by ID
   useEffect(() => {
-    const loadData = async () => {
+    const loadQuest = async () => {
+      if (!questId) {
+        setError("No quest ID provided");
+        setLoading(false);
+        return;
+      }
+
       try {
-        if (isCreateMode) {
-          // CREATE MODE: Use provided initial data
-          setDisplayName(initialData.display_name || "");
-          setDescription(initialData.description || "");
+        // Wait for AI if not skipping (gives AI time to populate)
+        if (!skipAI) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
 
-          // Parse tags
-          if (initialData.tags) {
-            const tags = initialData.tags.split(",").map(t => {
-              const trimmed = t.trim();
-              return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-            });
-            setSelectedTags(tags);
-          }
+        // Fetch quest
+        const response = await api.quests.getQuest(questId, token);
 
-          // Parse recurring quest settings
-          const recur = (initialData.recurrence || "one-off") as "one-off" | "daily" | "weekly" | "monthly";
-          setRecurrence(recur);
-          setOriginalRecurrence(recur);
+        // Set form values from quest snapshot
+        setDisplayName(response.display_name || "");
+        setDescription(response.description || "");
 
-          if (initialData.schedule) {
-            try {
-              const schedule = JSON.parse(initialData.schedule);
-              if (schedule.time) setScheduleTime(schedule.time);
-              if (schedule.day && typeof schedule.day === "string") setScheduleDay(schedule.day);
-              if (schedule.day && typeof schedule.day === "number")
-                setScheduleDayOfMonth(schedule.day);
-            } catch (err) {
-              console.error("Failed to parse schedule:", err);
-            }
-          }
-          if (initialData.due_in_hours) {
-            setDueInHours(initialData.due_in_hours.toString());
-          }
+        // Parse tags
+        if (response.tags) {
+          const tags = response.tags.split(",").map(t => {
+            const trimmed = t.trim();
+            return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+          });
+          setSelectedTags(tags);
+        }
 
-          setLoading(false);
-          // Show typewriter animation if there's content
-          if (initialData.display_name || initialData.description) {
-            setShowTypeWriter(true);
-          }
-        } else {
-          // EDIT MODE: Fetch template from server
-          // Wait for Groq background task to complete (unless skipping AI)
-          if (!skipAI) {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-          }
+        // Set recurrence/schedule from quest snapshot
+        setRecurrence(response.recurrence as "one-off" | "daily" | "weekly" | "monthly");
+        setOriginalRecurrence(response.recurrence as "one-off" | "daily" | "weekly" | "monthly");
 
-          const response = await api.quests.getTemplate(templateId!, token);
-
-          // Fetch user's subscriptions to see if they're subscribed to this template
-          const subscriptions = await api.subscriptions.getAll(token);
-          const userSubscription = subscriptions.find(sub => sub.quest_template_id === templateId);
-          setSubscription(userSubscription || null);
-
-          // Set form values from template
-          setDisplayName(response.display_name || "");
-          setDescription(response.description || "");
-
-          // Parse tags
-          if (response.tags) {
-            const tags = response.tags.split(",").map(t => {
-              const trimmed = t.trim();
-              return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-            });
-            setSelectedTags(tags);
-          }
-
-          // Parse recurring quest settings - prefer subscription over template (Phase 3)
-          const effectiveRecurrence = userSubscription ? userSubscription.recurrence : response.recurrence;
-          const effectiveSchedule = userSubscription?.schedule || response.schedule;
-          const effectiveDueInHours = userSubscription?.due_in_hours ?? response.due_in_hours;
-
-          setRecurrence(effectiveRecurrence as "one-off" | "daily" | "weekly" | "monthly");
-          setOriginalRecurrence(effectiveRecurrence as "one-off" | "daily" | "weekly" | "monthly");
-
-          if (effectiveSchedule) {
-            try {
-              const schedule = JSON.parse(effectiveSchedule);
-              if (schedule.time) setScheduleTime(schedule.time);
-              if (schedule.day && typeof schedule.day === "string") setScheduleDay(schedule.day);
-              if (schedule.day && typeof schedule.day === "number")
-                setScheduleDayOfMonth(schedule.day);
-            } catch (err) {
-              console.error("Failed to parse schedule:", err);
-            }
-          }
-          if (effectiveDueInHours) {
-            setDueInHours(effectiveDueInHours.toString());
-          }
-
-          setLoading(false);
-          // Show typewriter animation after loading completes and has content
-          if (response.display_name || response.description) {
-            setShowTypeWriter(true);
+        if (response.schedule) {
+          try {
+            const schedule = JSON.parse(response.schedule);
+            if (schedule.time) setScheduleTime(schedule.time);
+            if (schedule.day && typeof schedule.day === "string") setScheduleDay(schedule.day);
+            if (schedule.day && typeof schedule.day === "number")
+              setScheduleDayOfMonth(schedule.day);
+          } catch (err) {
+            console.error("Failed to parse schedule:", err);
           }
         }
+
+        // Store quest for UI state decisions
+        setQuest(response);
+        setLoading(false);
+
+        // Show typewriter animation if there's AI content
+        if (response.display_name || response.description) {
+          setShowTypeWriter(true);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load template");
+        setError(err instanceof Error ? err.message : "Failed to load quest");
         setLoading(false);
       }
     };
 
-    loadData();
-  }, [templateId, initialData, token, skipAI, isCreateMode]);
+    loadQuest();
+  }, [questId, token, skipAI]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
