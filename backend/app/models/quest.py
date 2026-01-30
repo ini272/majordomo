@@ -243,3 +243,11 @@ class UserTemplateSubscriptionUpdate(SQLModel):
     schedule: Optional[str] = None
     due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)
     is_active: Optional[bool] = None
+
+
+class ConvertToTemplateRequest(SQLModel):
+    """Schema for converting standalone quest to template"""
+
+    recurrence: str = Field(default="one-off")  # "one-off", "daily", "weekly", "monthly"
+    schedule: Optional[str] = None  # JSON string with schedule details
+    due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)
