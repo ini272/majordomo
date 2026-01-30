@@ -92,16 +92,25 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
         }
       }
 
-      // Don't create template - pass initial data to EditQuestModal
-      setTemplateInitialData({
-        title: title.trim(),
-        tags: selectedTags.length > 0 ? selectedTags.join(",") : undefined,
-        xp_reward: 25,
-        gold_reward: 15,
-        recurrence: recurrence,
-        schedule: schedule || undefined,
-        due_in_hours: dueInHours ? parseInt(dueInHours) : undefined,
-      });
+      // AI Scribe: Create template immediately (AI needs template ID to generate content)
+      const newTemplate = await api.quests.createTemplate(
+        {
+          title: title.trim(),
+          ...(selectedTags.length > 0 && { tags: selectedTags.join(",") }),
+          xp_reward: 25,
+          gold_reward: 15,
+          quest_type: "standard",
+          recurrence: recurrence,
+          ...(schedule && { schedule }),
+          ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
+        },
+        token,
+        userId,
+        skipAI
+      );
+
+      // Open EditQuestModal to show AI-generated content
+      setCreatedTemplateId(newTemplate.id);
       setShowEditModal(true);
       setShowCreateMode(true);  // Create quest on save
       setTitle("");
@@ -815,8 +824,15 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
             onQuestCreated();
             onClose();
           }}
-          onClose={() => {
-            // In create mode with initialData, no cleanup needed (template was never created)
+          onClose={async () => {
+            // If template was created (AI Scribe) and user cancels, delete it
+            if (showCreateMode && createdTemplateId) {
+              try {
+                await api.quests.deleteTemplate(createdTemplateId, token);
+              } catch (err) {
+                console.error("Failed to cleanup template:", err);
+              }
+            }
             setShowEditModal(false);
             setShowCreateMode(false);  // Reset create mode
             setTemplateInitialData(null);  // Clear initial data
