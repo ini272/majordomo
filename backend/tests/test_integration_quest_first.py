@@ -107,10 +107,14 @@ def test_template_list_not_cluttered(client: TestClient, db_home_with_users):
     )
     quest_id = quest_response.json()["id"]
 
-    client.post(
+    convert_response = client.post(
         f"/api/quests/{quest_id}/convert-to-template",
-        json={"recurrence": "daily"}
+        json={
+            "recurrence": "daily",
+            "schedule": json.dumps({"type": "daily", "time": "08:00"})
+        }
     )
+    assert convert_response.status_code == 200
 
     # Now template list has 1 entry
     templates_response = client.get("/api/quests/templates/all")
