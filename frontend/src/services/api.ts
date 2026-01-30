@@ -16,6 +16,7 @@ import type {
   UserTemplateSubscription,
   UserTemplateSubscriptionCreate,
   UserTemplateSubscriptionUpdate,
+  ConvertToTemplateRequest,
 } from "../types/api";
 
 // Detect API URL at runtime
@@ -152,6 +153,92 @@ export const api = {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to delete quest template");
+    },
+
+    createAIScribe: async (
+      questData: {
+        title: string;
+        tags?: string;
+        xp_reward?: number;
+        gold_reward?: number;
+      },
+      token: string,
+      userId: number,
+      skipAI: boolean = false
+    ): Promise<Quest> => {
+      const res = await fetch(
+        `${API_URL}/quests/ai-scribe?user_id=${userId}&skip_ai=${skipAI}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(questData),
+        }
+      );
+      if (!res.ok) throw new Error("Failed to create AI Scribe quest");
+      return res.json();
+    },
+
+    createRandom: async (token: string, userId: number): Promise<Quest> => {
+      const res = await fetch(`${API_URL}/quests/random?user_id=${userId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to create random quest");
+      return res.json();
+    },
+
+    convertToTemplate: async (
+      questId: number,
+      conversionData: ConvertToTemplateRequest,
+      token: string
+    ): Promise<QuestTemplate> => {
+      const res = await fetch(
+        `${API_URL}/quests/${questId}/convert-to-template`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(conversionData),
+        }
+      );
+      if (!res.ok) throw new Error("Failed to convert quest to template");
+      return res.json();
+    },
+
+    getQuest: async (questId: number, token: string): Promise<Quest> => {
+      const res = await fetch(`${API_URL}/quests/${questId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch quest");
+      return res.json();
+    },
+
+    update: async (
+      questId: number,
+      questData: {
+        display_name?: string;
+        description?: string;
+        tags?: string;
+        xp_reward?: number;
+        gold_reward?: number;
+      },
+      token: string
+    ): Promise<Quest> => {
+      const res = await fetch(`${API_URL}/quests/${questId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(questData),
+      });
+      if (!res.ok) throw new Error("Failed to update quest");
+      return res.json();
     },
 
     complete: async (questId: number, token: string): Promise<QuestCompleteResponse> => {
