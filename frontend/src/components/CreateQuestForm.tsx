@@ -152,9 +152,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
     }
 
     if (openEditModal) {
-      // Open edit modal to customize before creating quest
+      // Open edit modal to edit the template
       setCreatedTemplateId(selectedTemplate.id);
-      setCreateQuestOnSave(true);
       setShowEditModal(true);
     } else {
       // Quick create - create quest immediately
