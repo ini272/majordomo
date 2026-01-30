@@ -376,7 +376,7 @@ def test_generate_skips_when_incomplete_exists(db: Session, db_home_with_users):
     db.add(subscription)
     db.commit()
 
-    # Create existing incomplete quest
+    # Create existing incomplete quest (with snapshot fields)
     existing_quest = Quest(
         home_id=home.id,
         user_id=user.id,
@@ -384,6 +384,8 @@ def test_generate_skips_when_incomplete_exists(db: Session, db_home_with_users):
         title=template.title,
         xp_reward=template.xp_reward,
         gold_reward=template.gold_reward,
+        recurrence="daily",
+        schedule=json.dumps({"type": "daily", "time": "08:00"}),
         completed=False,
     )
     db.add(existing_quest)

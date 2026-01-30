@@ -59,18 +59,18 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
     return "Due soon";
   };
 
-  // Format recurring schedule for display
+  // Format recurring schedule for display (uses quest's snapshot, not template)
   const formatSchedule = () => {
-    if (quest.template.recurrence === "one-off" || !quest.template.schedule) return null;
+    if (quest.recurrence === "one-off" || !quest.schedule) return null;
 
     try {
-      const schedule = JSON.parse(quest.template.schedule);
-      if (quest.template.recurrence === "daily") {
+      const schedule = JSON.parse(quest.schedule);
+      if (quest.recurrence === "daily") {
         return `Daily ${schedule.time}`;
-      } else if (quest.template.recurrence === "weekly") {
+      } else if (quest.recurrence === "weekly") {
         const day = schedule.day.charAt(0).toUpperCase() + schedule.day.slice(1);
         return `${day}s ${schedule.time}`;
-      } else if (quest.template.recurrence === "monthly") {
+      } else if (quest.recurrence === "monthly") {
         return `Monthly ${schedule.day}${schedule.day === 1 ? "st" : schedule.day === 2 ? "nd" : schedule.day === 3 ? "rd" : "th"} ${schedule.time}`;
       }
     } catch (err) {
@@ -80,7 +80,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
   };
 
   const scheduleInfo = formatSchedule();
-  const isRecurring = quest.template.recurrence !== "one-off";
+  const isRecurring = quest.recurrence !== "one-off";
 
   return (
     <div
