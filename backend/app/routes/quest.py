@@ -168,6 +168,114 @@ def create_standalone_quest(
     return crud_quest.create_standalone_quest(db, home_id, user_id, quest)
 
 
+@router.post("/ai-scribe", response_model=QuestRead)
+def create_ai_scribe_quest(
+    user_id: int = Query(...),
+    skip_ai: bool = Query(False),
+    quest_data: QuestCreateStandalone = None,
+    db: Session = Depends(get_db),
+    auth: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+):
+    """
+    Create a standalone quest with optional AI-generated content.
+
+    - **user_id**: User ID to assign quest to
+    - **skip_ai**: Set to true to skip AI generation (default: false)
+    - **quest_data**: Quest data (title required, other fields optional)
+
+    If skip_ai=false and GROQ_API_KEY is set, AI will generate
+    display_name, description, and tags in the background.
+    """
+    home_id = auth["home_id"]
+
+    # Verify user exists in home
+    user = crud_user.get_user(db, user_id)
+    if not user or user.home_id != home_id:
+        raise HTTPException(status_code=404, detail="User not found in home")
+
+    # Create standalone quest
+    quest = crud_quest.create_standalone_quest(db, home_id, user_id, quest_data)
+
+    # Trigger AI generation in background (unless skipping)
+    if not skip_ai:
+        background_tasks.add_task(
+            _generate_and_update_quest,
+            quest_id=quest.id,
+            quest_title=quest.title,
+        )
+
+    return quest
+
+
+@router.post("/random", response_model=QuestRead)
+def create_random_quest(
+    user_id: int = Query(...),
+    db: Session = Depends(get_db),
+    auth: dict = Depends(get_current_user),
+):
+    """
+    Create a standalone quest with random sample data.
+
+    Useful for testing and demo purposes.
+    """
+    import random
+
+    home_id = auth["home_id"]
+
+    # Verify user exists in home
+    user = crud_user.get_user(db, user_id)
+    if not user or user.home_id != home_id:
+        raise HTTPException(status_code=404, detail="User not found in home")
+
+    # Sample quest data
+    samples = [
+        {
+            "title": "Clean kitchen",
+            "display_name": "The Kitchen Cleanse",
+            "description": "Vanquish the grimy counters and slay the sink dragon.",
+            "tags": "chores,cleaning",
+            "time": 3,
+            "effort": 2,
+            "dread": 4,
+        },
+        {
+            "title": "Do laundry",
+            "display_name": "The Garb Guardian",
+            "description": "Sort, wash, and fold the cloth of champions.",
+            "tags": "chores",
+            "time": 4,
+            "effort": 2,
+            "dread": 3,
+        },
+        {
+            "title": "Exercise",
+            "display_name": "The Body Forge",
+            "description": "Forge your body in the crucible of effort.",
+            "tags": "exercise,health",
+            "time": 3,
+            "effort": 4,
+            "dread": 3,
+        },
+    ]
+
+    sample = random.choice(samples)
+    xp_reward = (sample["time"] + sample["effort"] + sample["dread"]) * 2
+    gold_reward = xp_reward // 2
+
+    quest_data = QuestCreateStandalone(
+        title=sample["title"],
+        display_name=sample["display_name"],
+        description=sample["description"],
+        tags=sample["tags"],
+        xp_reward=xp_reward,
+        gold_reward=gold_reward,
+    )
+
+    quest = crud_quest.create_standalone_quest(db, home_id, user_id, quest_data)
+    return quest
+
+
 @router.post("/templates/{template_id}/generate-instance", response_model=QuestRead)
 def generate_quest_instance(
     template_id: int,
