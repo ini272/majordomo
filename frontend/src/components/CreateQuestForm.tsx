@@ -26,9 +26,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   const [error, setError] = useState<string | null>(null);
   const [skipAI, setSkipAI] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showCreateMode, setShowCreateMode] = useState(false);  // True when EditQuestModal should create quest on save
-  const [createdTemplateId, setCreatedTemplateId] = useState<number | null>(null);
-  const [templateInitialData, setTemplateInitialData] = useState<any>(null);  // Initial data for create mode
+  const [editingQuestId, setEditingQuestId] = useState<number | null>(null);
   const [templates, setTemplates] = useState<QuestTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<QuestTemplate | null>(null);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -76,43 +74,24 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
     setError(null);
 
     try {
-      // Build schedule JSON if recurring
-      let schedule: string | null = null;
-      if (recurrence !== "one-off") {
-        if (recurrence === "daily") {
-          schedule = JSON.stringify({ type: "daily", time: scheduleTime });
-        } else if (recurrence === "weekly") {
-          schedule = JSON.stringify({ type: "weekly", day: scheduleDay, time: scheduleTime });
-        } else if (recurrence === "monthly") {
-          schedule = JSON.stringify({
-            type: "monthly",
-            day: scheduleDayOfMonth,
-            time: scheduleTime,
-          });
-        }
-      }
-
-      // AI Scribe: Create template immediately (AI needs template ID to generate content)
-      const newTemplate = await api.quests.createTemplate(
+      // Create standalone quest (AI generates content in background)
+      const quest = await api.quests.createAIScribe(
         {
           title: title.trim(),
           ...(selectedTags.length > 0 && { tags: selectedTags.join(",") }),
           xp_reward: 25,
           gold_reward: 15,
-          quest_type: "standard",
-          recurrence: recurrence,
-          ...(schedule && { schedule }),
-          ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
         },
         token,
         userId,
         skipAI
       );
 
-      // Open EditQuestModal to show AI-generated content
-      setCreatedTemplateId(newTemplate.id);
+      // Open EditQuestModal with quest
+      setEditingQuestId(quest.id);
       setShowEditModal(true);
-      setShowCreateMode(true);  // Create quest on save
+
+      // Reset form
       setTitle("");
       setSelectedTags([]);
       setDueDate("");
@@ -122,7 +101,6 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       setScheduleDay("monday");
       setScheduleDayOfMonth(1);
       setDueInHours("");
-      // Note: onQuestCreated will be called after edit modal saves
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create quest");
     } finally {
@@ -141,23 +119,13 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
     setError(null);
 
     try {
-      const sample = getRandomSampleQuest();
-      const xpReward = (sample.time + sample.effort + sample.dread) * 2;
-      const goldReward = Math.floor(xpReward / 2);
+      // Create standalone quest with random sample data
+      const quest = await api.quests.createRandom(token, userId);
 
-      // Don't create template - pass initial data to EditQuestModal
-      setTemplateInitialData({
-        title: sample.title,
-        display_name: sample.display_name,
-        description: sample.description,
-        tags: sample.tags,
-        xp_reward: xpReward,
-        gold_reward: goldReward,
-        recurrence: "one-off",
-      });
+      // Open EditQuestModal with quest
+      setEditingQuestId(quest.id);
       setShowEditModal(true);
-      setShowCreateMode(true);  // Create quest on save
-      setSkipAI(true);
+      setSkipAI(true);  // AI already populated by backend
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create quest");
     } finally {
@@ -808,36 +776,21 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       </div>
 
       {/* Edit Quest Modal */}
-      {showEditModal && (createdTemplateId || templateInitialData) && (
+      {showEditModal && editingQuestId && (
         <EditQuestModal
-          templateId={createdTemplateId || undefined}
-          initialData={templateInitialData || undefined}
+          questId={editingQuestId}
           token={token}
           skipAI={skipAI}
-          createQuestOnSave={showCreateMode}
           onSave={() => {
-            // After save, close and notify parent to refetch quests
             setShowEditModal(false);
-            setShowCreateMode(false);  // Reset create mode
-            setTemplateInitialData(null);  // Clear initial data
-            setCreatedTemplateId(null);
+            setEditingQuestId(null);
             onQuestCreated();
             onClose();
           }}
-          onClose={async () => {
-            // If template was created (AI Scribe) and user cancels, delete it
-            if (showCreateMode && createdTemplateId) {
-              try {
-                await api.quests.deleteTemplate(createdTemplateId, token);
-              } catch (err) {
-                console.error("Failed to cleanup template:", err);
-              }
-            }
+          onClose={() => {
             setShowEditModal(false);
-            setShowCreateMode(false);  // Reset create mode
-            setTemplateInitialData(null);  // Clear initial data
-            setCreatedTemplateId(null);
-            onClose();  // Close without calling onQuestCreated (no quest was created)
+            setEditingQuestId(null);
+            onClose();
           }}
         />
       )}
