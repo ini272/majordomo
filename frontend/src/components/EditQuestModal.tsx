@@ -7,23 +7,44 @@ import ParchmentTypeWriter from "./ParchmentTypeWriter";
 
 const AVAILABLE_TAGS = ["Chores", "Learning", "Exercise", "Health", "Organization"];
 
+interface TemplateInitialData {
+  title: string;
+  display_name?: string;
+  description?: string;
+  tags?: string;
+  xp_reward?: number;
+  gold_reward?: number;
+  recurrence?: string;
+  schedule?: string;
+  due_in_hours?: number;
+}
+
 interface EditQuestModalProps {
   // Edit existing quest (fetch by ID)
   questId?: number;
+  // From template - review & edit before creating quest
+  templateId?: number;
+  // Random quest - initial data before creating quest
+  initialData?: TemplateInitialData;
 
   token: string;
   skipAI: boolean;
+  createQuestOnSave?: boolean;  // If true, creates quest on save (for template/initialData modes)
   onSave?: () => void;
   onClose?: () => void;
 }
 
 export default function EditQuestModal({
   questId,
+  templateId,
+  initialData,
   token,
   skipAI,
+  createQuestOnSave = false,
   onSave,
   onClose,
 }: EditQuestModalProps) {
+  const isCreateMode = !!initialData;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,73 +70,130 @@ export default function EditQuestModal({
   const [scheduleDayOfMonth, setScheduleDayOfMonth] = useState<number>(1);
   const [dueInHours, setDueInHours] = useState<string>("");
 
-  // Fetch quest by ID
+  // Load data based on mode
   useEffect(() => {
-    const loadQuest = async () => {
-      if (!questId) {
-        setError("No quest ID provided");
-        setLoading(false);
-        return;
-      }
-
+    const loadData = async () => {
       try {
-        // Wait for AI if not skipping (gives AI time to populate)
-        if (!skipAI) {
-          await new Promise(resolve => setTimeout(resolve, 1500));
-        }
+        if (isCreateMode) {
+          // CREATE MODE (Random): Use provided initial data
+          setDisplayName(initialData.display_name || "");
+          setDescription(initialData.description || "");
 
-        // Fetch quest
-        const response = await api.quests.getQuest(questId, token);
+          // Parse tags
+          if (initialData.tags) {
+            const tags = initialData.tags.split(",").map(t => {
+              const trimmed = t.trim();
+              return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+            });
+            setSelectedTags(tags);
+          }
 
-        // Set form values from quest snapshot
-        setDisplayName(response.display_name || "");
-        setDescription(response.description || "");
+          setLoading(false);
+          if (initialData.display_name || initialData.description) {
+            setShowTypeWriter(true);
+          }
+        } else if (templateId) {
+          // FROM TEMPLATE MODE: Fetch template to review before creating quest
+          if (!skipAI) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
 
-        // Parse tags
-        if (response.tags) {
-          const tags = response.tags.split(",").map(t => {
-            const trimmed = t.trim();
-            return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-          });
-          setSelectedTags(tags);
-        }
+          const response = await api.quests.getTemplate(templateId, token);
 
-        // Set recurrence/schedule from quest snapshot
-        setRecurrence(response.recurrence as "one-off" | "daily" | "weekly" | "monthly");
-        setOriginalRecurrence(response.recurrence as "one-off" | "daily" | "weekly" | "monthly");
+          // Fetch user's subscriptions
+          const subscriptions = await api.subscriptions.getAll(token);
+          const userSubscription = subscriptions.find(sub => sub.quest_template_id === templateId);
+          setSubscription(userSubscription || null);
 
-        if (response.schedule) {
-          try {
-            const schedule = JSON.parse(response.schedule);
-            if (schedule.time) setScheduleTime(schedule.time);
-            if (schedule.day && typeof schedule.day === "string") setScheduleDay(schedule.day);
-            if (schedule.day && typeof schedule.day === "number")
-              setScheduleDayOfMonth(schedule.day);
-          } catch (err) {
-            console.error("Failed to parse schedule:", err);
+          setDisplayName(response.display_name || "");
+          setDescription(response.description || "");
+
+          if (response.tags) {
+            const tags = response.tags.split(",").map(t => {
+              const trimmed = t.trim();
+              return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+            });
+            setSelectedTags(tags);
+          }
+
+          // Use subscription schedule if available (Phase 3)
+          const effectiveRecurrence = userSubscription ? userSubscription.recurrence : response.recurrence;
+          const effectiveSchedule = userSubscription?.schedule || response.schedule;
+          const effectiveDueInHours = userSubscription?.due_in_hours ?? response.due_in_hours;
+
+          setRecurrence(effectiveRecurrence as "one-off" | "daily" | "weekly" | "monthly");
+          setOriginalRecurrence(effectiveRecurrence as "one-off" | "daily" | "weekly" | "monthly");
+
+          if (effectiveSchedule) {
+            try {
+              const schedule = JSON.parse(effectiveSchedule);
+              if (schedule.time) setScheduleTime(schedule.time);
+              if (schedule.day && typeof schedule.day === "string") setScheduleDay(schedule.day);
+              if (schedule.day && typeof schedule.day === "number")
+                setScheduleDayOfMonth(schedule.day);
+            } catch (err) {
+              console.error("Failed to parse schedule:", err);
+            }
+          }
+          if (effectiveDueInHours) {
+            setDueInHours(effectiveDueInHours.toString());
+          }
+
+          setLoading(false);
+          if (response.display_name || response.description) {
+            setShowTypeWriter(true);
+          }
+        } else if (questId) {
+          // EDIT QUEST MODE: Fetch quest by ID
+          if (!skipAI) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
+
+          const response = await api.quests.getQuest(questId, token);
+
+          setDisplayName(response.display_name || "");
+          setDescription(response.description || "");
+
+          if (response.tags) {
+            const tags = response.tags.split(",").map(t => {
+              const trimmed = t.trim();
+              return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+            });
+            setSelectedTags(tags);
+          }
+
+          setRecurrence(response.recurrence as "one-off" | "daily" | "weekly" | "monthly");
+          setOriginalRecurrence(response.recurrence as "one-off" | "daily" | "weekly" | "monthly");
+
+          if (response.schedule) {
+            try {
+              const schedule = JSON.parse(response.schedule);
+              if (schedule.time) setScheduleTime(schedule.time);
+              if (schedule.day && typeof schedule.day === "string") setScheduleDay(schedule.day);
+              if (schedule.day && typeof schedule.day === "number")
+                setScheduleDayOfMonth(schedule.day);
+            } catch (err) {
+              console.error("Failed to parse schedule:", err);
+            }
+          }
+
+          setQuest(response);
+          setLoading(false);
+
+          if (response.display_name || response.description) {
+            setShowTypeWriter(true);
           }
         }
-
-        // Store quest for UI state decisions
-        setQuest(response);
-        setLoading(false);
-
-        // Show typewriter animation if there's AI content
-        if (response.display_name || response.description) {
-          setShowTypeWriter(true);
-        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load quest");
+        setError(err instanceof Error ? err.message : "Failed to load data");
         setLoading(false);
       }
     };
 
-    loadQuest();
-  }, [questId, token, skipAI]);
+    loadData();
+  }, [questId, templateId, initialData, token, skipAI, isCreateMode]);
 
   const handleSave = useCallback(async () => {
-    if (!quest) return;
-
     setSaving(true);
     setError(null);
 
@@ -124,9 +202,9 @@ export default function EditQuestModal({
       const baseXP = (time + effort + dread) * 2;
       const baseGold = Math.floor(baseXP / 2);
 
-      // Build schedule JSON if converting to template
+      // Build schedule JSON if needed
       let schedule: string | null = null;
-      if (saveAsTemplate && recurrence !== "one-off") {
+      if (recurrence !== "one-off") {
         if (recurrence === "daily") {
           schedule = JSON.stringify({ type: "daily", time: scheduleTime });
         } else if (recurrence === "weekly") {
@@ -140,39 +218,75 @@ export default function EditQuestModal({
         }
       }
 
-      // Update quest fields (always happens)
-      const updateData = {
-        ...(displayName.trim() && { display_name: displayName.trim() }),
-        ...(description.trim() && { description: description.trim() }),
-        ...(selectedTags.length > 0 && { tags: selectedTags.join(",").toLowerCase() }),
-        xp_reward: baseXP,
-        gold_reward: baseGold,
-      };
+      if (createQuestOnSave) {
+        // CREATE QUEST MODE (From Template or Random with initialData)
+        const userId = parseInt(localStorage.getItem("userId") || "");
+        if (!userId) {
+          throw new Error("User ID not found in session");
+        }
 
-      await api.quests.update(quest.id, updateData, token);
+        if (isCreateMode) {
+          // Random quest with initialData - create standalone quest
+          const questData = {
+            title: initialData!.title,
+            ...(displayName.trim() && { display_name: displayName.trim() }),
+            ...(description.trim() && { description: description.trim() }),
+            ...(selectedTags.length > 0 && { tags: selectedTags.join(",").toLowerCase() }),
+            xp_reward: baseXP,
+            gold_reward: baseGold,
+          };
 
-      // Convert to template if checkbox checked
-      if (saveAsTemplate && quest.quest_template_id === null) {
-        await api.quests.convertToTemplate(
-          quest.id,
-          {
-            recurrence: recurrence,
-            schedule: schedule,
-            due_in_hours: dueInHours ? parseInt(dueInHours) : null,
-          },
-          token
-        );
+          await api.quests.createAIScribe(questData, token, userId, true); // skip_ai=true
+        } else if (templateId) {
+          // From template - create quest from template
+          await api.quests.create(
+            { quest_template_id: templateId },
+            token,
+            userId
+          );
+        }
+
+        onSave?.();
+        onClose?.();
+      } else if (quest) {
+        // EDIT QUEST MODE: Update existing quest
+        const updateData = {
+          ...(displayName.trim() && { display_name: displayName.trim() }),
+          ...(description.trim() && { description: description.trim() }),
+          ...(selectedTags.length > 0 && { tags: selectedTags.join(",").toLowerCase() }),
+          xp_reward: baseXP,
+          gold_reward: baseGold,
+        };
+
+        await api.quests.update(quest.id, updateData, token);
+
+        // Convert to template if checkbox checked
+        if (saveAsTemplate && quest.quest_template_id === null) {
+          await api.quests.convertToTemplate(
+            quest.id,
+            {
+              recurrence: recurrence,
+              schedule: schedule,
+              due_in_hours: dueInHours ? parseInt(dueInHours) : null,
+            },
+            token
+          );
+        }
+
+        onSave?.();
+        onClose?.();
       }
-
-      onSave?.();
-      onClose?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save quest");
+      setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
       setSaving(false);
     }
   }, [
     quest,
+    createQuestOnSave,
+    isCreateMode,
+    initialData,
+    templateId,
     time,
     effort,
     dread,

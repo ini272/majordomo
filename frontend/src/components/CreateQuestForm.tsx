@@ -27,6 +27,10 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   const [skipAI, setSkipAI] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingQuestId, setEditingQuestId] = useState<number | null>(null);
+  const [createdTemplateId, setCreatedTemplateId] = useState<number | null>(null);
+  const [templateInitialData, setTemplateInitialData] = useState<any>(null);
+  const [createQuestOnSave, setCreateQuestOnSave] = useState(false);
+  const [deleteQuestOnCancel, setDeleteQuestOnCancel] = useState(false);
   const [templates, setTemplates] = useState<QuestTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<QuestTemplate | null>(null);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -87,8 +91,9 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
         skipAI
       );
 
-      // Open EditQuestModal with quest
+      // Open EditQuestModal with quest (delete on cancel since AI needs quest ID)
       setEditingQuestId(quest.id);
+      setDeleteQuestOnCancel(true);
       setShowEditModal(true);
 
       // Reset form
@@ -109,23 +114,27 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   };
 
   const handleRandomQuest = async () => {
-    const userId = parseInt(localStorage.getItem("userId") || "");
-    if (!userId) {
-      setError("User ID not found in session");
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
     try {
-      // Create standalone quest with random sample data
-      const quest = await api.quests.createRandom(token, userId);
+      const sample = getRandomSampleQuest();
+      const xpReward = (sample.time + sample.effort + sample.dread) * 2;
+      const goldReward = Math.floor(xpReward / 2);
 
-      // Open EditQuestModal with quest
-      setEditingQuestId(quest.id);
+      // Don't create quest yet - pass initial data to EditQuestModal
+      setTemplateInitialData({
+        title: sample.title,
+        display_name: sample.display_name,
+        description: sample.description,
+        tags: sample.tags,
+        xp_reward: xpReward,
+        gold_reward: goldReward,
+        recurrence: "one-off",
+      });
+      setCreateQuestOnSave(true);
       setShowEditModal(true);
-      setSkipAI(true);  // AI already populated by backend
+      setSkipAI(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create quest");
     } finally {
@@ -145,8 +154,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
     if (openEditModal) {
       // Open edit modal to customize before creating quest
       setCreatedTemplateId(selectedTemplate.id);
+      setCreateQuestOnSave(true);
       setShowEditModal(true);
-      setShowCreateMode(true);  // Flag to create quest on save
     } else {
       // Quick create - create quest immediately
       setLoading(true);
@@ -776,20 +785,39 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       </div>
 
       {/* Edit Quest Modal */}
-      {showEditModal && editingQuestId && (
+      {showEditModal && (editingQuestId || createdTemplateId || templateInitialData) && (
         <EditQuestModal
-          questId={editingQuestId}
+          questId={editingQuestId || undefined}
+          templateId={createdTemplateId || undefined}
+          initialData={templateInitialData || undefined}
           token={token}
           skipAI={skipAI}
+          createQuestOnSave={createQuestOnSave}
           onSave={() => {
             setShowEditModal(false);
             setEditingQuestId(null);
+            setCreatedTemplateId(null);
+            setTemplateInitialData(null);
+            setCreateQuestOnSave(false);
+            setDeleteQuestOnCancel(false);
             onQuestCreated();
             onClose();
           }}
-          onClose={() => {
+          onClose={async () => {
+            // If quest was created for AI Scribe and user cancels, delete it
+            if (deleteQuestOnCancel && editingQuestId) {
+              try {
+                await api.quests.delete(editingQuestId, token);
+              } catch (err) {
+                console.error("Failed to cleanup quest:", err);
+              }
+            }
             setShowEditModal(false);
             setEditingQuestId(null);
+            setCreatedTemplateId(null);
+            setTemplateInitialData(null);
+            setCreateQuestOnSave(false);
+            setDeleteQuestOnCancel(false);
             onClose();
           }}
         />
