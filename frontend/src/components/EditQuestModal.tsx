@@ -248,6 +248,53 @@ export default function EditQuestModal({
 
         onSave?.();
         onClose?.();
+      } else if (templateId) {
+        // EDIT TEMPLATE MODE: Update template and subscriptions
+        const updateData = {
+          ...(displayName.trim() && { display_name: displayName.trim() }),
+          ...(description.trim() && { description: description.trim() }),
+          ...(selectedTags.length > 0 && { tags: selectedTags.join(",").toLowerCase() }),
+          xp_reward: baseXP,
+          gold_reward: baseGold,
+          recurrence: recurrence,
+          schedule: schedule,
+          due_in_hours: dueInHours ? parseInt(dueInHours) : null,
+        };
+
+        await api.quests.updateTemplate(templateId, updateData, token);
+
+        // Handle subscription changes
+        if (originalRecurrence === "one-off" && recurrence !== "one-off") {
+          // Create subscription
+          await api.subscriptions.create(
+            {
+              quest_template_id: templateId,
+              recurrence: recurrence,
+              ...(schedule && { schedule }),
+              ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
+            },
+            token
+          );
+        } else if (originalRecurrence !== "one-off" && recurrence === "one-off") {
+          // Delete subscription
+          if (subscription) {
+            await api.subscriptions.delete(subscription.id, token);
+          }
+        } else if (recurrence !== "one-off" && subscription) {
+          // Update subscription
+          await api.subscriptions.update(
+            subscription.id,
+            {
+              recurrence: recurrence,
+              schedule: schedule,
+              due_in_hours: dueInHours ? parseInt(dueInHours) : null,
+            },
+            token
+          );
+        }
+
+        onSave?.();
+        onClose?.();
       } else if (quest) {
         // EDIT QUEST MODE: Update existing quest
         const updateData = {
@@ -287,6 +334,8 @@ export default function EditQuestModal({
     isCreateMode,
     initialData,
     templateId,
+    subscription,
+    originalRecurrence,
     time,
     effort,
     dread,
@@ -541,8 +590,8 @@ export default function EditQuestModal({
                 </div>
               </div>
 
-              {/* Template Conversion (only for standalone quests) */}
-              {quest && quest.quest_template_id === null && (
+              {/* Template Conversion (only for standalone quests being edited) */}
+              {quest && quest.quest_template_id === null && !templateId && (
                 <div className="mb-6">
                   <label className="flex items-center gap-2">
                     <input
@@ -568,8 +617,9 @@ export default function EditQuestModal({
                 </div>
               )}
 
-              {/* Recurrence Configuration - only show if saving as template */}
-              {saveAsTemplate && (
+              {/* Recurrence Configuration */}
+              {/* Show when: (1) editing template, (2) from template mode, or (3) standalone quest with checkbox */}
+              {(templateId || saveAsTemplate) && !(quest && quest.quest_template_id !== null) && (
                 <div className="mb-6">
                   <label
                     className="block text-sm uppercase tracking-wider mb-2 font-serif"

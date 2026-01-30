@@ -794,6 +794,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
           skipAI={skipAI}
           createQuestOnSave={createQuestOnSave}
           onSave={() => {
+            // Clear state before calling user callbacks (prevents delete logic)
+            const questIdToDelete = null; // No deletion on save
             setShowEditModal(false);
             setEditingQuestId(null);
             setCreatedTemplateId(null);
@@ -804,20 +806,26 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
             onClose();
           }}
           onClose={async () => {
-            // If quest was created for AI Scribe and user cancels, delete it
-            if (deleteQuestOnCancel && editingQuestId) {
-              try {
-                await api.quests.delete(editingQuestId, token);
-              } catch (err) {
-                console.error("Failed to cleanup quest:", err);
-              }
-            }
+            // Capture the current quest ID before clearing state
+            const questIdToDelete = deleteQuestOnCancel ? editingQuestId : null;
+
+            // Clear state first
             setShowEditModal(false);
             setEditingQuestId(null);
             setCreatedTemplateId(null);
             setTemplateInitialData(null);
             setCreateQuestOnSave(false);
             setDeleteQuestOnCancel(false);
+
+            // Delete quest if needed (AFTER state cleared)
+            if (questIdToDelete) {
+              try {
+                await api.quests.delete(questIdToDelete, token);
+              } catch (err) {
+                console.error("Failed to cleanup quest:", err);
+              }
+            }
+
             onClose();
           }}
         />
