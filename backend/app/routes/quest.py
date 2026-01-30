@@ -13,6 +13,7 @@ from app.crud import user as crud_user
 from app.database import get_db
 from app.errors import ErrorCode, create_error_detail
 from app.models.quest import (
+    ConvertToTemplateRequest,
     Quest,
     QuestCreate,
     QuestCreateStandalone,
@@ -610,6 +611,79 @@ def delete_quest_template(
 
     crud_quest_template.delete_quest_template(db, template_id)
     return {"detail": "Quest template deleted"}
+
+
+@router.post("/{quest_id}/convert-to-template", response_model=QuestTemplateRead)
+def convert_quest_to_template(
+    quest_id: int,
+    conversion_data: ConvertToTemplateRequest,
+    db: Session = Depends(get_db),
+    auth: dict = Depends(get_current_user),
+):
+    """
+    Convert a standalone quest to a reusable template.
+
+    Creates a template from the quest's snapshot data,
+    links the quest to the template, and auto-subscribes
+    the user if the template is recurring.
+    """
+    home_id = auth["home_id"]
+    user_id = auth["user_id"]
+
+    # Get quest
+    quest = crud_quest.get_quest(db, quest_id)
+    if not quest or quest.home_id != home_id:
+        raise HTTPException(status_code=404, detail="Quest not found")
+
+    # Validate quest is standalone
+    if quest.quest_template_id is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Quest is already linked to a template"
+        )
+
+    # Validate schedule configuration
+    _validate_quest_schedule(conversion_data.recurrence, conversion_data.schedule)
+
+    # Create template from quest snapshot
+    template_data = QuestTemplateCreate(
+        title=quest.title,
+        display_name=quest.display_name,
+        description=quest.description,
+        tags=quest.tags,
+        xp_reward=quest.xp_reward,
+        gold_reward=quest.gold_reward,
+        quest_type=quest.quest_type,
+        recurrence=conversion_data.recurrence,
+        schedule=conversion_data.schedule,
+        due_in_hours=conversion_data.due_in_hours
+    )
+    template = crud_quest_template.create_quest_template(
+        db, home_id, quest.user_id, template_data
+    )
+
+    # Link quest to template
+    quest.quest_template_id = template.id
+    quest.recurrence = conversion_data.recurrence
+    quest.schedule = conversion_data.schedule
+    db.add(quest)
+    db.commit()
+    db.refresh(quest)
+
+    # Auto-subscribe user if recurring
+    if conversion_data.recurrence != "one-off":
+        from app.crud import subscription as crud_subscription
+        from app.models.quest import UserTemplateSubscriptionCreate
+
+        subscription_data = UserTemplateSubscriptionCreate(
+            quest_template_id=template.id,
+            recurrence=conversion_data.recurrence,
+            schedule=conversion_data.schedule,
+            due_in_hours=conversion_data.due_in_hours
+        )
+        crud_subscription.create_subscription(db, user_id, subscription_data)
+
+    return template
 
 
 @router.put("/{quest_id}", response_model=QuestRead)
