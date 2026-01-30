@@ -435,7 +435,50 @@ def _validate_quest_schedule(recurrence: str, schedule: Optional[str]) -> None:
             )
 
 
-def _generate_and_update_quest_template(template_id: int, quest_title: str):
+def _generate_and_update_quest(quest_id: int, quest_title: str):
+    """Background task to generate quest content and update quest"""
+    import time
+
+    time.sleep(0.5)  # Small delay to ensure quest is committed
+
+    try:
+        from sqlmodel import Session
+
+        from app.database import engine
+        from app.crud import quest as crud_quest
+
+        # Generate content using Groq
+        scribe_response = generate_quest_content(quest_title)
+        if not scribe_response:
+            return  # Silently fail if Groq unavailable
+
+        # Update quest with generated content
+        with Session(engine) as db:
+            quest = crud_quest.get_quest(db, quest_id)
+            if not quest:
+                return
+
+            # Only update if fields are empty (don't override user input)
+            if not quest.display_name:
+                quest.display_name = scribe_response.display_name
+            if not quest.description:
+                quest.description = scribe_response.description
+            if not quest.tags:
+                quest.tags = scribe_response.tags
+
+            # Always update rewards based on calculated values
+            quest.xp_reward = scribe_response.calculate_xp()
+            quest.gold_reward = scribe_response.calculate_gold()
+
+            db.add(quest)
+            db.commit()
+    except Exception as e:
+        import logging
+
+        logging.error(f"Error in scribe background task: {e}")
+
+
+def _generate_and_update_quest_template_legacy(template_id: int, quest_title: str):
     """Background task to generate quest content and update template"""
     import time
 
@@ -523,7 +566,7 @@ def create_quest_template(
     # Trigger background task to generate content from Groq (unless skipping AI)
     if not skip_ai:
         background_tasks.add_task(
-            _generate_and_update_quest_template,
+            _generate_and_update_quest_template_legacy,
             template_id=new_template.id,
             quest_title=new_template.title,
         )
