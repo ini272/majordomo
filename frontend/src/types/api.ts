@@ -118,6 +118,28 @@ export interface QuestCreateRequest {
   due_date?: string | null;
 }
 
+export interface QuestCreateStandaloneRequest {
+  title: string;
+  display_name?: string;
+  description?: string;
+  tags?: string;
+  xp_reward?: number;
+  gold_reward?: number;
+  due_date?: string | null;
+}
+
+export interface AIContentRequest {
+  title: string;
+}
+
+export interface AIContentResponse {
+  display_name: string;
+  description: string;
+  tags: string;
+  xp_reward: number;
+  gold_reward: number;
+}
+
 export interface Achievement {
   id: number;
   home_id: number | null;

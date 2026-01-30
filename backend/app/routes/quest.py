@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.auth import get_current_user
@@ -27,6 +28,19 @@ from app.services.recurring_quests import generate_due_quests
 from app.services.scribe import generate_quest_content
 
 router = APIRouter(prefix="/api/quests", tags=["quests"])
+
+
+# Pydantic models for AI content generation
+class AIContentRequest(BaseModel):
+    title: str
+
+
+class AIContentResponse(BaseModel):
+    display_name: str
+    description: str
+    tags: str
+    xp_reward: int
+    gold_reward: int
 
 
 def _calculate_corruption_debuff(db: Session, home_id: int, user: User) -> float:
@@ -150,6 +164,39 @@ def create_quest(
         raise HTTPException(status_code=404, detail="Quest template not found in home")
 
     return crud_quest.create_quest(db, home_id, user_id, quest, template)
+
+
+@router.post("/generate-ai-content", response_model=AIContentResponse)
+def generate_ai_content(
+    request: AIContentRequest,
+    auth: dict = Depends(get_current_user)
+):
+    """
+    Generate AI content for a quest without creating a template.
+
+    This endpoint calls the Groq AI service to generate:
+    - Fantasy display name
+    - Engaging description
+    - Appropriate tags
+    - Calculated XP/gold rewards based on time/effort/dread
+
+    Used by the AI Scribe flow to create standalone quests.
+    """
+    scribe_response = generate_quest_content(request.title)
+
+    if not scribe_response:
+        raise HTTPException(
+            status_code=503,
+            detail="AI content generation service is unavailable. Please try again later or use manual creation."
+        )
+
+    return AIContentResponse(
+        display_name=scribe_response.display_name,
+        description=scribe_response.description,
+        tags=scribe_response.tags,
+        xp_reward=scribe_response.calculate_xp(),
+        gold_reward=scribe_response.calculate_gold()
+    )
 
 
 @router.post("/standalone", response_model=QuestRead)
