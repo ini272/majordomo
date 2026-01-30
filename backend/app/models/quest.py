@@ -206,6 +206,11 @@ class QuestCreateStandalone(SQLModel):
 class QuestUpdate(SQLModel):
     """Schema for updating a quest"""
 
+    display_name: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[str] = None
+    xp_reward: Optional[int] = None
+    gold_reward: Optional[int] = None
     completed: Optional[bool] = None
     quest_type: Optional[str] = None
     due_date: Optional[datetime] = None
