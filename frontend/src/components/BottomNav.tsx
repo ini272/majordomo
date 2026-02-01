@@ -16,7 +16,6 @@ export default function BottomNav() {
     { path: "/board", label: "Board", icon: "📜" },
     { path: "/profile", label: "Profile", icon: "👤" },
     { path: "/market", label: "Market", icon: "💰" },
-    { path: "/heroes", label: "Heroes", icon: "🏆" },
   ];
 
   return (
