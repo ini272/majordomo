@@ -13,6 +13,7 @@ from app.crud import user as crud_user
 from app.database import get_db
 from app.errors import ErrorCode, create_error_detail
 from app.models.quest import (
+    ConvertToTemplateRequest,
     Quest,
     QuestCreate,
     QuestCreateStandalone,
@@ -165,6 +166,114 @@ def create_standalone_quest(
         raise HTTPException(status_code=404, detail="User not found in home")
 
     return crud_quest.create_standalone_quest(db, home_id, user_id, quest)
+
+
+@router.post("/ai-scribe", response_model=QuestRead)
+def create_ai_scribe_quest(
+    user_id: int = Query(...),
+    skip_ai: bool = Query(False),
+    quest_data: QuestCreateStandalone = None,
+    db: Session = Depends(get_db),
+    auth: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+):
+    """
+    Create a standalone quest with optional AI-generated content.
+
+    - **user_id**: User ID to assign quest to
+    - **skip_ai**: Set to true to skip AI generation (default: false)
+    - **quest_data**: Quest data (title required, other fields optional)
+
+    If skip_ai=false and GROQ_API_KEY is set, AI will generate
+    display_name, description, and tags in the background.
+    """
+    home_id = auth["home_id"]
+
+    # Verify user exists in home
+    user = crud_user.get_user(db, user_id)
+    if not user or user.home_id != home_id:
+        raise HTTPException(status_code=404, detail="User not found in home")
+
+    # Create standalone quest
+    quest = crud_quest.create_standalone_quest(db, home_id, user_id, quest_data)
+
+    # Trigger AI generation in background (unless skipping)
+    if not skip_ai:
+        background_tasks.add_task(
+            _generate_and_update_quest,
+            quest_id=quest.id,
+            quest_title=quest.title,
+        )
+
+    return quest
+
+
+@router.post("/random", response_model=QuestRead)
+def create_random_quest(
+    user_id: int = Query(...),
+    db: Session = Depends(get_db),
+    auth: dict = Depends(get_current_user),
+):
+    """
+    Create a standalone quest with random sample data.
+
+    Useful for testing and demo purposes.
+    """
+    import random
+
+    home_id = auth["home_id"]
+
+    # Verify user exists in home
+    user = crud_user.get_user(db, user_id)
+    if not user or user.home_id != home_id:
+        raise HTTPException(status_code=404, detail="User not found in home")
+
+    # Sample quest data
+    samples = [
+        {
+            "title": "Clean kitchen",
+            "display_name": "The Kitchen Cleanse",
+            "description": "Vanquish the grimy counters and slay the sink dragon.",
+            "tags": "chores,cleaning",
+            "time": 3,
+            "effort": 2,
+            "dread": 4,
+        },
+        {
+            "title": "Do laundry",
+            "display_name": "The Garb Guardian",
+            "description": "Sort, wash, and fold the cloth of champions.",
+            "tags": "chores",
+            "time": 4,
+            "effort": 2,
+            "dread": 3,
+        },
+        {
+            "title": "Exercise",
+            "display_name": "The Body Forge",
+            "description": "Forge your body in the crucible of effort.",
+            "tags": "exercise,health",
+            "time": 3,
+            "effort": 4,
+            "dread": 3,
+        },
+    ]
+
+    sample = random.choice(samples)
+    xp_reward = (sample["time"] + sample["effort"] + sample["dread"]) * 2
+    gold_reward = xp_reward // 2
+
+    quest_data = QuestCreateStandalone(
+        title=sample["title"],
+        display_name=sample["display_name"],
+        description=sample["description"],
+        tags=sample["tags"],
+        xp_reward=xp_reward,
+        gold_reward=gold_reward,
+    )
+
+    quest = crud_quest.create_standalone_quest(db, home_id, user_id, quest_data)
+    return quest
 
 
 @router.post("/templates/{template_id}/generate-instance", response_model=QuestRead)
@@ -435,7 +544,50 @@ def _validate_quest_schedule(recurrence: str, schedule: Optional[str]) -> None:
             )
 
 
-def _generate_and_update_quest_template(template_id: int, quest_title: str):
+def _generate_and_update_quest(quest_id: int, quest_title: str):
+    """Background task to generate quest content and update quest"""
+    import time
+
+    time.sleep(0.5)  # Small delay to ensure quest is committed
+
+    try:
+        from sqlmodel import Session
+
+        from app.database import engine
+        from app.crud import quest as crud_quest
+
+        # Generate content using Groq
+        scribe_response = generate_quest_content(quest_title)
+        if not scribe_response:
+            return  # Silently fail if Groq unavailable
+
+        # Update quest with generated content
+        with Session(engine) as db:
+            quest = crud_quest.get_quest(db, quest_id)
+            if not quest:
+                return
+
+            # Only update if fields are empty (don't override user input)
+            if not quest.display_name:
+                quest.display_name = scribe_response.display_name
+            if not quest.description:
+                quest.description = scribe_response.description
+            if not quest.tags:
+                quest.tags = scribe_response.tags
+
+            # Always update rewards based on calculated values
+            quest.xp_reward = scribe_response.calculate_xp()
+            quest.gold_reward = scribe_response.calculate_gold()
+
+            db.add(quest)
+            db.commit()
+    except Exception as e:
+        import logging
+
+        logging.error(f"Error in scribe background task: {e}")
+
+
+def _generate_and_update_quest_template_legacy(template_id: int, quest_title: str):
     """Background task to generate quest content and update template"""
     import time
 
@@ -523,7 +675,7 @@ def create_quest_template(
     # Trigger background task to generate content from Groq (unless skipping AI)
     if not skip_ai:
         background_tasks.add_task(
-            _generate_and_update_quest_template,
+            _generate_and_update_quest_template_legacy,
             template_id=new_template.id,
             quest_title=new_template.title,
         )
@@ -567,6 +719,79 @@ def delete_quest_template(
 
     crud_quest_template.delete_quest_template(db, template_id)
     return {"detail": "Quest template deleted"}
+
+
+@router.post("/{quest_id}/convert-to-template", response_model=QuestTemplateRead)
+def convert_quest_to_template(
+    quest_id: int,
+    conversion_data: ConvertToTemplateRequest,
+    db: Session = Depends(get_db),
+    auth: dict = Depends(get_current_user),
+):
+    """
+    Convert a standalone quest to a reusable template.
+
+    Creates a template from the quest's snapshot data,
+    links the quest to the template, and auto-subscribes
+    the user if the template is recurring.
+    """
+    home_id = auth["home_id"]
+    user_id = auth["user_id"]
+
+    # Get quest
+    quest = crud_quest.get_quest(db, quest_id)
+    if not quest or quest.home_id != home_id:
+        raise HTTPException(status_code=404, detail="Quest not found")
+
+    # Validate quest is standalone
+    if quest.quest_template_id is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Quest is already linked to a template"
+        )
+
+    # Validate schedule configuration
+    _validate_quest_schedule(conversion_data.recurrence, conversion_data.schedule)
+
+    # Create template from quest snapshot
+    template_data = QuestTemplateCreate(
+        title=quest.title,
+        display_name=quest.display_name,
+        description=quest.description,
+        tags=quest.tags,
+        xp_reward=quest.xp_reward,
+        gold_reward=quest.gold_reward,
+        quest_type=quest.quest_type,
+        recurrence=conversion_data.recurrence,
+        schedule=conversion_data.schedule,
+        due_in_hours=conversion_data.due_in_hours
+    )
+    template = crud_quest_template.create_quest_template(
+        db, home_id, quest.user_id, template_data
+    )
+
+    # Link quest to template
+    quest.quest_template_id = template.id
+    quest.recurrence = conversion_data.recurrence
+    quest.schedule = conversion_data.schedule
+    db.add(quest)
+    db.commit()
+    db.refresh(quest)
+
+    # Auto-subscribe user if recurring
+    if conversion_data.recurrence != "one-off":
+        from app.crud import subscription as crud_subscription
+        from app.models.quest import UserTemplateSubscriptionCreate
+
+        subscription_data = UserTemplateSubscriptionCreate(
+            quest_template_id=template.id,
+            recurrence=conversion_data.recurrence,
+            schedule=conversion_data.schedule,
+            due_in_hours=conversion_data.due_in_hours
+        )
+        crud_subscription.create_subscription(db, user_id, subscription_data)
+
+    return template
 
 
 @router.put("/{quest_id}", response_model=QuestRead)

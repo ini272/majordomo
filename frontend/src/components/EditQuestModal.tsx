@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, ChangeEvent, FormEvent } from "react";
 import { api } from "../services/api";
 import { COLORS, PARCHMENT_STYLES } from "../constants/colors";
-import type { QuestTemplate, QuestTemplateUpdateRequest, UserTemplateSubscription } from "../types/api";
+import type { Quest, QuestTemplate, QuestTemplateUpdateRequest, UserTemplateSubscription } from "../types/api";
 import StewardImage from "../assets/thesteward.png";
 import ParchmentTypeWriter from "./ParchmentTypeWriter";
 
@@ -20,19 +20,22 @@ interface TemplateInitialData {
 }
 
 interface EditQuestModalProps {
-  // Edit mode: provide templateId to fetch and edit existing template
+  // Edit existing quest (fetch by ID)
+  questId?: number;
+  // From template - review & edit before creating quest
   templateId?: number;
-  // Create mode: provide initialData to create new template on save
+  // Random quest - initial data before creating quest
   initialData?: TemplateInitialData;
 
   token: string;
   skipAI: boolean;
-  createQuestOnSave?: boolean;  // If true, creates a quest with customized values
-  onSave?: (updated: QuestTemplate) => void;
+  createQuestOnSave?: boolean;  // If true, creates quest on save (for template/initialData modes)
+  onSave?: () => void;
   onClose?: () => void;
 }
 
 export default function EditQuestModal({
+  questId,
   templateId,
   initialData,
   token,
@@ -41,18 +44,11 @@ export default function EditQuestModal({
   onSave,
   onClose,
 }: EditQuestModalProps) {
-  // Validate: must provide either templateId or initialData, not both
-  if (!templateId && !initialData) {
-    throw new Error("EditQuestModal requires either templateId or initialData");
-  }
-  if (templateId && initialData) {
-    throw new Error("EditQuestModal cannot have both templateId and initialData");
-  }
-
   const isCreateMode = !!initialData;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quest, setQuest] = useState<Quest | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -63,6 +59,7 @@ export default function EditQuestModal({
   const [nameAnimationDone, setNameAnimationDone] = useState(false);
   const [subscription, setSubscription] = useState<UserTemplateSubscription | null>(null);
   const [originalRecurrence, setOriginalRecurrence] = useState<"one-off" | "daily" | "weekly" | "monthly">("one-off");
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
 
   // Recurring quest fields
   const [recurrence, setRecurrence] = useState<"one-off" | "daily" | "weekly" | "monthly">(
@@ -73,12 +70,12 @@ export default function EditQuestModal({
   const [scheduleDayOfMonth, setScheduleDayOfMonth] = useState<number>(1);
   const [dueInHours, setDueInHours] = useState<string>("");
 
-  // Fetch template (edit mode) or use initial data (create mode)
+  // Load data based on mode
   useEffect(() => {
     const loadData = async () => {
       try {
         if (isCreateMode) {
-          // CREATE MODE: Use provided initial data
+          // CREATE MODE (Random): Use provided initial data
           setDisplayName(initialData.display_name || "");
           setDescription(initialData.description || "");
 
@@ -91,50 +88,26 @@ export default function EditQuestModal({
             setSelectedTags(tags);
           }
 
-          // Parse recurring quest settings
-          const recur = (initialData.recurrence || "one-off") as "one-off" | "daily" | "weekly" | "monthly";
-          setRecurrence(recur);
-          setOriginalRecurrence(recur);
-
-          if (initialData.schedule) {
-            try {
-              const schedule = JSON.parse(initialData.schedule);
-              if (schedule.time) setScheduleTime(schedule.time);
-              if (schedule.day && typeof schedule.day === "string") setScheduleDay(schedule.day);
-              if (schedule.day && typeof schedule.day === "number")
-                setScheduleDayOfMonth(schedule.day);
-            } catch (err) {
-              console.error("Failed to parse schedule:", err);
-            }
-          }
-          if (initialData.due_in_hours) {
-            setDueInHours(initialData.due_in_hours.toString());
-          }
-
           setLoading(false);
-          // Show typewriter animation if there's content
           if (initialData.display_name || initialData.description) {
             setShowTypeWriter(true);
           }
-        } else {
-          // EDIT MODE: Fetch template from server
-          // Wait for Groq background task to complete (unless skipping AI)
+        } else if (templateId) {
+          // FROM TEMPLATE MODE: Fetch template to review before creating quest
           if (!skipAI) {
             await new Promise(resolve => setTimeout(resolve, 1500));
           }
 
-          const response = await api.quests.getTemplate(templateId!, token);
+          const response = await api.quests.getTemplate(templateId, token);
 
-          // Fetch user's subscriptions to see if they're subscribed to this template
+          // Fetch user's subscriptions
           const subscriptions = await api.subscriptions.getAll(token);
           const userSubscription = subscriptions.find(sub => sub.quest_template_id === templateId);
           setSubscription(userSubscription || null);
 
-          // Set form values from template
           setDisplayName(response.display_name || "");
           setDescription(response.description || "");
 
-          // Parse tags
           if (response.tags) {
             const tags = response.tags.split(",").map(t => {
               const trimmed = t.trim();
@@ -143,7 +116,7 @@ export default function EditQuestModal({
             setSelectedTags(tags);
           }
 
-          // Parse recurring quest settings - prefer subscription over template (Phase 3)
+          // Use subscription schedule if available (Phase 3)
           const effectiveRecurrence = userSubscription ? userSubscription.recurrence : response.recurrence;
           const effectiveSchedule = userSubscription?.schedule || response.schedule;
           const effectiveDueInHours = userSubscription?.due_in_hours ?? response.due_in_hours;
@@ -167,19 +140,58 @@ export default function EditQuestModal({
           }
 
           setLoading(false);
-          // Show typewriter animation after loading completes and has content
+          if (response.display_name || response.description) {
+            setShowTypeWriter(true);
+          }
+        } else if (questId) {
+          // EDIT QUEST MODE: Fetch quest by ID
+          if (!skipAI) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
+
+          const response = await api.quests.getQuest(questId, token);
+
+          setDisplayName(response.display_name || "");
+          setDescription(response.description || "");
+
+          if (response.tags) {
+            const tags = response.tags.split(",").map(t => {
+              const trimmed = t.trim();
+              return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+            });
+            setSelectedTags(tags);
+          }
+
+          setRecurrence(response.recurrence as "one-off" | "daily" | "weekly" | "monthly");
+          setOriginalRecurrence(response.recurrence as "one-off" | "daily" | "weekly" | "monthly");
+
+          if (response.schedule) {
+            try {
+              const schedule = JSON.parse(response.schedule);
+              if (schedule.time) setScheduleTime(schedule.time);
+              if (schedule.day && typeof schedule.day === "string") setScheduleDay(schedule.day);
+              if (schedule.day && typeof schedule.day === "number")
+                setScheduleDayOfMonth(schedule.day);
+            } catch (err) {
+              console.error("Failed to parse schedule:", err);
+            }
+          }
+
+          setQuest(response);
+          setLoading(false);
+
           if (response.display_name || response.description) {
             setShowTypeWriter(true);
           }
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load template");
+        setError(err instanceof Error ? err.message : "Failed to load data");
         setLoading(false);
       }
     };
 
     loadData();
-  }, [templateId, initialData, token, skipAI, isCreateMode]);
+  }, [questId, templateId, initialData, token, skipAI, isCreateMode]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -190,7 +202,7 @@ export default function EditQuestModal({
       const baseXP = (time + effort + dread) * 2;
       const baseGold = Math.floor(baseXP / 2);
 
-      // Build schedule JSON if recurring
+      // Build schedule JSON if needed
       let schedule: string | null = null;
       if (recurrence !== "one-off") {
         if (recurrence === "daily") {
@@ -206,83 +218,54 @@ export default function EditQuestModal({
         }
       }
 
-      const updateData: QuestTemplateUpdateRequest = {
-        ...(displayName.trim() && { display_name: displayName.trim() }),
-        ...(description.trim() && { description: description.trim() }),
-        ...(selectedTags.length > 0 && {
-          tags: selectedTags.join(",").toLowerCase(),
-        }),
-        xp_reward: baseXP,
-        gold_reward: baseGold,
-        recurrence: recurrence,
-        schedule: schedule,
-        due_in_hours: dueInHours ? parseInt(dueInHours) : null,
-      };
-
       if (createQuestOnSave) {
-        // CREATE QUEST MODE
+        // CREATE QUEST MODE (From Template or Random with initialData)
         const userId = parseInt(localStorage.getItem("userId") || "");
         if (!userId) {
           throw new Error("User ID not found in session");
         }
 
-        let finalTemplateId: number;
-
         if (isCreateMode) {
-          // Create mode: Create new template with customized values
-          const newTemplate = await api.quests.createTemplate(
-            {
-              title: initialData!.title,
-              ...(displayName.trim() && { display_name: displayName.trim() }),
-              ...(description.trim() && { description: description.trim() }),
-              ...(selectedTags.length > 0 && { tags: selectedTags.join(",").toLowerCase() }),
-              xp_reward: baseXP,
-              gold_reward: baseGold,
-              recurrence: recurrence,
-              schedule: schedule,
-              due_in_hours: dueInHours ? parseInt(dueInHours) : null,
-            },
+          // Random quest with initialData - create standalone quest
+          const questData = {
+            title: initialData!.title,
+            ...(displayName.trim() && { display_name: displayName.trim() }),
+            ...(description.trim() && { description: description.trim() }),
+            ...(selectedTags.length > 0 && { tags: selectedTags.join(",").toLowerCase() }),
+            xp_reward: baseXP,
+            gold_reward: baseGold,
+          };
+
+          await api.quests.createAIScribe(questData, token, userId, true); // skip_ai=true
+        } else if (templateId) {
+          // From template - create quest from template
+          await api.quests.create(
+            { quest_template_id: templateId },
             token,
-            userId,
-            skipAI
-          );
-          finalTemplateId = newTemplate.id;
-        } else {
-          // Edit mode: Update existing template with customized values
-          await api.quests.updateTemplate(templateId!, updateData, token);
-          finalTemplateId = templateId!;
-        }
-
-        // Create quest (snapshots from the template)
-        await api.quests.create(
-          {
-            quest_template_id: finalTemplateId,
-          },
-          token,
-          userId
-        );
-
-        // If recurring, create subscription for this user
-        if (recurrence !== "one-off") {
-          await api.subscriptions.create(
-            {
-              quest_template_id: finalTemplateId,
-              recurrence: recurrence,
-              ...(schedule && { schedule }),
-              ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
-            },
-            token
+            userId
           );
         }
 
+        onSave?.();
         onClose?.();
-      } else {
-        // EDIT MODE: Update the template and handle subscriptions
-        const updated = await api.quests.updateTemplate(templateId, updateData, token);
+      } else if (templateId) {
+        // EDIT TEMPLATE MODE: Update template and subscriptions
+        const updateData = {
+          ...(displayName.trim() && { display_name: displayName.trim() }),
+          ...(description.trim() && { description: description.trim() }),
+          ...(selectedTags.length > 0 && { tags: selectedTags.join(",").toLowerCase() }),
+          xp_reward: baseXP,
+          gold_reward: baseGold,
+          recurrence: recurrence,
+          schedule: schedule,
+          due_in_hours: dueInHours ? parseInt(dueInHours) : null,
+        };
 
-        // Handle subscription changes (Phase 3)
+        await api.quests.updateTemplate(templateId, updateData, token);
+
+        // Handle subscription changes
         if (originalRecurrence === "one-off" && recurrence !== "one-off") {
-          // Changed from one-off to recurring - create subscription
+          // Create subscription
           await api.subscriptions.create(
             {
               quest_template_id: templateId,
@@ -293,12 +276,12 @@ export default function EditQuestModal({
             token
           );
         } else if (originalRecurrence !== "one-off" && recurrence === "one-off") {
-          // Changed from recurring to one-off - delete subscription
+          // Delete subscription
           if (subscription) {
             await api.subscriptions.delete(subscription.id, token);
           }
         } else if (recurrence !== "one-off" && subscription) {
-          // Still recurring - update subscription
+          // Update subscription
           await api.subscriptions.update(
             subscription.id,
             {
@@ -310,27 +293,61 @@ export default function EditQuestModal({
           );
         }
 
-        onSave?.(updated);
+        onSave?.();
+        onClose?.();
+      } else if (quest) {
+        // EDIT QUEST MODE: Update existing quest
+        const updateData = {
+          ...(displayName.trim() && { display_name: displayName.trim() }),
+          ...(description.trim() && { description: description.trim() }),
+          ...(selectedTags.length > 0 && { tags: selectedTags.join(",").toLowerCase() }),
+          xp_reward: baseXP,
+          gold_reward: baseGold,
+        };
+
+        await api.quests.update(quest.id, updateData, token);
+
+        // Convert to template if checkbox checked
+        if (saveAsTemplate && quest.quest_template_id === null) {
+          await api.quests.convertToTemplate(
+            quest.id,
+            {
+              recurrence: recurrence,
+              schedule: schedule,
+              due_in_hours: dueInHours ? parseInt(dueInHours) : null,
+            },
+            token
+          );
+        }
+
+        onSave?.();
         onClose?.();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save template");
+      setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
       setSaving(false);
     }
   }, [
+    quest,
+    createQuestOnSave,
+    isCreateMode,
+    initialData,
+    templateId,
+    subscription,
+    originalRecurrence,
     time,
     effort,
     dread,
     displayName,
     description,
     selectedTags,
+    saveAsTemplate,
     recurrence,
     scheduleTime,
     scheduleDay,
     scheduleDayOfMonth,
     dueInHours,
-    templateId,
     token,
     onSave,
     onClose,
@@ -408,6 +425,24 @@ export default function EditQuestModal({
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
+              {/* Template Info Badge (for templated quests) */}
+              {quest && quest.quest_template_id !== null && (
+                <div
+                  className="mb-4 px-3 py-2 rounded text-sm font-serif"
+                  style={{
+                    backgroundColor: `rgba(212, 175, 55, 0.1)`,
+                    borderColor: COLORS.gold,
+                    borderWidth: "1px",
+                    color: COLORS.parchment,
+                  }}
+                >
+                  📜 From template: {quest.template?.display_name || quest.template?.title || "Unknown"}
+                  <div className="text-xs mt-1 italic">
+                    Changes only affect this quest. To edit template/schedule, go to template management.
+                  </div>
+                </div>
+              )}
+
               {/* Display Name */}
               <div className="mb-6">
                 <label
@@ -555,14 +590,43 @@ export default function EditQuestModal({
                 </div>
               </div>
 
+              {/* Template Conversion (only for standalone quests being edited) */}
+              {quest && quest.quest_template_id === null && !templateId && (
+                <div className="mb-6">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={saveAsTemplate}
+                      onChange={e => setSaveAsTemplate(e.target.checked)}
+                      className="w-4 h-4"
+                      style={{ accentColor: COLORS.gold }}
+                      disabled={saving}
+                    />
+                    <span
+                      className="text-sm uppercase tracking-wider font-serif"
+                      style={{ color: COLORS.gold }}
+                    >
+                      Save as reusable template
+                    </span>
+                  </label>
+                  {saveAsTemplate && (
+                    <p className="text-xs mt-1 font-serif italic" style={{ color: COLORS.parchment }}>
+                      Template can be reused and scheduled for recurring quests
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Recurrence Configuration */}
-              <div className="mb-6">
-                <label
-                  className="block text-sm uppercase tracking-wider mb-2 font-serif"
-                  style={{ color: COLORS.gold }}
-                >
-                  Recurrence
-                </label>
+              {/* Show when: (1) editing template, (2) from template mode, or (3) standalone quest with checkbox */}
+              {(templateId || saveAsTemplate) && !(quest && quest.quest_template_id !== null) && (
+                <div className="mb-6">
+                  <label
+                    className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                    style={{ color: COLORS.gold }}
+                  >
+                    Recurrence
+                  </label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
                   {(["one-off", "daily", "weekly", "monthly"] as const).map(type => (
                     <button
@@ -775,6 +839,7 @@ export default function EditQuestModal({
                   </div>
                 )}
               </div>
+              )}
 
               {/* Sliders */}
               <div

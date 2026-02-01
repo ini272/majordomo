@@ -178,3 +178,9 @@ export interface UserTemplateSubscriptionUpdate {
   due_in_hours?: number | null;
   is_active?: boolean;
 }
+
+export interface ConvertToTemplateRequest {
+  recurrence: string;
+  schedule?: string | null;
+  due_in_hours?: number | null;
+}

@@ -836,3 +836,39 @@ def test_delete_template_orphans_quests(client: TestClient, home_with_user):
     # Quest should still display correct data from snapshot
     assert result["quest"]["title"] == "Temporary template"
     assert result["rewards"]["xp"] == 50
+
+
+def test_create_ai_scribe_quest(client: TestClient, db_home_with_users):
+    """Test creating standalone quest via AI Scribe"""
+    home, user, _user2 = db_home_with_users
+
+    response = client.post(
+        f"/api/quests/ai-scribe?user_id={user.id}&skip_ai=true",
+        json={
+            "title": "Clean kitchen",
+            "tags": "chores,cleaning",
+            "xp_reward": 25,
+            "gold_reward": 15
+        }
+    )
+
+    assert response.status_code == 200
+    quest = response.json()
+    assert quest["title"] == "Clean kitchen"
+    assert quest["tags"] == "chores,cleaning"
+    assert quest["quest_template_id"] is None  # Standalone
+    assert quest["completed"] is False
+
+
+def test_create_random_quest(client: TestClient, db_home_with_users):
+    """Test creating random quest with sample data"""
+    home, user, _user2 = db_home_with_users
+
+    response = client.post(f"/api/quests/random?user_id={user.id}")
+
+    assert response.status_code == 200
+    quest = response.json()
+    assert quest["title"] is not None
+    assert quest["display_name"] is not None
+    assert quest["quest_template_id"] is None  # Standalone
+    assert quest["xp_reward"] > 0
