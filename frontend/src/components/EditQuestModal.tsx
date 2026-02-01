@@ -236,7 +236,20 @@ export default function EditQuestModal({
             gold_reward: baseGold,
           };
 
-          await api.quests.createAIScribe(questData, token, userId, true); // skip_ai=true
+          const createdQuest = await api.quests.createAIScribe(questData, token, userId, true); // skip_ai=true
+
+          // Convert to template if checkbox checked
+          if (saveAsTemplate) {
+            await api.quests.convertToTemplate(
+              createdQuest.id,
+              {
+                recurrence: recurrence,
+                schedule: schedule,
+                due_in_hours: dueInHours ? parseInt(dueInHours) : null,
+              },
+              token
+            );
+          }
         } else if (templateId) {
           // From template - create quest from template
           await api.quests.create(
@@ -247,7 +260,7 @@ export default function EditQuestModal({
         }
 
         onSave?.();
-        onClose?.();
+        // Don't call onClose - parent's onSave callback handles closing
       } else if (templateId) {
         // EDIT TEMPLATE MODE: Update template and subscriptions
         const updateData = {
@@ -294,7 +307,7 @@ export default function EditQuestModal({
         }
 
         onSave?.();
-        onClose?.();
+        // Don't call onClose - parent's onSave callback handles closing
       } else if (quest) {
         // EDIT QUEST MODE: Update existing quest
         const updateData = {
@@ -321,7 +334,7 @@ export default function EditQuestModal({
         }
 
         onSave?.();
-        onClose?.();
+        // Don't call onClose - parent's onSave callback handles closing
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
@@ -590,8 +603,8 @@ export default function EditQuestModal({
                 </div>
               </div>
 
-              {/* Template Conversion (only for standalone quests being edited) */}
-              {quest && quest.quest_template_id === null && !templateId && (
+              {/* Template Conversion (for standalone quests and new quest creation) */}
+              {((quest && quest.quest_template_id === null) || isCreateMode) && !templateId && (
                 <div className="mb-6">
                   <label className="flex items-center gap-2">
                     <input
