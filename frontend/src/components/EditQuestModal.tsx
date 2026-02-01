@@ -322,15 +322,14 @@ export default function EditQuestModal({
 
         // Convert to template if checkbox checked
         if (saveAsTemplate && quest.quest_template_id === null) {
-          await api.quests.convertToTemplate(
-            quest.id,
-            {
-              recurrence: recurrence,
-              schedule: schedule,
-              due_in_hours: dueInHours ? parseInt(dueInHours) : null,
-            },
-            token
-          );
+          const conversionData = {
+            recurrence: recurrence,
+            schedule: schedule,
+            due_in_hours: dueInHours ? parseInt(dueInHours) : null,
+          };
+          console.log("Converting to template with data:", conversionData);
+          console.log("dueInHours state:", dueInHours);
+          await api.quests.convertToTemplate(quest.id, conversionData, token);
         }
 
         onSave?.();
