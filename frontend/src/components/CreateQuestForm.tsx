@@ -345,7 +345,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
           )}
 
           {mode === "from-template" && (
-            <div className="flex flex-col h-[500px]">
+            <div className="flex flex-col gap-4 min-h-[500px]">
               {loadingTemplates ? (
                 <div
                   className="flex items-center justify-center h-full text-sm font-serif"

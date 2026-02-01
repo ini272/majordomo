@@ -84,7 +84,7 @@ export default function SearchableSelect<T>({
   };
 
   return (
-    <div className="flex flex-col h-full pb-4">
+    <div className="flex flex-col flex-1 pb-4">
       {/* Search Input */}
       <div className="mb-4">
         <input
