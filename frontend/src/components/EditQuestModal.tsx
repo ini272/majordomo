@@ -433,7 +433,7 @@ export default function EditQuestModal({
                 />
               </div>
               <p className="text-center font-serif" style={{ color: COLORS.brown }}>
-                The Scribe is weaving your quest...
+                {templateId ? "Loading template..." : questId ? "Loading quest..." : "The Scribe is weaving your quest..."}
               </p>
             </div>
           ) : (
