@@ -76,12 +76,6 @@ export default function SearchableSelect<T>({
         e.preventDefault();
         setHighlightedIndex(prev => Math.max(prev - 1, 0));
         break;
-      case "Enter":
-        e.preventDefault();
-        if (filteredItems.length > 0) {
-          onSelect(filteredItems[highlightedIndex]);
-        }
-        break;
       case "Escape":
         e.preventDefault();
         setSearchTerm("");
@@ -90,7 +84,7 @@ export default function SearchableSelect<T>({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full pb-4">
       {/* Search Input */}
       <div className="mb-4">
         <input
@@ -151,10 +145,6 @@ export default function SearchableSelect<T>({
         )}
       </div>
 
-      {/* Keyboard Hints */}
-      <div className="mt-3 text-xs font-serif text-center" style={{ color: COLORS.goldDarker }}>
-        ↑↓ Navigate • Enter Select • Esc Clear
-      </div>
     </div>
   );
 }
