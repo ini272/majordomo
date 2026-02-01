@@ -7,10 +7,9 @@ import type { Quest, DailyBounty } from "../types/api";
 
 interface BoardProps {
   token: string;
-  onQuestUpdate: () => void;
 }
 
-export default function Board({ token, onQuestUpdate }: BoardProps) {
+export default function Board({ token }: BoardProps) {
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,15 +45,13 @@ export default function Board({ token, onQuestUpdate }: BoardProps) {
       const updatedQuest = result.quest;
       setQuests(quests.map(q => (q.id === questId ? updatedQuest : q)));
       setError(null);
-      // Notify parent to update hero stats
-      onQuestUpdate?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to complete quest");
     }
   };
 
   const handleQuestCreated = () => {
-    onQuestUpdate?.();
+    // Quest created - no additional action needed
   };
 
   const handleCreateFormClose = async () => {

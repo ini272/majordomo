@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./components/Login";
-import HeroStatusBar from "./components/HeroStatusBar";
 import BottomNav from "./components/BottomNav";
 import Board from "./pages/Board";
 import Profile from "./pages/Profile";
@@ -13,7 +12,6 @@ import { COLORS } from "./constants/colors";
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
   const [username, setUsername] = useState<string | null>(localStorage.getItem("username"));
-  const [refreshStats, setRefreshStats] = useState(0);
 
   const handleLogout = () => {
     setToken(null);
@@ -22,10 +20,6 @@ function App() {
     localStorage.removeItem("username");
     localStorage.removeItem("userId");
     localStorage.removeItem("homeId");
-  };
-
-  const handleQuestUpdate = () => {
-    setRefreshStats(prev => prev + 1);
   };
 
   if (!token) {
@@ -88,15 +82,9 @@ function App() {
           </div>
         </header>
 
-        {/* Hero Status Bar */}
-        <HeroStatusBar username={username || ""} token={token} refreshTrigger={refreshStats} />
-
         {/* Page Content */}
         <Routes>
-          <Route
-            path="/board"
-            element={<Board token={token} onQuestUpdate={handleQuestUpdate} />}
-          />
+          <Route path="/board" element={<Board token={token} />} />
           <Route path="/profile" element={<Profile token={token} />} />
           <Route path="/market" element={<Market />} />
           <Route path="/trigger/quest/:questTemplateId" element={<NFCTrigger />} />
