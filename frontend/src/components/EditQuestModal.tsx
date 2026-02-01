@@ -814,38 +814,53 @@ export default function EditQuestModal({
                       </>
                     )}
 
-                    {/* Optional Auto-Deadline */}
+                    {/* Corruption Deadline */}
                     <div>
                       <label
-                        className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                        className="block text-xs uppercase tracking-wider mb-2 font-serif"
                         style={{ color: COLORS.parchment }}
                       >
-                        Auto-Deadline (Optional)
+                        Corruption Timer
                       </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="8760"
-                        value={dueInHours}
-                        onChange={e => setDueInHours(e.target.value)}
-                        placeholder="Hours until corruption"
-                        className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
-                        style={{
-                          backgroundColor: COLORS.black,
-                          borderColor: COLORS.gold,
-                          borderWidth: "2px",
-                          color: COLORS.parchment,
-                        }}
-                        disabled={saving}
-                      />
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { label: "None", hours: 0 },
+                          { label: "1 Day", hours: 24 },
+                          { label: "3 Days", hours: 72 },
+                          { label: "7 Days", hours: 168 },
+                          { label: "1 Month", hours: 720 },
+                        ].map(option => (
+                          <button
+                            key={option.label}
+                            type="button"
+                            onClick={() => setDueInHours(option.hours > 0 ? option.hours.toString() : "")}
+                            className="px-3 py-1.5 text-xs uppercase tracking-wider font-serif rounded transition-all"
+                            style={{
+                              backgroundColor:
+                                (option.hours === 0 && !dueInHours) ||
+                                parseInt(dueInHours || "0") === option.hours
+                                  ? COLORS.gold
+                                  : `rgba(212, 175, 55, 0.2)`,
+                              color:
+                                (option.hours === 0 && !dueInHours) ||
+                                parseInt(dueInHours || "0") === option.hours
+                                  ? COLORS.darkPanel
+                                  : COLORS.gold,
+                              border: `1px solid ${COLORS.gold}`,
+                              cursor: saving ? "not-allowed" : "pointer",
+                            }}
+                            disabled={saving}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
                       {dueInHours && parseInt(dueInHours) > 0 && (
                         <p
-                          className="text-xs mt-1 font-serif italic"
+                          className="text-xs mt-2 font-serif italic"
                           style={{ color: COLORS.parchment }}
                         >
-                          {parseInt(dueInHours) < 24
-                            ? `${dueInHours} hours`
-                            : `${Math.floor(parseInt(dueInHours) / 24)} days${parseInt(dueInHours) % 24 ? ` ${parseInt(dueInHours) % 24}h` : ""}`}
+                          Quest will corrupt if not completed within {parseInt(dueInHours)} hours
                         </p>
                       )}
                     </div>
