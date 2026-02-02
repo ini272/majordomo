@@ -9,6 +9,7 @@ from app.database import get_db
 from app.main import app
 
 # Import models to register them
+from app.models import achievement, daily_bounty, home, quest, reward, user  # noqa: F401
 
 # Create in-memory SQLite database for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"

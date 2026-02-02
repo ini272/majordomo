@@ -39,7 +39,8 @@ export interface Quest {
   schedule: string | null;  // Snapshot of schedule when quest was created
 
   quest_type: string;
-  due_date: string | null;
+  due_in_hours: number | null;  // Hours until corruption (deadline = created_at + due_in_hours)
+  due_date: string | null;  // DEPRECATED: use due_in_hours instead
   corrupted_at: string | null;
   template: QuestTemplate | null;  // Null for standalone quests
 }
@@ -163,6 +164,12 @@ export interface UserTemplateSubscription {
   due_in_hours: number | null;
   last_generated_at: string | null;
   is_active: boolean;
+}
+
+export interface UpcomingSubscription extends UserTemplateSubscription {
+  created_at: string;
+  next_spawn_at: string;
+  template: QuestTemplate;
 }
 
 export interface UserTemplateSubscriptionCreate {

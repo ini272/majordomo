@@ -3,14 +3,16 @@ import QuestCard from "../components/QuestCard";
 import CreateQuestForm from "../components/CreateQuestForm";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
-import type { Quest, DailyBounty } from "../types/api";
+import type { Quest, DailyBounty, UpcomingSubscription } from "../types/api";
 
 interface BoardProps {
   token: string;
 }
 
 export default function Board({ token }: BoardProps) {
+  const [view, setView] = useState<"current" | "upcoming">("current");
   const [quests, setQuests] = useState<Quest[]>([]);
+  const [upcomingQuests, setUpcomingQuests] = useState<UpcomingSubscription[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -20,13 +22,19 @@ export default function Board({ token }: BoardProps) {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch quests and daily bounty in parallel
-        const [questsData, bountyData] = await Promise.all([
-          api.quests.getAll(token),
-          api.bounty.getToday(token),
-        ]);
-        setQuests(questsData);
-        setDailyBounty(bountyData);
+        if (view === "current") {
+          // Fetch quests and daily bounty in parallel
+          const [questsData, bountyData] = await Promise.all([
+            api.quests.getAll(token),
+            api.bounty.getToday(token),
+          ]);
+          setQuests(questsData);
+          setDailyBounty(bountyData);
+        } else {
+          // Fetch upcoming subscriptions
+          const upcomingData = await api.subscriptions.getUpcoming(token);
+          setUpcomingQuests(upcomingData);
+        }
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch data");
@@ -36,7 +44,7 @@ export default function Board({ token }: BoardProps) {
     };
 
     fetchData();
-  }, [token]);
+  }, [token, view]);
 
   const handleCompleteQuest = async (questId: number) => {
     try {
@@ -66,6 +74,38 @@ export default function Board({ token }: BoardProps) {
 
   return (
     <div>
+      {/* View Toggle */}
+      <div className="flex gap-2 mb-6">
+        <button
+          type="button"
+          onClick={() => setView("current")}
+          className="flex-1 py-2 px-3 font-serif font-semibold text-xs uppercase tracking-wider transition-all"
+          style={{
+            backgroundColor: view === "current" ? `rgba(212, 175, 55, 0.3)` : `rgba(212, 175, 55, 0.1)`,
+            borderColor: COLORS.gold,
+            borderWidth: "2px",
+            color: COLORS.gold,
+            opacity: view === "current" ? 1 : 0.6,
+          }}
+        >
+          Current Quests
+        </button>
+        <button
+          type="button"
+          onClick={() => setView("upcoming")}
+          className="flex-1 py-2 px-3 font-serif font-semibold text-xs uppercase tracking-wider transition-all"
+          style={{
+            backgroundColor: view === "upcoming" ? `rgba(212, 175, 55, 0.3)` : `rgba(212, 175, 55, 0.1)`,
+            borderColor: COLORS.gold,
+            borderWidth: "2px",
+            color: COLORS.gold,
+            opacity: view === "upcoming" ? 1 : 0.6,
+          }}
+        >
+          Upcoming Quests
+        </button>
+      </div>
+
       {/* Error */}
       {error && (
         <div
@@ -88,8 +128,8 @@ export default function Board({ token }: BoardProps) {
         </div>
       )}
 
-      {/* Daily Bounty Section */}
-      {dailyBounty?.template && (
+      {/* Daily Bounty Section - Only show in current view */}
+      {view === "current" && dailyBounty?.template && (
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
             <h2
@@ -164,8 +204,8 @@ export default function Board({ token }: BoardProps) {
         </div>
       )}
 
-      {/* Quests List */}
-      {quests.length > 0 ? (
+      {/* Current Quests List */}
+      {view === "current" && quests.length > 0 && (
         <div>
           {quests.map(quest => (
             <QuestCard
@@ -176,12 +216,55 @@ export default function Board({ token }: BoardProps) {
             />
           ))}
         </div>
-      ) : (
-        !loading && (
-          <div className="text-center py-12 md:py-16 font-serif" style={{ color: COLORS.brown }}>
-            No quests found
-          </div>
-        )
+      )}
+
+      {/* Upcoming Quests List */}
+      {view === "upcoming" && upcomingQuests.length > 0 && (
+        <div>
+          {upcomingQuests.map(upcoming => (
+            <QuestCard
+              key={upcoming.id}
+              quest={{
+                id: upcoming.id,
+                home_id: 0,
+                user_id: upcoming.user_id,
+                quest_template_id: upcoming.quest_template_id,
+                completed: false,
+                created_at: upcoming.created_at,
+                completed_at: null,
+                title: upcoming.template.title,
+                display_name: upcoming.template.display_name,
+                description: upcoming.template.description,
+                tags: upcoming.template.tags,
+                xp_reward: upcoming.template.xp_reward,
+                gold_reward: upcoming.template.gold_reward,
+                recurrence: upcoming.recurrence,
+                schedule: upcoming.schedule,
+                quest_type: upcoming.template.quest_type,
+                due_in_hours: upcoming.due_in_hours,
+                due_date: null,
+                corrupted_at: null,
+                template: upcoming.template,
+              }}
+              onComplete={() => {}}
+              isUpcoming={true}
+              upcomingSpawnTime={upcoming.next_spawn_at}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Empty States */}
+      {!loading && view === "current" && quests.length === 0 && (
+        <div className="text-center py-12 md:py-16 font-serif" style={{ color: COLORS.brown }}>
+          No quests found
+        </div>
+      )}
+
+      {!loading && view === "upcoming" && upcomingQuests.length === 0 && (
+        <div className="text-center py-12 md:py-16 font-serif" style={{ color: COLORS.brown }}>
+          No upcoming quests. Create recurring quest templates to see them here!
+        </div>
       )}
 
       {/* FAB - Create Quest */}

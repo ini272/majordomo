@@ -16,6 +16,7 @@ import type {
   UserTemplateSubscription,
   UserTemplateSubscriptionCreate,
   UserTemplateSubscriptionUpdate,
+  UpcomingSubscription,
   ConvertToTemplateRequest,
 } from "../types/api";
 
@@ -402,6 +403,14 @@ export const api = {
   },
 
   subscriptions: {
+    getUpcoming: async (token: string): Promise<UpcomingSubscription[]> => {
+      const res = await fetch(`${API_URL}/subscriptions/upcoming`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch upcoming subscriptions");
+      return res.json();
+    },
+
     getAll: async (token: string): Promise<UserTemplateSubscription[]> => {
       const res = await fetch(`${API_URL}/subscriptions`, {
         headers: { Authorization: `Bearer ${token}` },

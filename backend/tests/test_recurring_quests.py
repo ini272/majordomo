@@ -600,7 +600,7 @@ def test_manual_generation_endpoint(client: TestClient, home_with_user):
     assert data["quest_template_id"] == template_id
     assert data["user_id"] == user_id
     assert data["completed"] is False
-    assert data["due_date"] is not None  # Should have due date from template
+    assert data["due_in_hours"] == 48  # Should have due_in_hours from template
 
 
 def test_quest_board_triggers_generation(client: TestClient, home_with_user):

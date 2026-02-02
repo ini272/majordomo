@@ -147,7 +147,8 @@ class Quest(SQLModel, table=True):
 
     # Corruption system fields
     quest_type: str = Field(default="standard")  # standard, bounty, corrupted
-    due_date: Optional[datetime] = None  # when quest should be completed (optional, user-set)
+    due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)  # hours until corruption
+    due_date: Optional[datetime] = None  # DEPRECATED: calculated from due_in_hours
     corrupted_at: Optional[datetime] = None  # when quest became corrupted
 
     # Relationships
@@ -178,6 +179,7 @@ class QuestRead(SQLModel):
     schedule: Optional[str]
 
     quest_type: str
+    due_in_hours: Optional[int]
     due_date: Optional[datetime]
     corrupted_at: Optional[datetime]
     # Include template data for convenience (may be null for standalone quests)
@@ -200,7 +202,7 @@ class QuestCreateStandalone(SQLModel):
     tags: Optional[str] = Field(default=None, max_length=500)
     xp_reward: int = Field(default=10, ge=0, le=10000)
     gold_reward: int = Field(default=5, ge=0, le=10000)
-    due_date: Optional[datetime] = None
+    due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)
 
 
 class QuestUpdate(SQLModel):
@@ -213,7 +215,7 @@ class QuestUpdate(SQLModel):
     gold_reward: Optional[int] = None
     completed: Optional[bool] = None
     quest_type: Optional[str] = None
-    due_date: Optional[datetime] = None
+    due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)
 
 
 class UserTemplateSubscriptionRead(SQLModel):

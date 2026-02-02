@@ -306,11 +306,6 @@ def generate_quest_instance(
 
     now = datetime.now(timezone.utc)
 
-    # Calculate due date if template specifies
-    due_date = None
-    if template.due_in_hours:
-        due_date = now + timedelta(hours=template.due_in_hours)
-
     # Create quest instance for requesting user only, snapshotting template data
     new_quest = Quest(
         home_id=auth["home_id"],
@@ -324,7 +319,9 @@ def generate_quest_instance(
         xp_reward=template.xp_reward,
         gold_reward=template.gold_reward,
         quest_type="standard",
-        due_date=due_date,
+        due_in_hours=template.due_in_hours,
+        recurrence=template.recurrence,
+        schedule=template.schedule,
     )
     db.add(new_quest)
 

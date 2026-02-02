@@ -234,6 +234,7 @@ export default function EditQuestModal({
             ...(selectedTags.length > 0 && { tags: selectedTags.join(",").toLowerCase() }),
             xp_reward: baseXP,
             gold_reward: baseGold,
+            ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
           };
 
           const createdQuest = await api.quests.createAIScribe(questData, token, userId, true); // skip_ai=true

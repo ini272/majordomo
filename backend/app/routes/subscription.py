@@ -1,4 +1,9 @@
+from datetime import datetime
+import json
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlmodel import Session
 
 from app.auth import get_current_user
@@ -7,12 +12,78 @@ from app.crud import quest_template as crud_quest_template
 from app.crud import user as crud_user
 from app.database import get_db
 from app.models.quest import (
+    QuestTemplateRead,
     UserTemplateSubscriptionCreate,
     UserTemplateSubscriptionRead,
     UserTemplateSubscriptionUpdate,
 )
+from app.services.recurring_quests import calculate_next_generation_time
 
 router = APIRouter(prefix="/api/subscriptions", tags=["subscriptions"])
+
+
+class UpcomingSubscription(BaseModel):
+    """Subscription with calculated next spawn time"""
+    id: int
+    user_id: int
+    quest_template_id: int
+    recurrence: str
+    schedule: Optional[str]
+    due_in_hours: Optional[int]
+    last_generated_at: Optional[datetime]
+    is_active: bool
+    created_at: datetime
+    next_spawn_at: datetime
+    template: QuestTemplateRead
+
+
+@router.get("/upcoming", response_model=list[UpcomingSubscription])
+def get_upcoming_subscriptions(
+    db: Session = Depends(get_db),
+    auth: dict = Depends(get_current_user),
+):
+    """Get active recurring subscriptions with calculated next spawn times"""
+    user_id = auth["user_id"]
+
+    # Get active subscriptions
+    subscriptions = crud_subscription.get_user_subscriptions(db, user_id, active_only=True)
+
+    result = []
+    for sub in subscriptions:
+        # Skip one-off subscriptions (they don't recur)
+        if sub.recurrence == "one-off":
+            continue
+
+        # Skip if template is missing
+        if not sub.template:
+            continue
+
+        # Parse schedule and calculate next spawn time
+        try:
+            schedule_dict = json.loads(sub.schedule) if sub.schedule else {}
+            next_spawn = calculate_next_generation_time(sub.last_generated_at, schedule_dict)
+
+            result.append(UpcomingSubscription(
+                id=sub.id,
+                user_id=sub.user_id,
+                quest_template_id=sub.quest_template_id,
+                recurrence=sub.recurrence,
+                schedule=sub.schedule,
+                due_in_hours=sub.due_in_hours,
+                last_generated_at=sub.last_generated_at,
+                is_active=sub.is_active,
+                created_at=sub.created_at,
+                next_spawn_at=next_spawn,
+                template=QuestTemplateRead.model_validate(sub.template),
+            ))
+        except (json.JSONDecodeError, ValueError) as e:
+            # Skip subscriptions with invalid schedules
+            continue
+
+    # Sort by next spawn time (soonest first)
+    result.sort(key=lambda x: x.next_spawn_at)
+
+    return result
 
 
 @router.get("", response_model=list[UserTemplateSubscriptionRead])

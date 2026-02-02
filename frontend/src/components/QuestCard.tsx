@@ -38,18 +38,47 @@ interface QuestCardProps {
   quest: Quest;
   onComplete: (questId: number) => void;
   isDailyBounty?: boolean;
+  isUpcoming?: boolean;
+  upcomingSpawnTime?: string;
 }
 
-export default function QuestCard({ quest, onComplete, isDailyBounty = false }: QuestCardProps) {
+export default function QuestCard({ quest, onComplete, isDailyBounty = false, isUpcoming = false, upcomingSpawnTime }: QuestCardProps) {
   const typeStyles = getQuestTypeStyles(quest.quest_type);
   const isCorrupted = quest.quest_type === "corrupted";
 
-  // Format due date for display
-  const formatDueDate = (dueDate: string | null) => {
-    if (!dueDate) return null;
-    const date = new Date(dueDate);
+  // Format upcoming spawn time
+  const formatUpcomingTime = (spawnTime: string | undefined) => {
+    if (!spawnTime) return null;
+    const spawn = new Date(spawnTime);
     const now = new Date();
-    const diff = date.getTime() - now.getTime();
+    const diff = spawn.getTime() - now.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+
+    if (hours < 1) return "Spawns soon";
+    if (hours < 24) return `Spawns in ${hours} hour${hours > 1 ? "s" : ""}`;
+    if (days === 1) return "Spawns tomorrow";
+    if (days < 7) return `Spawns in ${days} days`;
+
+    // Show actual date for far future
+    return `Spawns ${spawn.toLocaleDateString()}`;
+  };
+
+  // Calculate deadline from created_at + due_in_hours
+  const calculateDeadline = () => {
+    if (!quest.due_in_hours) return null;
+    const createdAt = new Date(quest.created_at);
+    const deadline = new Date(createdAt.getTime() + quest.due_in_hours * 60 * 60 * 1000);
+    return deadline;
+  };
+
+  // Format deadline for display
+  const formatDeadline = () => {
+    const deadline = calculateDeadline();
+    if (!deadline) return null;
+
+    const now = new Date();
+    const diff = deadline.getTime() - now.getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(hours / 24);
 
@@ -89,6 +118,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
         backgroundColor: COLORS.darkPanel,
         borderColor: isDailyBounty ? "#6b5fb7" : typeStyles.borderColor,
         borderWidth: "3px",
+        opacity: isUpcoming ? 0.6 : 1,
       }}
     >
       {/* Decorative element */}
@@ -129,7 +159,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
             2x Bounty
           </span>
         )}
-        {quest.due_date && !quest.completed && (
+        {quest.due_in_hours && !quest.completed && (
           <span
             className="px-2 py-1 rounded text-xs font-serif font-bold"
             style={{
@@ -138,7 +168,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
               border: `1px solid ${isCorrupted ? "#ff6b6b" : "#ffa500"}`,
             }}
           >
-            📅 {formatDueDate(quest.due_date)}
+            📅 {formatDeadline()}
           </span>
         )}
       </div>
@@ -236,8 +266,20 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
         </div>
       </div>
 
-      {/* Complete Button */}
-      {!quest.completed && (
+      {/* Complete Button / Upcoming Info */}
+      {isUpcoming ? (
+        <div
+          className="w-full mt-6 md:mt-8 py-3 md:py-4 px-4 font-serif font-semibold text-sm md:text-base uppercase tracking-wider text-center"
+          style={{
+            backgroundColor: "rgba(212, 175, 55, 0.15)",
+            borderColor: COLORS.gold,
+            borderWidth: "2px",
+            color: COLORS.gold,
+          }}
+        >
+          📅 {formatUpcomingTime(upcomingSpawnTime)}
+        </div>
+      ) : !quest.completed ? (
         <button
           className="w-full mt-6 md:mt-8 py-3 md:py-4 px-4 font-serif font-semibold text-sm md:text-base uppercase tracking-wider transition-all duration-300 hover:shadow-lg cursor-pointer"
           style={{
@@ -250,7 +292,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false }: 
         >
           ⚔ Complete Quest
         </button>
-      )}
+      ) : null}
     </div>
   );
 }

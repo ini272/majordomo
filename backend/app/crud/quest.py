@@ -46,7 +46,7 @@ def create_quest(db: Session, home_id: int, user_id: int, quest_in: QuestCreate,
         gold_reward=template.gold_reward,
         recurrence=template.recurrence,
         schedule=template.schedule,
-        due_date=quest_in.due_date,
+        due_in_hours=template.due_in_hours,
     )
     db.add(db_quest)
     db.commit()
@@ -67,7 +67,7 @@ def create_standalone_quest(db: Session, home_id: int, user_id: int, quest_in: Q
         tags=quest_in.tags,
         xp_reward=quest_in.xp_reward,
         gold_reward=quest_in.gold_reward,
-        due_date=quest_in.due_date,
+        due_in_hours=quest_in.due_in_hours,
     )
     db.add(db_quest)
     db.commit()
@@ -126,32 +126,41 @@ def delete_quest(db: Session, quest_id: int) -> bool:
 
 def check_and_corrupt_overdue_quests(db: Session) -> list[Quest]:
     """
-    Check for quests that are past their due date and not completed.
+    Check for quests that are past their due time and not completed.
     Mark them as corrupted if they haven't been corrupted already.
     Returns list of newly corrupted quests.
     """
+    from datetime import timedelta
+
     now = datetime.now(timezone.utc)
 
     # Find quests that are:
     # - Not completed
-    # - Have a due_date set
-    # - Past their due_date
+    # - Have due_in_hours set
+    # - Past their deadline (created_at + due_in_hours)
     # - Not already corrupted
     query = select(Quest).where(
         (Quest.completed == False)  # noqa: E712
-        & (Quest.due_date.isnot(None))
-        & (Quest.due_date < now)
+        & (Quest.due_in_hours.isnot(None))
         & (Quest.quest_type != "corrupted")
     )
 
-    overdue_quests = db.exec(query).all()
+    all_quests_with_deadline = db.exec(query).all()
 
     corrupted_quests = []
-    for quest in overdue_quests:
-        quest.quest_type = "corrupted"
-        quest.corrupted_at = now
-        db.add(quest)
-        corrupted_quests.append(quest)
+    for quest in all_quests_with_deadline:
+        # Calculate deadline from created_at + due_in_hours
+        # Ensure created_at is timezone-aware
+        created_at = quest.created_at
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+
+        deadline = created_at + timedelta(hours=quest.due_in_hours)
+        if deadline < now:
+            quest.quest_type = "corrupted"
+            quest.corrupted_at = now
+            db.add(quest)
+            corrupted_quests.append(quest)
 
     if corrupted_quests:
         db.commit()
