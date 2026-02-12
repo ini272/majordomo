@@ -18,7 +18,7 @@ The following principles guide all design and engineering decisions:
 
 -   **Mobile-First:** The app is designed for phones first, tablets second, desktop third. Touch interactions and responsive layouts are foundational, not afterthoughts.
 -   **Self-Hosted Simplicity:** The system must run locally with minimal infrastructure. SQLite + FastAPI on a single machine is the target. No cloud dependencies, no complex DevOps.
--   **Family-Friendly & Private:** All data remains on the home network. No external logins, no tracking, no ads. The app is safe for kids to use independently.
+-   **Private Household Control:** All data remains on the home network. No external logins, no tracking, no ads. Households control content tone and quest style (including mature themes if desired).
 -   **Low Friction, High Engagement:** The user should be completing their first quest within 30 seconds of opening the app. No tutorials, no onboarding, no friction. The fantasy flavor does the heavy lifting.
 -   **Incremental Complexity:** The MVP is deliberately simple. Advanced features (classes, boss quests, dynamic events) come later, once the core loop is proven.
 -   **Ease of Use:** Quest creation should be effortless—use auto-generation, templates, quick-add buttons.
