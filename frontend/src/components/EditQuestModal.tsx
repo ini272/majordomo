@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, ChangeEvent, FormEvent } from "react";
 import { api } from "../services/api";
 import { COLORS, PARCHMENT_STYLES } from "../constants/colors";
-import type { Quest, QuestTemplate, QuestTemplateUpdateRequest, UserTemplateSubscription } from "../types/api";
+import type { Quest, UserTemplateSubscription } from "../types/api";
 import StewardImage from "../assets/thesteward.png";
 import ParchmentTypeWriter from "./ParchmentTypeWriter";
 

@@ -1,13 +1,109 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import QuestCard from "../components/QuestCard";
 import CreateQuestForm from "../components/CreateQuestForm";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
+import boardBackground from "../assets/empty_board.png";
 import type { Quest, DailyBounty, UpcomingSubscription } from "../types/api";
 
 interface BoardProps {
   token: string;
 }
+
+const QUESTS_PER_PAGE = 6;
+
+interface CompactQuestCardProps {
+  quest: Quest;
+  isUpcoming?: boolean;
+  isDailyBounty?: boolean;
+  onClick: () => void;
+}
+
+function CompactQuestCard({ quest, isUpcoming = false, isDailyBounty = false, onClick }: CompactQuestCardProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left p-3 sm:p-4 rounded-sm transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+      style={{
+        backgroundColor: "rgba(30, 21, 17, 0.7)",
+        border: `2px solid ${isDailyBounty ? "#6b5fb7" : COLORS.gold}`,
+        boxShadow: "0 6px 12px rgba(0, 0, 0, 0.25)",
+        opacity: isUpcoming ? 0.8 : 1,
+      }}
+    >
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <h3
+          className="text-sm sm:text-base font-serif font-bold leading-tight line-clamp-2"
+          style={{ color: isDailyBounty ? "#c0b4ff" : COLORS.gold }}
+        >
+          {quest.display_name || quest.title || "Unknown Quest"}
+        </h3>
+        {quest.completed && (
+          <span
+            className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
+            style={{ backgroundColor: "rgba(95, 183, 84, 0.2)", color: COLORS.greenSuccess }}
+          >
+            Done
+          </span>
+        )}
+      </div>
+
+      <p
+        className="text-xs sm:text-sm font-serif mb-3 line-clamp-2"
+        style={{ color: "rgba(241, 231, 214, 0.88)" }}
+      >
+        {quest.description || "No description"}
+      </p>
+
+      <div className="flex items-center justify-between text-xs font-serif" style={{ color: COLORS.brown }}>
+        <div className="flex gap-2">
+          {(quest.tags || "")
+            .split(",")
+            .map(tag => tag.trim())
+            .filter(Boolean)
+            .slice(0, 2)
+            .map(tag => (
+              <span
+                key={`${quest.id}-${tag}`}
+                className="px-1.5 py-0.5 uppercase"
+                style={{ border: `1px solid ${COLORS.brown}`, color: COLORS.parchment }}
+              >
+                {tag}
+              </span>
+            ))}
+        </div>
+        <span style={{ color: COLORS.gold }}>+{quest.xp_reward || 0} XP</span>
+      </div>
+    </button>
+  );
+}
+
+const toUpcomingQuest = (upcoming: UpcomingSubscription): Quest => ({
+  id: upcoming.id,
+  home_id: 0,
+  user_id: upcoming.user_id,
+  quest_template_id: upcoming.quest_template_id,
+  completed: false,
+  created_at: upcoming.created_at,
+  completed_at: null,
+  title: upcoming.template.title,
+  display_name: upcoming.template.display_name,
+  description: upcoming.template.description,
+  tags: upcoming.template.tags,
+  xp_reward: upcoming.template.xp_reward,
+  gold_reward: upcoming.template.gold_reward,
+  recurrence: upcoming.recurrence,
+  schedule: upcoming.schedule,
+  quest_type: upcoming.template.quest_type,
+  due_in_hours: upcoming.due_in_hours,
+  due_date: null,
+  corrupted_at: null,
+  template: upcoming.template,
+});
+
+const getPageCount = (items: unknown[]) => Math.max(1, Math.ceil(items.length / QUESTS_PER_PAGE));
 
 export default function Board({ token }: BoardProps) {
   const [view, setView] = useState<"current" | "upcoming">("current");
@@ -18,12 +114,19 @@ export default function Board({ token }: BoardProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [dailyBounty, setDailyBounty] = useState<DailyBounty | null>(null);
 
+  const [currentPage, setCurrentPage] = useState(0);
+  const [upcomingPage, setUpcomingPage] = useState(0);
+  const [pageDirection, setPageDirection] = useState(1);
+
+  const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
+  const [selectedUpcomingSpawnTime, setSelectedUpcomingSpawnTime] = useState<string | undefined>();
+  const [selectedIsDailyBounty, setSelectedIsDailyBounty] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         if (view === "current") {
-          // Fetch quests and daily bounty in parallel
           const [questsData, bountyData] = await Promise.all([
             api.quests.getAll(token),
             api.bounty.getToday(token),
@@ -31,7 +134,6 @@ export default function Board({ token }: BoardProps) {
           setQuests(questsData);
           setDailyBounty(bountyData);
         } else {
-          // Fetch upcoming subscriptions
           const upcomingData = await api.subscriptions.getUpcoming(token);
           setUpcomingQuests(upcomingData);
         }
@@ -46,12 +148,20 @@ export default function Board({ token }: BoardProps) {
     fetchData();
   }, [token, view]);
 
+  useEffect(() => {
+    setCurrentPage(prev => Math.min(prev, getPageCount(quests) - 1));
+  }, [quests]);
+
+  useEffect(() => {
+    setUpcomingPage(prev => Math.min(prev, getPageCount(upcomingQuests) - 1));
+  }, [upcomingQuests]);
+
   const handleCompleteQuest = async (questId: number) => {
     try {
       const result = await api.quests.complete(questId, token);
-      // Response now includes { quest, rewards }
       const updatedQuest = result.quest;
-      setQuests(quests.map(q => (q.id === questId ? updatedQuest : q)));
+      setQuests(prev => prev.map(q => (q.id === questId ? updatedQuest : q)));
+      setSelectedQuest(prev => (prev && prev.id === questId ? updatedQuest : prev));
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to complete quest");
@@ -63,18 +173,44 @@ export default function Board({ token }: BoardProps) {
   };
 
   const handleCreateFormClose = async () => {
-    // Refetch quests after create form closes (whether quest was created or not)
     try {
       const data = await api.quests.getAll(token);
       setQuests(data);
-    } catch (err) {
+    } catch {
       // Silently fail - quests might be stale but UI won't break
+    }
+  };
+
+  const currentPageCount = getPageCount(quests);
+  const upcomingPageCount = getPageCount(upcomingQuests);
+  const activePage = view === "current" ? currentPage : upcomingPage;
+  const activePageCount = view === "current" ? currentPageCount : upcomingPageCount;
+
+  const pagedCurrentQuests = useMemo(
+    () => quests.slice(currentPage * QUESTS_PER_PAGE, (currentPage + 1) * QUESTS_PER_PAGE),
+    [quests, currentPage]
+  );
+
+  const pagedUpcomingQuests = useMemo(
+    () =>
+      upcomingQuests.slice(upcomingPage * QUESTS_PER_PAGE, (upcomingPage + 1) * QUESTS_PER_PAGE),
+    [upcomingQuests, upcomingPage]
+  );
+
+  const goToPage = (nextPage: number) => {
+    const clampedPage = Math.max(0, Math.min(nextPage, activePageCount - 1));
+    if (clampedPage === activePage) return;
+
+    setPageDirection(clampedPage > activePage ? 1 : -1);
+    if (view === "current") {
+      setCurrentPage(clampedPage);
+    } else {
+      setUpcomingPage(clampedPage);
     }
   };
 
   return (
     <div>
-      {/* View Toggle */}
       <div className="flex gap-2 mb-6">
         <button
           type="button"
@@ -106,7 +242,6 @@ export default function Board({ token }: BoardProps) {
         </button>
       </div>
 
-      {/* Error */}
       {error && (
         <div
           className="px-4 py-3 mb-6 rounded-sm font-serif"
@@ -121,14 +256,12 @@ export default function Board({ token }: BoardProps) {
         </div>
       )}
 
-      {/* Loading */}
       {loading && (
         <div className="text-center py-12 md:py-16 font-serif" style={{ color: COLORS.brown }}>
           Loading quests...
         </div>
       )}
 
-      {/* Daily Bounty Section - Only show in current view */}
       {view === "current" && dailyBounty?.template && (
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
@@ -136,7 +269,7 @@ export default function Board({ token }: BoardProps) {
               className="text-lg font-serif font-bold uppercase tracking-wider"
               style={{ color: "#9d84ff" }}
             >
-              Today's Bounty
+              Today&apos;s Bounty
             </h2>
             <span
               className="px-2 py-1 text-xs font-serif font-bold rounded"
@@ -177,13 +310,12 @@ export default function Board({ token }: BoardProps) {
               <button
                 onClick={async () => {
                   try {
-                    const userId = parseInt(localStorage.getItem("userId") || "");
+                    const userId = parseInt(localStorage.getItem("userId") || "", 10);
                     await api.quests.create(
                       { quest_template_id: dailyBounty.template.id },
                       token,
                       userId
                     );
-                    // Refresh quests
                     const data = await api.quests.getAll(token);
                     setQuests(data);
                   } catch (err) {
@@ -204,57 +336,106 @@ export default function Board({ token }: BoardProps) {
         </div>
       )}
 
-      {/* Current Quests List */}
-      {view === "current" && quests.length > 0 && (
-        <div>
-          {quests.map(quest => (
-            <QuestCard
-              key={quest.id}
-              quest={quest}
-              onComplete={handleCompleteQuest}
-              isDailyBounty={dailyBounty?.template?.id === quest.quest_template_id}
-            />
-          ))}
+      {!loading && ((view === "current" && quests.length > 0) || (view === "upcoming" && upcomingQuests.length > 0)) && (
+        <div className="mb-6">
+          <div
+            className="relative rounded-lg overflow-hidden p-4 sm:p-6"
+            style={{
+              backgroundImage: `linear-gradient(rgba(12, 8, 6, 0.42), rgba(12, 8, 6, 0.42)), url(${boardBackground})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              border: `2px solid ${COLORS.brown}`,
+              minHeight: "520px",
+            }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-serif uppercase text-sm tracking-widest" style={{ color: COLORS.gold }}>
+                {view === "current" ? "Quest Board" : "Upcoming Board"}
+              </h3>
+              <div className="font-serif text-xs" style={{ color: COLORS.parchment }}>
+                Page {activePage + 1} / {activePageCount}
+              </div>
+            </div>
+
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={`${view}-${activePage}`}
+                initial={{ opacity: 0, x: 30 * pageDirection }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -30 * pageDirection }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+                className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4"
+              >
+                {view === "current" &&
+                  pagedCurrentQuests.map(quest => (
+                    <CompactQuestCard
+                      key={quest.id}
+                      quest={quest}
+                      isDailyBounty={dailyBounty?.template?.id === quest.quest_template_id}
+                      onClick={() => {
+                        setSelectedQuest(quest);
+                        setSelectedUpcomingSpawnTime(undefined);
+                        setSelectedIsDailyBounty(
+                          dailyBounty?.template?.id === quest.quest_template_id
+                        );
+                      }}
+                    />
+                  ))}
+
+                {view === "upcoming" &&
+                  pagedUpcomingQuests.map(upcoming => {
+                    const upcomingQuest = toUpcomingQuest(upcoming);
+                    return (
+                      <CompactQuestCard
+                        key={upcoming.id}
+                        quest={upcomingQuest}
+                        isUpcoming={true}
+                        onClick={() => {
+                          setSelectedQuest(upcomingQuest);
+                          setSelectedUpcomingSpawnTime(upcoming.next_spawn_at);
+                          setSelectedIsDailyBounty(false);
+                        }}
+                      />
+                    );
+                  })}
+              </motion.div>
+            </AnimatePresence>
+
+            {activePageCount > 1 && (
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => goToPage(activePage - 1)}
+                  disabled={activePage === 0}
+                  className="px-4 py-2 font-serif text-sm uppercase tracking-wide disabled:opacity-35"
+                  style={{
+                    border: `1px solid ${COLORS.gold}`,
+                    color: COLORS.gold,
+                    backgroundColor: "rgba(30, 21, 17, 0.65)",
+                  }}
+                >
+                  ← Prev
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => goToPage(activePage + 1)}
+                  disabled={activePage >= activePageCount - 1}
+                  className="px-4 py-2 font-serif text-sm uppercase tracking-wide disabled:opacity-35"
+                  style={{
+                    border: `1px solid ${COLORS.gold}`,
+                    color: COLORS.gold,
+                    backgroundColor: "rgba(30, 21, 17, 0.65)",
+                  }}
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Upcoming Quests List */}
-      {view === "upcoming" && upcomingQuests.length > 0 && (
-        <div>
-          {upcomingQuests.map(upcoming => (
-            <QuestCard
-              key={upcoming.id}
-              quest={{
-                id: upcoming.id,
-                home_id: 0,
-                user_id: upcoming.user_id,
-                quest_template_id: upcoming.quest_template_id,
-                completed: false,
-                created_at: upcoming.created_at,
-                completed_at: null,
-                title: upcoming.template.title,
-                display_name: upcoming.template.display_name,
-                description: upcoming.template.description,
-                tags: upcoming.template.tags,
-                xp_reward: upcoming.template.xp_reward,
-                gold_reward: upcoming.template.gold_reward,
-                recurrence: upcoming.recurrence,
-                schedule: upcoming.schedule,
-                quest_type: upcoming.template.quest_type,
-                due_in_hours: upcoming.due_in_hours,
-                due_date: null,
-                corrupted_at: null,
-                template: upcoming.template,
-              }}
-              onComplete={() => {}}
-              isUpcoming={true}
-              upcomingSpawnTime={upcoming.next_spawn_at}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Empty States */}
       {!loading && view === "current" && quests.length === 0 && (
         <div className="text-center py-12 md:py-16 font-serif" style={{ color: COLORS.brown }}>
           No quests found
@@ -267,7 +448,6 @@ export default function Board({ token }: BoardProps) {
         </div>
       )}
 
-      {/* FAB - Create Quest */}
       <button
         onClick={() => setShowCreateForm(true)}
         className="fixed right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl transition-all hover:shadow-xl active:scale-95 z-40"
@@ -281,7 +461,6 @@ export default function Board({ token }: BoardProps) {
         +
       </button>
 
-      {/* Create Quest Modal */}
       {showCreateForm && (
         <CreateQuestForm
           token={token}
@@ -292,6 +471,50 @@ export default function Board({ token }: BoardProps) {
           }}
         />
       )}
+
+      <AnimatePresence>
+        {selectedQuest && (
+          <motion.div
+            className="fixed inset-0 z-50 p-3 sm:p-6 flex items-end sm:items-center justify-center"
+            style={{ backgroundColor: "rgba(10, 8, 7, 0.76)" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedQuest(null)}
+          >
+            <motion.div
+              className="w-full max-w-3xl max-h-[92vh] overflow-y-auto"
+              initial={{ opacity: 0, y: 44, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 32, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-end mb-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedQuest(null)}
+                  className="px-3 py-1 font-serif text-xs uppercase tracking-wider"
+                  style={{
+                    border: `1px solid ${COLORS.gold}`,
+                    color: COLORS.gold,
+                    backgroundColor: "rgba(24, 17, 14, 0.85)",
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+              <QuestCard
+                quest={selectedQuest}
+                onComplete={handleCompleteQuest}
+                isDailyBounty={selectedIsDailyBounty}
+                isUpcoming={view === "upcoming"}
+                upcomingSpawnTime={selectedUpcomingSpawnTime}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

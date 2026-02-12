@@ -11,11 +11,9 @@ import { COLORS } from "./constants/colors";
 
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
-  const [username, setUsername] = useState<string | null>(localStorage.getItem("username"));
 
   const handleLogout = () => {
     setToken(null);
-    setUsername(null);
     localStorage.removeItem("token");
     localStorage.removeItem("username");
     localStorage.removeItem("userId");
@@ -43,8 +41,6 @@ function App() {
           <Login
             onLoginSuccess={token => {
               setToken(token);
-              const username = localStorage.getItem("username");
-              setUsername(username);
             }}
           />
         </div>

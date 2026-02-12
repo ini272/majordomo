@@ -7,8 +7,6 @@ import StewardImage from "../assets/thesteward.png";
 import SearchableSelect from "./SearchableSelect";
 import type { QuestTemplate } from "../types/api";
 
-const AVAILABLE_TAGS = ["Chores", "Learning", "Exercise", "Health", "Organization"];
-
 type CreationMode = "ai-scribe" | "random" | "from-template";
 
 interface CreateQuestFormProps {
@@ -21,7 +19,6 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   const [mode, setMode] = useState<CreationMode>("ai-scribe");
   const [title, setTitle] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [dueDate, setDueDate] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [skipAI, setSkipAI] = useState(false);
@@ -34,15 +31,6 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   const [templates, setTemplates] = useState<QuestTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<QuestTemplate | null>(null);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
-
-  // Recurring quest fields
-  const [recurrence, setRecurrence] = useState<"one-off" | "daily" | "weekly" | "monthly">(
-    "one-off"
-  );
-  const [scheduleTime, setScheduleTime] = useState("08:00");
-  const [scheduleDay, setScheduleDay] = useState<string>("monday");
-  const [scheduleDayOfMonth, setScheduleDayOfMonth] = useState<number>(1);
-  const [dueInHours, setDueInHours] = useState<string>("");
 
   // Fetch templates on mount
   useEffect(() => {
@@ -99,13 +87,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       // Reset form
       setTitle("");
       setSelectedTags([]);
-      setDueDate("");
       setSkipAI(false);
-      setRecurrence("one-off");
-      setScheduleTime("08:00");
-      setScheduleDay("monday");
-      setScheduleDayOfMonth(1);
-      setDueInHours("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create quest");
     } finally {
@@ -508,7 +490,6 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
           createQuestOnSave={createQuestOnSave}
           onSave={() => {
             // Clear state before calling user callbacks (prevents delete logic)
-            const questIdToDelete = null; // No deletion on save
             setShowEditModal(false);
             setEditingQuestId(null);
             setCreatedTemplateId(null);
