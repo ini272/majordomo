@@ -150,8 +150,10 @@ Authentication: JWT tokens via `/api/auth/login`
 
 ## Documentation Source of Truth
 
+- Documentation hub (start here): `docs/README.md`
 - Canonical architecture snapshot: `docs/current-architecture.md`
 - API contract governance: `docs/api-contract-governance.md`
+- Documentation lifecycle/index: `docs/documentation-index.md`
 - Runtime behavior and OpenAPI always override stale notes
 
 ## See Also

@@ -1,5 +1,8 @@
 # Quest System Architecture Notes
 
+## Status
+This document contains phase-specific notes and may not fully match current runtime behavior. Verify against OpenAPI and code before implementation decisions.
+
 ## Quest Creation Flow
 
 ### Path A: Template-Based (Reusable)

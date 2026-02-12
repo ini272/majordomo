@@ -17,7 +17,7 @@ Use this file for onboarding and planning. If another document conflicts with th
 
 - **Backend:** FastAPI + SQLModel + SQLite + JWT auth
 - **Frontend:** React + Vite + TypeScript + Tailwind + Framer Motion
-- **Primary goal:** self-hosted, mobile-first, family-friendly gamified household quest system
+- **Primary goal:** self-hosted, mobile-first gamified household quest system for shared homes (content tone can be tailored per household)
 
 ## Gameplay Systems (Current)
 
