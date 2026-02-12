@@ -1,35 +1,34 @@
-# Documentation Hub
+# Majordomo Docs
 
-Use this page as the single entry point for project docs.
+Single entry point for humans and agents.
 
-## Start Here (in order)
+Last verified: 2026-02-12
 
-1. `claude.md` — project quickstart + structure
-2. `docs/current-architecture.md` — canonical architecture snapshot
-3. `docs/api-contract-governance.md` — API source-of-truth workflow
-4. `docs/documentation-index.md` — which docs are canonical vs contextual
+## Read in this order
 
-## Day-to-Day Workflows
+1. `docs/current-architecture.md`
+2. `docs/product-goals.md`
+3. `backend/README.md`
+4. `frontend/README.md`
+5. `docs/api-contract-governance.md`
 
-- Backend architecture details: `backend/claude.md`
-- Frontend architecture details: `frontend/claude.md`
-- Quest flow diagrams: `docs/quest-workflow-diagrams.md`
-- Manual test checklist (quest-first): `docs/testing/quest-first-manual-tests.md`
+## Fast local startup
 
-## Context / Historical Notes
+```bash
+# Terminal 1
+cd backend
+uv sync
+uv run python main.py
 
-These are useful references but may be phase-bound:
+# Terminal 2
+cd frontend
+bun install
+bun run dev
+```
 
-- `QUEST_SYSTEM_NOTES.md`
-- `12_01_26_plan.md`
-- `backend/achievements.md`
-- `backend/validation.md`
-- `backend/error_codes.md`
-- `CLOUDFLARE_TUNNEL_SETUP.md`
-- `NFC_SETUP.md`
+API base URL: `http://localhost:8000/api`
 
-## Consolidation Policy
+## Archive
 
-- Keep canonical docs short and current.
-- Keep historical docs, but classify them clearly as contextual when needed.
-- Prefer linking from this hub rather than duplicating the same guidance in many files.
+Historical notes, plans, and deep dives were moved to `docs/archive/`.
+Use them only for context, not as source of truth.

@@ -1,54 +1,30 @@
 # API Contract Governance
 
-## Goal
+Last verified: 2026-02-12
 
-Define one API source of truth and remove frontend/backend documentation drift.
+## Source of truth
 
-## Source of Truth
+- OpenAPI served by backend (`/openapi.json`) is authoritative.
+- Runtime behavior and tests take precedence over prose.
 
-- **OpenAPI schema served by backend is authoritative**.
-- Canonical endpoint/schema view: `GET /openapi.json` from the running API.
+## API change workflow
 
-## Contract Workflow
-
-1. Make backend route/schema changes.
+1. Change backend route/schema.
 2. Run backend tests.
 3. Verify OpenAPI reflects intended contract.
-4. Update frontend API layer/types from OpenAPI.
-5. Validate frontend builds and key flows.
+4. Update frontend API layer/types if needed.
+5. Update `docs/current-architecture.md` when behavior changed.
 
-## Change Policy
+## Breaking change policy
 
-### Non-breaking changes
+Breaking changes require coordinated backend+frontend updates in the same branch:
+- Removed/renamed endpoints
+- Removed/renamed required fields
+- Semantic changes to existing fields
 
-Allowed in normal feature work:
-
-- Additive response fields
-- New optional request fields
-- New endpoints
-
-### Breaking changes
-
-Require explicit coordination:
-
-- Renamed/removed endpoints
-- Renamed/removed required fields
-- Changed semantics for existing fields
-
-For breaking changes:
-
-- Document migration notes in PR
-- Update all consumers in same branch before merge
-
-## PR Checklist (API-affecting work)
+## PR checklist (API-affecting)
 
 - [ ] Backend tests pass
-- [ ] OpenAPI schema reviewed
-- [ ] Frontend API client/types updated (or no frontend impact)
-- [ ] Error code behavior unchanged or documented
-- [ ] `docs/current-architecture.md` updated if system behavior changed
-
-## Short-Term Plan
-
-- Keep using current handwritten frontend API layer.
-- In a follow-up, add OpenAPI-driven type generation for frontend client types.
+- [ ] OpenAPI reviewed
+- [ ] Frontend API impact handled
+- [ ] `docs/current-architecture.md` updated if behavior changed
