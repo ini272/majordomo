@@ -148,6 +148,12 @@ Health check: `GET /` or `GET /health`
 
 Authentication: JWT tokens via `/api/auth/login`
 
+## Documentation Source of Truth
+
+- Canonical architecture snapshot: `docs/current-architecture.md`
+- API contract governance: `docs/api-contract-governance.md`
+- Runtime behavior and OpenAPI always override stale notes
+
 ## See Also
 
 - `backend/claude.md` - Backend architecture details
