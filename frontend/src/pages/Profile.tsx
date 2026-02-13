@@ -2,12 +2,10 @@ import { useState, useEffect } from "react";
 import { COLORS } from "../constants/colors";
 import { api } from "../services/api";
 import type { User, Quest, Achievement, UserAchievement } from "../types/api";
+import { useAuth } from "../contexts/AuthContext";
 
-interface ProfileProps {
-  token: string;
-}
-
-export default function Profile({ token }: ProfileProps) {
+export default function Profile() {
+  const { token } = useAuth();
   const [userStats, setUserStats] = useState<User | null>(null);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +18,12 @@ export default function Profile({ token }: ProfileProps) {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!token) {
+        setError("Not authenticated");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {

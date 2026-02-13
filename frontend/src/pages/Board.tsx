@@ -7,10 +7,7 @@ import { COLORS } from "../constants/colors";
 import boardBackground from "../assets/empty_board.png";
 import type { Quest, DailyBounty, UpcomingSubscription } from "../types/api";
 import { session } from "../services/session";
-
-interface BoardProps {
-  token: string;
-}
+import { useAuth } from "../contexts/AuthContext";
 
 const QUESTS_PER_PAGE = 6;
 
@@ -106,7 +103,8 @@ const toUpcomingQuest = (upcoming: UpcomingSubscription): Quest => ({
 
 const getPageCount = (items: unknown[]) => Math.max(1, Math.ceil(items.length / QUESTS_PER_PAGE));
 
-export default function Board({ token }: BoardProps) {
+export default function Board() {
+  const { token } = useAuth();
   const [view, setView] = useState<"current" | "upcoming">("current");
   const [quests, setQuests] = useState<Quest[]>([]);
   const [upcomingQuests, setUpcomingQuests] = useState<UpcomingSubscription[]>([]);
@@ -125,6 +123,12 @@ export default function Board({ token }: BoardProps) {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!token) {
+        setError("Not authenticated");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         if (view === "current") {

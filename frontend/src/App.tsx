@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./components/Login";
 import BottomNav from "./components/BottomNav";
@@ -8,17 +7,12 @@ import Market from "./pages/Market";
 import NFCTrigger from "./pages/NFCTrigger";
 import QuestCardPlayground from "./pages/QuestCardPlayground";
 import { COLORS } from "./constants/colors";
-import { session } from "./services/session";
+import { useAuth } from "./contexts/AuthContext";
 
 function App() {
-  const [token, setToken] = useState<string | null>(session.getToken());
+  const { isAuthenticated, logout } = useAuth();
 
-  const handleLogout = () => {
-    setToken(null);
-    session.clear();
-  };
-
-  if (!token) {
+  if (!isAuthenticated) {
     return (
       <Router>
         <div className="max-w-2xl mx-auto">
@@ -36,11 +30,7 @@ function App() {
               Gamified Family Quests
             </p>
           </header>
-          <Login
-            onLoginSuccess={token => {
-              setToken(token);
-            }}
-          />
+          <Login />
         </div>
       </Router>
     );
@@ -69,7 +59,7 @@ function App() {
                 borderWidth: "1px",
                 color: COLORS.gold,
               }}
-              onClick={handleLogout}
+              onClick={logout}
             >
               Exit
             </button>
@@ -78,8 +68,8 @@ function App() {
 
         {/* Page Content */}
         <Routes>
-          <Route path="/board" element={<Board token={token} />} />
-          <Route path="/profile" element={<Profile token={token} />} />
+          <Route path="/board" element={<Board />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/market" element={<Market />} />
           <Route path="/trigger/quest/:questTemplateId" element={<NFCTrigger />} />
           <Route path="/playground" element={<QuestCardPlayground />} />

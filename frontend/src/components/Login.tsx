@@ -3,14 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
 import { session } from "../services/session";
-
-interface LoginProps {
-  onLoginSuccess: (token: string) => void;
-}
+import { useAuth } from "../contexts/AuthContext";
 
 type AuthMode = "login" | "signup" | "join";
 
-export default function Login({ onLoginSuccess }: LoginProps) {
+export default function Login() {
+  const { login } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<AuthMode>("login");
   const [loading, setLoading] = useState(false);
@@ -60,7 +58,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         console.error("Failed to fetch user stats:", err);
       }
 
-      onLoginSuccess(data.access_token);
+      login(data.access_token);
 
       // Check for next redirect param
       const params = new URLSearchParams(window.location.search);

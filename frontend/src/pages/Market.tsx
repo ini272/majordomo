@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { COLORS } from "../constants/colors";
 import { session } from "../services/session";
+import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import type { Reward, User } from "../types/api";
 
@@ -177,7 +178,7 @@ export default function Market() {
   const [purchasingId, setPurchasingId] = useState<number | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const token = session.getToken();
+  const { token } = useAuth();
   const userId = session.getUserId();
 
   useEffect(() => {
