@@ -20,9 +20,6 @@ import type {
   ConvertToTemplateRequest,
 } from "../types/api";
 
-// Detect API URL at runtime
-// If VITE_API_URL env var is set (from docker-compose or build), use it
-// Otherwise, construct from current hostname (replace port 3000 with 8000)
 const getAPIURL = (): string => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
@@ -34,127 +31,147 @@ const getAPIURL = (): string => {
 
 const API_URL = getAPIURL();
 
+const buildHeaders = (token?: string, contentType: boolean = false): HeadersInit => {
+  const headers: Record<string, string> = {};
+  if (contentType) headers["Content-Type"] = "application/json";
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+};
+
+const extractErrorMessage = (error: unknown, fallback: string): string => {
+  if (!error || typeof error !== "object") return fallback;
+
+  const maybeError = error as { detail?: unknown };
+  if (typeof maybeError.detail === "string") return maybeError.detail;
+
+  if (maybeError.detail && typeof maybeError.detail === "object") {
+    const message = (maybeError.detail as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+
+  return fallback;
+};
+
+const requestJSON = async <T>(path: string, options: RequestInit = {}, fallbackError: string): Promise<T> => {
+  const res = await fetch(`${API_URL}${path}`, options);
+  if (!res.ok) {
+    try {
+      const error = await res.json();
+      throw new Error(extractErrorMessage(error, fallbackError));
+    } catch {
+      throw new Error(fallbackError);
+    }
+  }
+
+  return res.json();
+};
+
+const requestVoid = async (path: string, options: RequestInit = {}, fallbackError: string): Promise<void> => {
+  const res = await fetch(`${API_URL}${path}`, options);
+  if (!res.ok) throw new Error(fallbackError);
+};
+
 export const api = {
   auth: {
-    login: async (homeId: number, username: string, password: string): Promise<LoginResponse> => {
-      const res = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ home_id: homeId, username, password }),
-      });
-      if (!res.ok) throw new Error("Login failed");
-      return res.json();
-    },
+    login: async (homeId: number, username: string, password: string): Promise<LoginResponse> =>
+      requestJSON<LoginResponse>(
+        "/auth/login",
+        {
+          method: "POST",
+          headers: buildHeaders(undefined, true),
+          body: JSON.stringify({ home_id: homeId, username, password }),
+        },
+        "Login failed"
+      ),
 
-    loginEmail: async (email: string, password: string): Promise<LoginResponse> => {
-      const res = await fetch(`${API_URL}/auth/login-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.detail?.message || "Login failed");
-      }
-      return res.json();
-    },
+    loginEmail: async (email: string, password: string): Promise<LoginResponse> =>
+      requestJSON<LoginResponse>(
+        "/auth/login-email",
+        {
+          method: "POST",
+          headers: buildHeaders(undefined, true),
+          body: JSON.stringify({ email, password }),
+        },
+        "Login failed"
+      ),
 
     signup: async (
       email: string,
       username: string,
       password: string,
       homeName: string
-    ): Promise<LoginResponse & { invite_code: string }> => {
-      const res = await fetch(`${API_URL}/auth/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, username, password, home_name: homeName }),
-      });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.detail?.message || "Signup failed");
-      }
-      return res.json();
-    },
+    ): Promise<LoginResponse & { invite_code: string }> =>
+      requestJSON<LoginResponse & { invite_code: string }>(
+        "/auth/signup",
+        {
+          method: "POST",
+          headers: buildHeaders(undefined, true),
+          body: JSON.stringify({ email, username, password, home_name: homeName }),
+        },
+        "Signup failed"
+      ),
 
     join: async (
       inviteCode: string,
       email: string,
       username: string,
       password: string
-    ): Promise<LoginResponse> => {
-      const res = await fetch(`${API_URL}/auth/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invite_code: inviteCode, email, username, password }),
-      });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.detail?.message || "Failed to join home");
-      }
-      return res.json();
-    },
+    ): Promise<LoginResponse> =>
+      requestJSON<LoginResponse>(
+        "/auth/join",
+        {
+          method: "POST",
+          headers: buildHeaders(undefined, true),
+          body: JSON.stringify({ invite_code: inviteCode, email, username, password }),
+        },
+        "Failed to join home"
+      ),
   },
 
   user: {
-    getStats: async (token: string): Promise<User> => {
-      const res = await fetch(`${API_URL}/users/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch user stats");
-      return res.json();
-    },
+    getStats: async (token: string): Promise<User> =>
+      requestJSON<User>("/users/me", { headers: buildHeaders(token) }, "Failed to fetch user stats"),
   },
 
   quests: {
-    getAll: async (token: string): Promise<Quest[]> => {
-      const res = await fetch(`${API_URL}/quests`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch quests");
-      return res.json();
-    },
+    getAll: async (token: string): Promise<Quest[]> =>
+      requestJSON<Quest[]>("/quests", { headers: buildHeaders(token) }, "Failed to fetch quests"),
 
-    getAllTemplates: async (token: string): Promise<QuestTemplate[]> => {
-      const res = await fetch(`${API_URL}/quests/templates/all`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch quest templates");
-      return res.json();
-    },
+    getAllTemplates: async (token: string): Promise<QuestTemplate[]> =>
+      requestJSON<QuestTemplate[]>(
+        "/quests/templates/all",
+        { headers: buildHeaders(token) },
+        "Failed to fetch quest templates"
+      ),
 
-    getTemplate: async (templateId: number, token: string): Promise<QuestTemplate> => {
-      const res = await fetch(`${API_URL}/quests/templates/${templateId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch quest template");
-      return res.json();
-    },
+    getTemplate: async (templateId: number, token: string): Promise<QuestTemplate> =>
+      requestJSON<QuestTemplate>(
+        `/quests/templates/${templateId}`,
+        { headers: buildHeaders(token) },
+        "Failed to fetch quest template"
+      ),
 
     updateTemplate: async (
       templateId: number,
       templateData: QuestTemplateUpdateRequest,
       token: string
-    ): Promise<QuestTemplate> => {
-      const res = await fetch(`${API_URL}/quests/templates/${templateId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+    ): Promise<QuestTemplate> =>
+      requestJSON<QuestTemplate>(
+        `/quests/templates/${templateId}`,
+        {
+          method: "PUT",
+          headers: buildHeaders(token, true),
+          body: JSON.stringify(templateData),
         },
-        body: JSON.stringify(templateData),
-      });
-      if (!res.ok) throw new Error("Failed to update quest template");
-      return res.json();
-    },
+        "Failed to update quest template"
+      ),
 
-    deleteTemplate: async (templateId: number, token: string): Promise<void> => {
-      const res = await fetch(`${API_URL}/quests/templates/${templateId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to delete quest template");
-    },
+    deleteTemplate: async (templateId: number, token: string): Promise<void> =>
+      requestVoid(
+        `/quests/templates/${templateId}`,
+        { method: "DELETE", headers: buildHeaders(token) },
+        "Failed to delete quest template"
+      ),
 
     createAIScribe: async (
       questData: {
@@ -166,58 +183,44 @@ export const api = {
       token: string,
       userId: number,
       skipAI: boolean = false
-    ): Promise<Quest> => {
-      const res = await fetch(
-        `${API_URL}/quests/ai-scribe?user_id=${userId}&skip_ai=${skipAI}`,
+    ): Promise<Quest> =>
+      requestJSON<Quest>(
+        `/quests/ai-scribe?user_id=${userId}&skip_ai=${skipAI}`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: buildHeaders(token, true),
           body: JSON.stringify(questData),
-        }
-      );
-      if (!res.ok) throw new Error("Failed to create AI Scribe quest");
-      return res.json();
-    },
+        },
+        "Failed to create AI Scribe quest"
+      ),
 
-    createRandom: async (token: string, userId: number): Promise<Quest> => {
-      const res = await fetch(`${API_URL}/quests/random?user_id=${userId}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to create random quest");
-      return res.json();
-    },
+    createRandom: async (token: string, userId: number): Promise<Quest> =>
+      requestJSON<Quest>(
+        `/quests/random?user_id=${userId}`,
+        {
+          method: "POST",
+          headers: buildHeaders(token),
+        },
+        "Failed to create random quest"
+      ),
 
     convertToTemplate: async (
       questId: number,
       conversionData: ConvertToTemplateRequest,
       token: string
-    ): Promise<QuestTemplate> => {
-      const res = await fetch(
-        `${API_URL}/quests/${questId}/convert-to-template`,
+    ): Promise<QuestTemplate> =>
+      requestJSON<QuestTemplate>(
+        `/quests/${questId}/convert-to-template`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: buildHeaders(token, true),
           body: JSON.stringify(conversionData),
-        }
-      );
-      if (!res.ok) throw new Error("Failed to convert quest to template");
-      return res.json();
-    },
+        },
+        "Failed to convert quest to template"
+      ),
 
-    getQuest: async (questId: number, token: string): Promise<Quest> => {
-      const res = await fetch(`${API_URL}/quests/${questId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch quest");
-      return res.json();
-    },
+    getQuest: async (questId: number, token: string): Promise<Quest> =>
+      requestJSON<Quest>(`/quests/${questId}`, { headers: buildHeaders(token) }, "Failed to fetch quest"),
 
     update: async (
       questId: number,
@@ -229,73 +232,64 @@ export const api = {
         gold_reward?: number;
       },
       token: string
-    ): Promise<Quest> => {
-      const res = await fetch(`${API_URL}/quests/${questId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+    ): Promise<Quest> =>
+      requestJSON<Quest>(
+        `/quests/${questId}`,
+        {
+          method: "PUT",
+          headers: buildHeaders(token, true),
+          body: JSON.stringify(questData),
         },
-        body: JSON.stringify(questData),
-      });
-      if (!res.ok) throw new Error("Failed to update quest");
-      return res.json();
-    },
+        "Failed to update quest"
+      ),
 
-    complete: async (questId: number, token: string): Promise<QuestCompleteResponse> => {
-      const res = await fetch(`${API_URL}/quests/${questId}/complete`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to complete quest");
-      return res.json();
-    },
+    complete: async (questId: number, token: string): Promise<QuestCompleteResponse> =>
+      requestJSON<QuestCompleteResponse>(
+        `/quests/${questId}/complete`,
+        {
+          method: "POST",
+          headers: buildHeaders(token),
+        },
+        "Failed to complete quest"
+      ),
 
-    delete: async (questId: number, token: string): Promise<void> => {
-      const res = await fetch(`${API_URL}/quests/${questId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to delete quest");
-    },
+    delete: async (questId: number, token: string): Promise<void> =>
+      requestVoid(
+        `/quests/${questId}`,
+        { method: "DELETE", headers: buildHeaders(token) },
+        "Failed to delete quest"
+      ),
 
     createTemplate: async (
       templateData: QuestTemplateCreateRequest,
       token: string,
       createdBy: number,
       skipAI: boolean = false
-    ): Promise<QuestTemplate> => {
-      const res = await fetch(
-        `${API_URL}/quests/templates?created_by=${createdBy}&skip_ai=${skipAI}`,
+    ): Promise<QuestTemplate> =>
+      requestJSON<QuestTemplate>(
+        `/quests/templates?created_by=${createdBy}&skip_ai=${skipAI}`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: buildHeaders(token, true),
           body: JSON.stringify(templateData),
-        }
-      );
-      if (!res.ok) throw new Error("Failed to create quest template");
-      return res.json();
-    },
+        },
+        "Failed to create quest template"
+      ),
 
     create: async (
       questData: QuestCreateRequest,
       token: string,
       userId: number
-    ): Promise<Quest> => {
-      const res = await fetch(`${API_URL}/quests?user_id=${userId}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+    ): Promise<Quest> =>
+      requestJSON<Quest>(
+        `/quests?user_id=${userId}`,
+        {
+          method: "POST",
+          headers: buildHeaders(token, true),
+          body: JSON.stringify(questData),
         },
-        body: JSON.stringify(questData),
-      });
-      if (!res.ok) throw new Error("Failed to create quest");
-      return res.json();
-    },
+        "Failed to create quest"
+      ),
   },
 
   triggers: {
@@ -304,163 +298,142 @@ export const api = {
       token: string
     ): Promise<
       QuestCompleteResponse & { user_stats: { level: number; xp: number; gold: number } }
-    > => {
-      const res = await fetch(`${API_URL}/triggers/quest/${questTemplateId}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to trigger quest");
-      return res.json();
-    },
+    > =>
+      requestJSON<QuestCompleteResponse & { user_stats: { level: number; xp: number; gold: number } }>(
+        `/triggers/quest/${questTemplateId}`,
+        {
+          method: "POST",
+          headers: buildHeaders(token),
+        },
+        "Failed to trigger quest"
+      ),
   },
 
   bounty: {
-    getToday: async (token: string): Promise<DailyBounty | null> => {
-      const res = await fetch(`${API_URL}/bounty/today`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch daily bounty");
-      return res.json();
-    },
+    getToday: async (token: string): Promise<DailyBounty | null> =>
+      requestJSON<DailyBounty | null>(
+        "/bounty/today",
+        { headers: buildHeaders(token) },
+        "Failed to fetch daily bounty"
+      ),
 
-    refresh: async (token: string): Promise<DailyBounty> => {
-      const res = await fetch(`${API_URL}/bounty/refresh`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to refresh daily bounty");
-      return res.json();
-    },
+    refresh: async (token: string): Promise<DailyBounty> =>
+      requestJSON<DailyBounty>(
+        "/bounty/refresh",
+        {
+          method: "POST",
+          headers: buildHeaders(token),
+        },
+        "Failed to refresh daily bounty"
+      ),
 
-    checkTemplate: async (templateId: number, token: string): Promise<BountyCheckResponse> => {
-      const res = await fetch(`${API_URL}/bounty/check/${templateId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to check bounty status");
-      return res.json();
-    },
+    checkTemplate: async (templateId: number, token: string): Promise<BountyCheckResponse> =>
+      requestJSON<BountyCheckResponse>(
+        `/bounty/check/${templateId}`,
+        { headers: buildHeaders(token) },
+        "Failed to check bounty status"
+      ),
   },
 
   home: {
     getInviteCode: async (
       homeId: number,
       token: string
-    ): Promise<{ invite_code: string; home_name: string }> => {
-      const res = await fetch(`${API_URL}/homes/${homeId}/invite-code`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch invite code");
-      return res.json();
-    },
+    ): Promise<{ invite_code: string; home_name: string }> =>
+      requestJSON<{ invite_code: string; home_name: string }>(
+        `/homes/${homeId}/invite-code`,
+        { headers: buildHeaders(token) },
+        "Failed to fetch invite code"
+      ),
   },
 
   achievements: {
-    getAll: async (token: string): Promise<Achievement[]> => {
-      const res = await fetch(`${API_URL}/achievements`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch achievements");
-      return res.json();
-    },
+    getAll: async (token: string): Promise<Achievement[]> =>
+      requestJSON<Achievement[]>(
+        "/achievements",
+        { headers: buildHeaders(token) },
+        "Failed to fetch achievements"
+      ),
 
-    getMyAchievements: async (token: string): Promise<UserAchievement[]> => {
-      const res = await fetch(`${API_URL}/achievements/me/achievements`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch user achievements");
-      return res.json();
-    },
+    getMyAchievements: async (token: string): Promise<UserAchievement[]> =>
+      requestJSON<UserAchievement[]>(
+        "/achievements/me/achievements",
+        { headers: buildHeaders(token) },
+        "Failed to fetch user achievements"
+      ),
   },
 
   rewards: {
-    getAll: async (token: string): Promise<Reward[]> => {
-      const res = await fetch(`${API_URL}/rewards`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch rewards");
-      return res.json();
-    },
+    getAll: async (token: string): Promise<Reward[]> =>
+      requestJSON<Reward[]>("/rewards", { headers: buildHeaders(token) }, "Failed to fetch rewards"),
 
-    claim: async (rewardId: number, userId: number, token: string): Promise<UserRewardClaim> => {
-      const res = await fetch(`${API_URL}/rewards/${rewardId}/claim?user_id=${userId}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.detail?.message || "Failed to claim reward");
-      }
-      return res.json();
-    },
+    claim: async (rewardId: number, userId: number, token: string): Promise<UserRewardClaim> =>
+      requestJSON<UserRewardClaim>(
+        `/rewards/${rewardId}/claim?user_id=${userId}`,
+        {
+          method: "POST",
+          headers: buildHeaders(token),
+        },
+        "Failed to claim reward"
+      ),
 
-    getUserClaims: async (userId: number, token: string): Promise<UserRewardClaim[]> => {
-      const res = await fetch(`${API_URL}/rewards/user/${userId}/claims`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch reward claims");
-      return res.json();
-    },
+    getUserClaims: async (userId: number, token: string): Promise<UserRewardClaim[]> =>
+      requestJSON<UserRewardClaim[]>(
+        `/rewards/user/${userId}/claims`,
+        { headers: buildHeaders(token) },
+        "Failed to fetch reward claims"
+      ),
   },
 
   subscriptions: {
-    getUpcoming: async (token: string): Promise<UpcomingSubscription[]> => {
-      const res = await fetch(`${API_URL}/subscriptions/upcoming`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch upcoming subscriptions");
-      return res.json();
-    },
+    getUpcoming: async (token: string): Promise<UpcomingSubscription[]> =>
+      requestJSON<UpcomingSubscription[]>(
+        "/subscriptions/upcoming",
+        { headers: buildHeaders(token) },
+        "Failed to fetch upcoming subscriptions"
+      ),
 
-    getAll: async (token: string): Promise<UserTemplateSubscription[]> => {
-      const res = await fetch(`${API_URL}/subscriptions`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch subscriptions");
-      return res.json();
-    },
+    getAll: async (token: string): Promise<UserTemplateSubscription[]> =>
+      requestJSON<UserTemplateSubscription[]>(
+        "/subscriptions",
+        { headers: buildHeaders(token) },
+        "Failed to fetch subscriptions"
+      ),
 
     create: async (
       subscriptionData: UserTemplateSubscriptionCreate,
       token: string
-    ): Promise<UserTemplateSubscription> => {
-      const res = await fetch(`${API_URL}/subscriptions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+    ): Promise<UserTemplateSubscription> =>
+      requestJSON<UserTemplateSubscription>(
+        "/subscriptions",
+        {
+          method: "POST",
+          headers: buildHeaders(token, true),
+          body: JSON.stringify(subscriptionData),
         },
-        body: JSON.stringify(subscriptionData),
-      });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.detail || "Failed to create subscription");
-      }
-      return res.json();
-    },
+        "Failed to create subscription"
+      ),
 
     update: async (
       subscriptionId: number,
       subscriptionData: UserTemplateSubscriptionUpdate,
       token: string
-    ): Promise<UserTemplateSubscription> => {
-      const res = await fetch(`${API_URL}/subscriptions/${subscriptionId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+    ): Promise<UserTemplateSubscription> =>
+      requestJSON<UserTemplateSubscription>(
+        `/subscriptions/${subscriptionId}`,
+        {
+          method: "PATCH",
+          headers: buildHeaders(token, true),
+          body: JSON.stringify(subscriptionData),
         },
-        body: JSON.stringify(subscriptionData),
-      });
-      if (!res.ok) throw new Error("Failed to update subscription");
-      return res.json();
-    },
+        "Failed to update subscription"
+      ),
 
-    delete: async (subscriptionId: number, token: string): Promise<void> => {
-      const res = await fetch(`${API_URL}/subscriptions/${subscriptionId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to delete subscription");
-    },
+    delete: async (subscriptionId: number, token: string): Promise<void> =>
+      requestVoid(
+        `/subscriptions/${subscriptionId}`,
+        { method: "DELETE", headers: buildHeaders(token) },
+        "Failed to delete subscription"
+      ),
   },
 };
