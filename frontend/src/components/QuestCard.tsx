@@ -1,5 +1,3 @@
-import { motion, useReducedMotion } from "framer-motion";
-import whiteBoardBackground from "../assets/white_board.png";
 import { COLORS } from "../constants/colors";
 import type { Quest } from "../types/api";
 
@@ -9,20 +7,6 @@ interface QuestTypeStyles {
   badgeBg: string;
   badgeColor: string;
 }
-
-interface CandleAnchor {
-  left: string;
-  top: string;
-  size: number;
-  delay: number;
-}
-
-const CANDLE_ANCHORS: CandleAnchor[] = [
-  { left: "11%", top: "9%", size: 0.95, delay: 0 },
-  { left: "18%", top: "8.5%", size: 1.08, delay: 0.2 },
-  { left: "82%", top: "8.5%", size: 1, delay: 0.35 },
-  { left: "89%", top: "9.5%", size: 0.9, delay: 0.5 },
-];
 
 const getQuestTypeStyles = (questType: string): QuestTypeStyles => {
   switch (questType) {
@@ -56,56 +40,6 @@ interface QuestCardProps {
   isDailyBounty?: boolean;
   isUpcoming?: boolean;
   upcomingSpawnTime?: string;
-}
-
-function CandleFlame({ left, top, size, delay }: CandleAnchor) {
-  const shouldReduceMotion = useReducedMotion();
-
-  return (
-    <div
-      className="absolute pointer-events-none"
-      style={{ left, top, transform: "translate(-50%, -50%) scale(var(--flame-scale))", ["--flame-scale" as string]: size }}
-      aria-hidden="true"
-    >
-      <motion.div
-        className="absolute rounded-full"
-        style={{
-          width: "20px",
-          height: "20px",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          background: "radial-gradient(circle, rgba(255, 193, 94, 0.72), rgba(255, 147, 30, 0))",
-          filter: "blur(5px)",
-        }}
-        animate={shouldReduceMotion ? undefined : { opacity: [0.35, 0.7, 0.42, 0.65, 0.35], scale: [0.9, 1.1, 0.95, 1.05, 0.9] }}
-        transition={shouldReduceMotion ? undefined : { duration: 1.5, repeat: Infinity, ease: "easeInOut", delay }}
-      />
-      <motion.div
-        className="rounded-full"
-        style={{
-          width: "8px",
-          height: "14px",
-          transformOrigin: "center bottom",
-          background: "linear-gradient(180deg, #fff6ce 0%, #ffd56b 35%, #ff9b2f 70%, #ff5d1a 100%)",
-          borderRadius: "55% 55% 60% 60% / 65% 65% 35% 35%",
-          boxShadow: "0 0 10px rgba(255, 178, 74, 0.7)",
-        }}
-        animate={
-          shouldReduceMotion
-            ? undefined
-            : {
-                scaleY: [1, 1.08, 0.92, 1.03, 1],
-                scaleX: [1, 0.96, 1.04, 0.98, 1],
-                y: [0, -1.5, 0, -2, 0],
-                rotate: [0, -2.2, 1.8, -1.4, 0],
-                opacity: [0.94, 1, 0.88, 0.98, 0.94],
-              }
-        }
-        transition={shouldReduceMotion ? undefined : { duration: 1.15, repeat: Infinity, ease: "easeInOut", delay }}
-      />
-    </div>
-  );
 }
 
 export default function QuestCard({ quest, onComplete, isDailyBounty = false, isUpcoming = false, upcomingSpawnTime }: QuestCardProps) {
@@ -179,24 +113,14 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false, is
 
   return (
     <div
-      className="relative p-6 md:p-8 mb-6 md:mb-8 shadow-lg overflow-hidden"
+      className="relative p-6 md:p-8 mb-6 md:mb-8 shadow-lg"
       style={{
         backgroundColor: COLORS.darkPanel,
         borderColor: isDailyBounty ? "#6b5fb7" : typeStyles.borderColor,
         borderWidth: "3px",
         opacity: isUpcoming ? 0.6 : 1,
-        backgroundImage: `linear-gradient(rgba(16, 10, 7, 0.68), rgba(16, 10, 7, 0.68)), url(${whiteBoardBackground})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
       }}
     >
-      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        {CANDLE_ANCHORS.map(anchor => (
-          <CandleFlame key={`${anchor.left}-${anchor.top}`} {...anchor} />
-        ))}
-      </div>
-
       {/* Decorative element */}
       <div className="absolute top-3 right-4 text-2xl opacity-20">⚔</div>
 
