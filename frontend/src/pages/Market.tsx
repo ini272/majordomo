@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { COLORS } from "../constants/colors";
+import { session } from "../services/session";
 import { api } from "../services/api";
 import type { Reward, User } from "../types/api";
 
@@ -176,8 +177,8 @@ export default function Market() {
   const [purchasingId, setPurchasingId] = useState<number | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const token = localStorage.getItem("token");
-  const userId = localStorage.getItem("userId");
+  const token = session.getToken();
+  const userId = session.getUserId();
 
   useEffect(() => {
     loadData();
@@ -214,14 +215,14 @@ export default function Market() {
   };
 
   const handlePurchase = async (rewardId: number) => {
-    if (!token || !userId) return;
+    if (!token || userId === null) return;
 
     try {
       setPurchasingId(rewardId);
       setError(null);
       setSuccessMessage(null);
 
-      await api.rewards.claim(rewardId, parseInt(userId), token);
+      await api.rewards.claim(rewardId, userId, token);
 
       // Show success message
       const reward = rewards.find(r => r.id === rewardId);

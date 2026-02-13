@@ -6,6 +6,7 @@ import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
 import boardBackground from "../assets/empty_board.png";
 import type { Quest, DailyBounty, UpcomingSubscription } from "../types/api";
+import { session } from "../services/session";
 
 interface BoardProps {
   token: string;
@@ -310,7 +311,10 @@ export default function Board({ token }: BoardProps) {
               <button
                 onClick={async () => {
                   try {
-                    const userId = parseInt(localStorage.getItem("userId") || "", 10);
+                    const userId = session.getUserId();
+                    if (userId === null) {
+                      throw new Error("User ID not found in session");
+                    }
                     await api.quests.create(
                       { quest_template_id: dailyBounty.template.id },
                       token,

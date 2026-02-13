@@ -1,5 +1,6 @@
 import { COLORS } from "../constants/colors";
 import type { Quest } from "../types/api";
+import { formatScheduleLabel } from "../utils/schedule";
 
 interface QuestTypeStyles {
   borderColor: string;
@@ -88,27 +89,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false, is
     return "Due soon";
   };
 
-  // Format recurring schedule for display (uses quest's snapshot, not template)
-  const formatSchedule = () => {
-    if (quest.recurrence === "one-off" || !quest.schedule) return null;
-
-    try {
-      const schedule = JSON.parse(quest.schedule);
-      if (quest.recurrence === "daily") {
-        return `Daily ${schedule.time}`;
-      } else if (quest.recurrence === "weekly") {
-        const day = schedule.day.charAt(0).toUpperCase() + schedule.day.slice(1);
-        return `${day}s ${schedule.time}`;
-      } else if (quest.recurrence === "monthly") {
-        return `Monthly ${schedule.day}${schedule.day === 1 ? "st" : schedule.day === 2 ? "nd" : schedule.day === 3 ? "rd" : "th"} ${schedule.time}`;
-      }
-    } catch (err) {
-      console.error("Failed to parse schedule:", err);
-    }
-    return null;
-  };
-
-  const scheduleInfo = formatSchedule();
+  const scheduleInfo = formatScheduleLabel(quest.recurrence as "one-off" | "daily" | "weekly" | "monthly", quest.schedule);
   const isRecurring = quest.recurrence !== "one-off";
 
   return (

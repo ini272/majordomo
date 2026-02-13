@@ -8,16 +8,14 @@ import Market from "./pages/Market";
 import NFCTrigger from "./pages/NFCTrigger";
 import QuestCardPlayground from "./pages/QuestCardPlayground";
 import { COLORS } from "./constants/colors";
+import { session } from "./services/session";
 
 function App() {
-  const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
+  const [token, setToken] = useState<string | null>(session.getToken());
 
   const handleLogout = () => {
     setToken(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("homeId");
+    session.clear();
   };
 
   if (!token) {

@@ -2,6 +2,7 @@ import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
+import { session } from "../services/session";
 
 interface LoginProps {
   onLoginSuccess: (token: string) => void;
@@ -49,14 +50,12 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         data = await api.auth.loginEmail(email, password);
       }
 
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("userId", data.user_id.toString());
-      localStorage.setItem("homeId", data.home_id.toString());
+      session.setLogin(data.access_token, data.user_id, data.home_id);
 
       // Fetch user stats to get username
       try {
         const userStats = await api.user.getStats(data.access_token);
-        localStorage.setItem("username", userStats.username);
+        session.setUsername(userStats.username);
       } catch (err) {
         console.error("Failed to fetch user stats:", err);
       }

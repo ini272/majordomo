@@ -4,6 +4,8 @@ import { COLORS, PARCHMENT_STYLES } from "../constants/colors";
 import type { Quest, UserTemplateSubscription } from "../types/api";
 import StewardImage from "../assets/thesteward.png";
 import ParchmentTypeWriter from "./ParchmentTypeWriter";
+import { session } from "../services/session";
+import { buildSchedule, parseSchedule, type QuestRecurrence } from "../utils/schedule";
 
 const AVAILABLE_TAGS = ["Chores", "Learning", "Exercise", "Health", "Organization"];
 
@@ -58,11 +60,11 @@ export default function EditQuestModal({
   const [showTypeWriter, setShowTypeWriter] = useState(false);
   const [nameAnimationDone, setNameAnimationDone] = useState(false);
   const [subscription, setSubscription] = useState<UserTemplateSubscription | null>(null);
-  const [originalRecurrence, setOriginalRecurrence] = useState<"one-off" | "daily" | "weekly" | "monthly">("one-off");
+  const [originalRecurrence, setOriginalRecurrence] = useState<QuestRecurrence>("one-off");
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
 
   // Recurring quest fields
-  const [recurrence, setRecurrence] = useState<"one-off" | "daily" | "weekly" | "monthly">(
+  const [recurrence, setRecurrence] = useState<QuestRecurrence>(
     "one-off"
   );
   const [scheduleTime, setScheduleTime] = useState("08:00");
@@ -121,19 +123,14 @@ export default function EditQuestModal({
           const effectiveSchedule = userSubscription?.schedule || response.schedule;
           const effectiveDueInHours = userSubscription?.due_in_hours ?? response.due_in_hours;
 
-          setRecurrence(effectiveRecurrence as "one-off" | "daily" | "weekly" | "monthly");
-          setOriginalRecurrence(effectiveRecurrence as "one-off" | "daily" | "weekly" | "monthly");
+          setRecurrence(effectiveRecurrence as QuestRecurrence);
+          setOriginalRecurrence(effectiveRecurrence as QuestRecurrence);
 
-          if (effectiveSchedule) {
-            try {
-              const schedule = JSON.parse(effectiveSchedule);
-              if (schedule.time) setScheduleTime(schedule.time);
-              if (schedule.day && typeof schedule.day === "string") setScheduleDay(schedule.day);
-              if (schedule.day && typeof schedule.day === "number")
-                setScheduleDayOfMonth(schedule.day);
-            } catch (err) {
-              console.error("Failed to parse schedule:", err);
-            }
+          const parsedSchedule = parseSchedule(effectiveSchedule);
+          if (parsedSchedule) {
+            if (parsedSchedule.time) setScheduleTime(parsedSchedule.time);
+            if (typeof parsedSchedule.day === "string") setScheduleDay(parsedSchedule.day);
+            if (typeof parsedSchedule.day === "number") setScheduleDayOfMonth(parsedSchedule.day);
           }
           if (effectiveDueInHours) {
             setDueInHours(effectiveDueInHours.toString());
@@ -162,19 +159,14 @@ export default function EditQuestModal({
             setSelectedTags(tags);
           }
 
-          setRecurrence(response.recurrence as "one-off" | "daily" | "weekly" | "monthly");
-          setOriginalRecurrence(response.recurrence as "one-off" | "daily" | "weekly" | "monthly");
+          setRecurrence(response.recurrence as QuestRecurrence);
+          setOriginalRecurrence(response.recurrence as QuestRecurrence);
 
-          if (response.schedule) {
-            try {
-              const schedule = JSON.parse(response.schedule);
-              if (schedule.time) setScheduleTime(schedule.time);
-              if (schedule.day && typeof schedule.day === "string") setScheduleDay(schedule.day);
-              if (schedule.day && typeof schedule.day === "number")
-                setScheduleDayOfMonth(schedule.day);
-            } catch (err) {
-              console.error("Failed to parse schedule:", err);
-            }
+          const parsedSchedule = parseSchedule(response.schedule);
+          if (parsedSchedule) {
+            if (parsedSchedule.time) setScheduleTime(parsedSchedule.time);
+            if (typeof parsedSchedule.day === "string") setScheduleDay(parsedSchedule.day);
+            if (typeof parsedSchedule.day === "number") setScheduleDayOfMonth(parsedSchedule.day);
           }
 
           setQuest(response);
@@ -203,25 +195,12 @@ export default function EditQuestModal({
       const baseGold = Math.floor(baseXP / 2);
 
       // Build schedule JSON if needed
-      let schedule: string | null = null;
-      if (recurrence !== "one-off") {
-        if (recurrence === "daily") {
-          schedule = JSON.stringify({ type: "daily", time: scheduleTime });
-        } else if (recurrence === "weekly") {
-          schedule = JSON.stringify({ type: "weekly", day: scheduleDay, time: scheduleTime });
-        } else if (recurrence === "monthly") {
-          schedule = JSON.stringify({
-            type: "monthly",
-            day: scheduleDayOfMonth,
-            time: scheduleTime,
-          });
-        }
-      }
+      const schedule = buildSchedule(recurrence, scheduleTime, scheduleDay, scheduleDayOfMonth);
 
       if (createQuestOnSave) {
         // CREATE QUEST MODE (From Template or Random with initialData)
-        const userId = parseInt(localStorage.getItem("userId") || "");
-        if (!userId) {
+        const userId = session.getUserId();
+        if (userId === null) {
           throw new Error("User ID not found in session");
         }
 

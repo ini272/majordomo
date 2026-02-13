@@ -6,6 +6,7 @@ import EditQuestModal from "./EditQuestModal";
 import StewardImage from "../assets/thesteward.png";
 import SearchableSelect from "./SearchableSelect";
 import type { QuestTemplate } from "../types/api";
+import { session } from "../services/session";
 
 type CreationMode = "ai-scribe" | "random" | "from-template";
 
@@ -56,8 +57,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       return;
     }
 
-    const userId = parseInt(localStorage.getItem("userId") || "");
-    if (!userId) {
+    const userId = session.getUserId();
+    if (userId === null) {
       setError("User ID not found in session");
       return;
     }
@@ -127,8 +128,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   const handleCreateFromTemplate = async (openEditModal: boolean) => {
     if (!selectedTemplate) return;
 
-    const userId = parseInt(localStorage.getItem("userId") || "");
-    if (!userId) {
+    const userId = session.getUserId();
+    if (userId === null) {
       setError("User ID not found in session");
       return;
     }
