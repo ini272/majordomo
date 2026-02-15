@@ -130,8 +130,12 @@ export default function EditQuestModal({
           const parsedSchedule = parseSchedule(effectiveSchedule);
           if (parsedSchedule) {
             if (parsedSchedule.time) setScheduleTime(parsedSchedule.time);
-            if (typeof parsedSchedule.day === "string") setScheduleDay(parsedSchedule.day);
-            if (typeof parsedSchedule.day === "number") setScheduleDayOfMonth(parsedSchedule.day);
+            if ("day" in parsedSchedule && typeof parsedSchedule.day === "string") {
+              setScheduleDay(parsedSchedule.day);
+            }
+            if ("day" in parsedSchedule && typeof parsedSchedule.day === "number") {
+              setScheduleDayOfMonth(parsedSchedule.day);
+            }
           }
           if (effectiveDueInHours) {
             setDueInHours(effectiveDueInHours.toString());
@@ -166,8 +170,12 @@ export default function EditQuestModal({
           const parsedSchedule = parseSchedule(response.schedule);
           if (parsedSchedule) {
             if (parsedSchedule.time) setScheduleTime(parsedSchedule.time);
-            if (typeof parsedSchedule.day === "string") setScheduleDay(parsedSchedule.day);
-            if (typeof parsedSchedule.day === "number") setScheduleDayOfMonth(parsedSchedule.day);
+            if ("day" in parsedSchedule && typeof parsedSchedule.day === "string") {
+              setScheduleDay(parsedSchedule.day);
+            }
+            if ("day" in parsedSchedule && typeof parsedSchedule.day === "number") {
+              setScheduleDayOfMonth(parsedSchedule.day);
+            }
           }
 
           setQuest(response);

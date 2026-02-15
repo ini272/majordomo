@@ -161,6 +161,11 @@ export default function Board() {
   }, [upcomingQuests]);
 
   const handleCompleteQuest = async (questId: number) => {
+    if (!token) {
+      setError("Not authenticated");
+      return;
+    }
+
     try {
       const result = await api.quests.complete(questId, token);
       const updatedQuest = result.quest;
@@ -177,6 +182,11 @@ export default function Board() {
   };
 
   const handleCreateFormClose = async () => {
+    if (!token) {
+      setError("Not authenticated");
+      return;
+    }
+
     try {
       const data = await api.quests.getAll(token);
       setQuests(data);
@@ -314,6 +324,9 @@ export default function Board() {
               <button
                 onClick={async () => {
                   try {
+                    if (!token) {
+                      throw new Error("Not authenticated");
+                    }
                     if (userId === null) {
                       throw new Error("User ID not found in session");
                     }
@@ -467,7 +480,7 @@ export default function Board() {
         +
       </button>
 
-      {showCreateForm && (
+      {showCreateForm && token && (
         <CreateQuestForm
           token={token}
           onQuestCreated={handleQuestCreated}
