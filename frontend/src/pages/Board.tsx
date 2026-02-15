@@ -494,7 +494,7 @@ export default function Board() {
       <AnimatePresence>
         {selectedQuest && (
           <motion.div
-            className="fixed inset-0 z-50 p-3 sm:p-6 flex items-end sm:items-center justify-center"
+            className="fixed inset-0 z-50 p-3 sm:p-6 md:p-8 flex items-center justify-center"
             style={{ backgroundColor: "rgba(10, 8, 7, 0.76)" }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -502,7 +502,8 @@ export default function Board() {
             onClick={() => setSelectedQuest(null)}
           >
             <motion.div
-              className="w-full max-w-3xl max-h-[92vh] overflow-y-auto"
+              className="w-full max-h-[94vh] overflow-y-auto"
+              style={{ maxWidth: "min(92vw, 42rem)" }}
               initial={{ opacity: 0, y: 44, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 32, scale: 0.98 }}

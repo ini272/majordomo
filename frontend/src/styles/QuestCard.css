@@ -1,86 +1,85 @@
-.quest-panel {
-  background: #1a1a1a;
-  border: 3px solid #d4af37;
-  padding: 30px;
-  margin-bottom: 20px;
-  box-shadow:
-    inset 0 0 20px rgba(0, 0, 0, 0.8),
-    0 0 30px rgba(212, 175, 55, 0.1);
+.quest-card-shell {
+  --qc-safe-top: 15%;
+  --qc-safe-right: 14%;
+  --qc-safe-bottom: 18%;
+  --qc-safe-left: 14%;
   position: relative;
+  width: min(100%, 42rem);
+  margin: 0 auto;
+  aspect-ratio: 2 / 3;
 }
 
-.quest-panel::before {
-  content: "⚔";
+.quest-card-frame {
   position: absolute;
-  top: 10px;
-  right: 15px;
-  font-size: 24px;
-  opacity: 0.3;
+  inset: 0;
+  border-radius: 12px;
+  background-color: #21150f;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover, contain;
+  box-shadow:
+    0 20px 38px rgba(0, 0, 0, 0.45),
+    inset 0 0 30px rgba(0, 0, 0, 0.12);
 }
 
-.quest-title {
-  font-size: 24px;
-  color: #d4af37;
-  border-bottom: 2px solid #d4af37;
-  padding-bottom: 10px;
-  margin-bottom: 15px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  font-family: Georgia, serif;
+.quest-card-safe-area {
+  position: absolute;
+  top: var(--qc-safe-top);
+  right: var(--qc-safe-right);
+  bottom: var(--qc-safe-bottom);
+  left: var(--qc-safe-left);
 }
 
-.quest-description {
-  color: #c9b896;
-  line-height: 1.6;
-  margin-bottom: 20px;
-  font-style: italic;
-  font-family: Georgia, serif;
+.quest-card-safe-inner {
+  height: 100%;
+  border-radius: 8px;
+  padding: 0.8rem 0.8rem 1rem 0.8rem;
+  background: linear-gradient(rgba(16, 11, 8, 0.55), rgba(16, 11, 8, 0.55));
+  overflow-y: auto;
 }
 
-.quest-meta {
-  display: flex;
-  gap: 30px;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #8b0000;
+.quest-card-safe-inner::-webkit-scrollbar {
+  width: 7px;
 }
 
-.quest-stat {
-  text-align: center;
+.quest-card-safe-inner::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.55);
+  border-radius: 999px;
 }
 
-.quest-stat-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  color: #8b7355;
-  letter-spacing: 0.5px;
-  font-family: Georgia, serif;
+.quest-card-description {
+  max-height: 11rem;
+  overflow: auto;
+  padding-right: 0.25rem;
 }
 
-.quest-stat-value {
-  font-size: 20px;
-  color: #d4af37;
-  margin-top: 5px;
-  font-family: Georgia, serif;
-  font-weight: bold;
+.quest-card-description::-webkit-scrollbar {
+  width: 6px;
 }
 
-.complete-button {
-  margin-top: 20px;
-  width: 100%;
-  background: #1a3d1a;
-  border-color: #5fb754;
-  color: #5fb754;
-  padding: 12px;
-  font-family: Georgia, serif;
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  cursor: pointer;
-  transition: all 0.3s;
+.quest-card-description::-webkit-scrollbar-thumb {
+  background: rgba(139, 115, 85, 0.45);
+  border-radius: 999px;
 }
 
-.complete-button:hover {
-  background: #2a5d2a;
-  box-shadow: 0 0 20px rgba(95, 183, 84, 0.3);
+@media (min-width: 640px) {
+  .quest-card-shell {
+    --qc-safe-top: 14%;
+    --qc-safe-right: 13%;
+    --qc-safe-bottom: 17%;
+    --qc-safe-left: 13%;
+  }
+
+  .quest-card-safe-inner {
+    padding: 1rem 1rem 1.1rem 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .quest-card-shell {
+    --qc-safe-top: 13%;
+    --qc-safe-right: 12%;
+    --qc-safe-bottom: 16%;
+    --qc-safe-left: 12%;
+  }
 }
