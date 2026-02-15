@@ -6,10 +6,7 @@ import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
 import boardBackground from "../assets/empty_board.png";
 import type { Quest, DailyBounty, UpcomingSubscription } from "../types/api";
-
-interface BoardProps {
-  token: string;
-}
+import { useAuth } from "../contexts/AuthContext";
 
 const QUESTS_PER_PAGE = 6;
 
@@ -105,7 +102,8 @@ const toUpcomingQuest = (upcoming: UpcomingSubscription): Quest => ({
 
 const getPageCount = (items: unknown[]) => Math.max(1, Math.ceil(items.length / QUESTS_PER_PAGE));
 
-export default function Board({ token }: BoardProps) {
+export default function Board() {
+  const { token, userId } = useAuth();
   const [view, setView] = useState<"current" | "upcoming">("current");
   const [quests, setQuests] = useState<Quest[]>([]);
   const [upcomingQuests, setUpcomingQuests] = useState<UpcomingSubscription[]>([]);
@@ -124,6 +122,12 @@ export default function Board({ token }: BoardProps) {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!token) {
+        setError("Not authenticated");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         if (view === "current") {
@@ -310,7 +314,9 @@ export default function Board({ token }: BoardProps) {
               <button
                 onClick={async () => {
                   try {
-                    const userId = parseInt(localStorage.getItem("userId") || "", 10);
+                    if (userId === null) {
+                      throw new Error("User ID not found in session");
+                    }
                     await api.quests.create(
                       { quest_template_id: dailyBounty.template.id },
                       token,

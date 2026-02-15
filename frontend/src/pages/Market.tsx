@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { COLORS } from "../constants/colors";
+import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import type { Reward, User } from "../types/api";
 
@@ -176,14 +177,9 @@ export default function Market() {
   const [purchasingId, setPurchasingId] = useState<number | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const token = localStorage.getItem("token");
-  const userId = localStorage.getItem("userId");
+  const { token, userId } = useAuth();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!token) {
       setError("Not authenticated");
       setLoading(false);
@@ -211,17 +207,21 @@ export default function Market() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handlePurchase = async (rewardId: number) => {
-    if (!token || !userId) return;
+    if (!token || userId === null) return;
 
     try {
       setPurchasingId(rewardId);
       setError(null);
       setSuccessMessage(null);
 
-      await api.rewards.claim(rewardId, parseInt(userId), token);
+      await api.rewards.claim(rewardId, userId, token);
 
       // Show success message
       const reward = rewards.find(r => r.id === rewardId);

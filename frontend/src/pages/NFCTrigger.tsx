@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
+import { useAuth } from "../contexts/AuthContext";
 import type { QuestCompleteResponse } from "../types/api";
 
 interface NFCTriggerResult extends QuestCompleteResponse {
@@ -18,7 +19,7 @@ export default function NFCTrigger() {
   const [result, setResult] = useState<NFCTriggerResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const token = localStorage.getItem("token");
+  const { token } = useAuth();
 
   useEffect(() => {
     if (!token) {

@@ -2,14 +2,12 @@ import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
-
-interface LoginProps {
-  onLoginSuccess: (token: string) => void;
-}
+import { useAuth } from "../contexts/AuthContext";
 
 type AuthMode = "login" | "signup" | "join";
 
-export default function Login({ onLoginSuccess }: LoginProps) {
+export default function Login() {
+  const { login } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<AuthMode>("login");
   const [loading, setLoading] = useState(false);
@@ -49,19 +47,20 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         data = await api.auth.loginEmail(email, password);
       }
 
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("userId", data.user_id.toString());
-      localStorage.setItem("homeId", data.home_id.toString());
-
-      // Fetch user stats to get username
+      let fetchedUsername: string | null = null;
       try {
         const userStats = await api.user.getStats(data.access_token);
-        localStorage.setItem("username", userStats.username);
+        fetchedUsername = userStats.username;
       } catch (err) {
         console.error("Failed to fetch user stats:", err);
       }
 
-      onLoginSuccess(data.access_token);
+      login({
+        token: data.access_token,
+        userId: data.user_id,
+        homeId: data.home_id,
+        username: fetchedUsername,
+      });
 
       // Check for next redirect param
       const params = new URLSearchParams(window.location.search);
