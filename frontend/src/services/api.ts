@@ -22,7 +22,8 @@ import type {
 
 const getAPIURL = (): string => {
   if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
+    const configuredUrl = import.meta.env.VITE_API_URL.trim().replace(/\/+$/, "");
+    return configuredUrl.endsWith("/api") ? configuredUrl : `${configuredUrl}/api`;
   }
 
   const { hostname, protocol } = window.location;
