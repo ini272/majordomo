@@ -113,6 +113,7 @@ export default function Board({ token }: BoardProps) {
   const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [dailyBounty, setDailyBounty] = useState<DailyBounty | null>(null);
+  const [shieldActive, setShieldActive] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(0);
   const [upcomingPage, setUpcomingPage] = useState(0);
@@ -131,6 +132,16 @@ export default function Board({ token }: BoardProps) {
             api.quests.getAll(token),
             api.bounty.getToday(token),
           ]);
+
+          try {
+            const userStats = await api.user.getStats(token);
+            setShieldActive(
+              !!userStats.active_shield_expiry && new Date(userStats.active_shield_expiry) > new Date()
+            );
+          } catch {
+            setShieldActive(false);
+          }
+
           setQuests(questsData);
           setDailyBounty(bountyData);
         } else {
@@ -196,6 +207,20 @@ export default function Board({ token }: BoardProps) {
       upcomingQuests.slice(upcomingPage * QUESTS_PER_PAGE, (upcomingPage + 1) * QUESTS_PER_PAGE),
     [upcomingQuests, upcomingPage]
   );
+
+  const activeCorruptedQuests = useMemo(
+    () => quests.filter(q => !q.completed && q.quest_type === "corrupted"),
+    [quests]
+  );
+  const corruptedCount = activeCorruptedQuests.length;
+  const baseDebuffPercent = Math.min(corruptedCount * 5, 50);
+  const effectiveDebuffPercent = shieldActive ? 0 : baseDebuffPercent;
+  const hasCorruptionImpact = effectiveDebuffPercent > 0;
+  const debuffStatusLabel = shieldActive
+    ? "Shield Active (Debuff Suppressed)"
+    : hasCorruptionImpact
+      ? `-${effectiveDebuffPercent}% rewards`
+      : "No Active Corruption Debuff";
 
   const goToPage = (nextPage: number) => {
     const clampedPage = Math.max(0, Math.min(nextPage, activePageCount - 1));
@@ -356,6 +381,30 @@ export default function Board({ token }: BoardProps) {
                 Page {activePage + 1} / {activePageCount}
               </div>
             </div>
+
+            {view === "current" && (
+              <div
+                className="mb-4 p-3 rounded-sm flex flex-wrap items-center justify-between gap-2"
+                style={{
+                  border: `1px solid ${hasCorruptionImpact ? "#8b3a3a" : COLORS.brown}`,
+                  backgroundColor:
+                    hasCorruptionImpact ? "rgba(139, 58, 58, 0.22)" : "rgba(30, 21, 17, 0.55)",
+                }}
+              >
+                <span
+                  className="text-xs sm:text-sm font-serif uppercase tracking-wide"
+                  style={{ color: hasCorruptionImpact ? "#ff8080" : COLORS.parchment }}
+                >
+                  Corrupted Quests: {corruptedCount}
+                </span>
+                <span
+                  className="text-xs sm:text-sm font-serif font-semibold uppercase tracking-wide"
+                  style={{ color: hasCorruptionImpact ? "#ff6b6b" : "#9d84ff" }}
+                >
+                  {debuffStatusLabel}
+                </span>
+              </div>
+            )}
 
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
