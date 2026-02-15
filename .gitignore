@@ -81,3 +81,7 @@ alembic/versions/__pycache__/
 *.swp
 *.swo
 *.log
+
+# Local git worktrees
+.worktrees/
+worktrees/
