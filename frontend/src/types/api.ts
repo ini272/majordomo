@@ -57,12 +57,10 @@ export interface User {
 }
 
 export interface DailyBounty {
-  id: number;
-  home_id: number;
-  quest_template_id: number;
-  date: string;
-  created_at: string;
-  template: QuestTemplate;
+  bounty_date: string;
+  status: "assigned" | "none_eligible";
+  bonus_multiplier: number;
+  quest: Quest | null;
 }
 
 export interface LoginResponse {
@@ -84,8 +82,8 @@ export interface QuestCompleteResponse {
 }
 
 export interface BountyCheckResponse {
-  is_bounty: boolean;
-  quest_template_id: number;
+  is_daily_bounty: boolean;
+  bonus_multiplier: number;
 }
 
 // Request types

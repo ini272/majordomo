@@ -362,26 +362,22 @@ def test_daily_bounty_and_corruption_combined(client: TestClient, home_with_user
     """Test that a quest can be both a daily bounty and corrupted (debuff + bounty multiplier apply)"""
     home_id, user_id, template_id = home_with_user_and_template
 
-    # Get today's bounty
-    bounty_response = client.get("/api/bounty/today")
-    bounty_template_id = bounty_response.json()["bounty"]["quest_template_id"]
-
-    # Update bounty template to have due_in_hours
+    # Update template to have due_in_hours
     client.put(
-        f"/api/quests/templates/{bounty_template_id}",
+        f"/api/quests/templates/{template_id}",
         json={"due_in_hours": 24},
     )
 
-    # Create quest from bounty template
+    # Create quest from template
     quest_response = client.post(
         f"/api/quests?user_id={user_id}",
-        json={"quest_template_id": bounty_template_id},
+        json={"quest_template_id": template_id},
     )
     quest_id = quest_response.json()["id"]
 
-    # Set quest to be overdue
+    # Set quest old enough for bounty (48h+) and overdue (due_in_hours=24)
     quest = db.exec(select(Quest).where(Quest.id == quest_id)).first()
-    quest.created_at = datetime.now(timezone.utc) - timedelta(hours=26)
+    quest.created_at = datetime.now(timezone.utc) - timedelta(hours=50)
     db.add(quest)
     db.commit()
 

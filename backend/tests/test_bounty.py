@@ -1,183 +1,173 @@
-from datetime import date
+from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
+from sqlmodel import Session
+
+from app.models.daily_bounty import DailyBounty
+from app.models.quest import Quest
 
 
-def test_get_today_bounty_creates_new(client: TestClient, home_with_templates):
-    """Test getting today's bounty creates one if it doesn't exist"""
-    home_id, user_id, templates = home_with_templates
-
-    # Get today's bounty (should create one)
-    response = client.get("/api/bounty/today")
-
+def _create_standalone_quest(client: TestClient, user_id: int, title: str = "Quest", xp: int = 10, gold: int = 5) -> dict:
+    response = client.post(
+        f"/api/quests/standalone?user_id={user_id}",
+        json={"title": title, "xp_reward": xp, "gold_reward": gold},
+    )
     assert response.status_code == 200
-    data = response.json()
-    assert data["bounty"] is not None
-    assert data["template"] is not None
-    assert data["bonus_multiplier"] == 2
-    assert data["bounty"]["bounty_date"] == date.today().isoformat()
-
-    # Template should be one of our created templates
-    template_ids = [t["id"] for t in templates]
-    assert data["template"]["id"] in template_ids
+    return response.json()
 
 
-def test_get_today_bounty_returns_existing(client: TestClient, home_with_templates):
-    """Test getting today's bounty returns the same one on multiple calls"""
-    home_id, user_id, templates = home_with_templates
+def _age_quest(db: Session, quest_id: int, hours_ago: int) -> None:
+    quest = db.get(Quest, quest_id)
+    assert quest is not None
+    quest.created_at = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+    db.add(quest)
+    db.commit()
 
-    # Get bounty first time
+
+def test_get_today_bounty_returns_none_eligible_and_locks_day(client: TestClient, home_with_user, db: Session):
+    """First request should lock today as none_eligible if user has no 48h+ active quests."""
+    _, user_id, _ = home_with_user
+
     response1 = client.get("/api/bounty/today")
-    bounty1 = response1.json()["bounty"]
+    assert response1.status_code == 200
 
-    # Get bounty second time
+    data1 = response1.json()
+    assert data1["status"] == "none_eligible"
+    assert data1["quest"] is None
+    assert data1["bonus_multiplier"] == 1
+
+    # Add an eligible quest after today's decision has been locked.
+    quest = _create_standalone_quest(client, user_id, title="Late Quest")
+    _age_quest(db, quest["id"], hours_ago=49)
+
     response2 = client.get("/api/bounty/today")
-    bounty2 = response2.json()["bounty"]
-
-    # Should be the same bounty
-    assert bounty1["id"] == bounty2["id"]
-    assert bounty1["quest_template_id"] == bounty2["quest_template_id"]
-
-
-def test_refresh_bounty(client: TestClient, home_with_templates):
-    """Test refreshing today's bounty selects a new template"""
-    home_id, user_id, templates = home_with_templates
-
-    # Get initial bounty
-    response1 = client.get("/api/bounty/today")
-    response1.json()["bounty"]["quest_template_id"]
-
-    # Refresh bounty
-    response2 = client.post("/api/bounty/refresh")
-
     assert response2.status_code == 200
-    new_bounty = response2.json()["bounty"]
 
-    # Should have new bounty for today
-    assert new_bounty["bounty_date"] == date.today().isoformat()
-
-    # Template might be different (not guaranteed with random selection)
-    # But it should be one of our templates
-    template_ids = [t["id"] for t in templates]
-    assert new_bounty["quest_template_id"] in template_ids
+    data2 = response2.json()
+    assert data2["status"] == "none_eligible"
+    assert data2["quest"] is None
+    assert data2["bounty_date"] == data1["bounty_date"]
 
 
-def test_check_template_is_bounty(client: TestClient, home_with_templates):
-    """Test checking if a template is today's bounty"""
-    home_id, user_id, templates = home_with_templates
+def test_get_today_bounty_assigns_eligible_standalone_quest(client: TestClient, home_with_user, db: Session):
+    """Standalone active quest older than 48h should be eligible for daily bounty."""
+    _, user_id, _ = home_with_user
+    quest = _create_standalone_quest(client, user_id, title="Old Chore")
+    _age_quest(db, quest["id"], hours_ago=49)
 
-    # Get today's bounty
-    bounty_response = client.get("/api/bounty/today")
-    bounty_template_id = bounty_response.json()["bounty"]["quest_template_id"]
-
-    # Check the bounty template
-    response = client.get(f"/api/bounty/check/{bounty_template_id}")
-
+    response = client.get("/api/bounty/today")
     assert response.status_code == 200
-    assert response.json()["is_daily_bounty"] is True
-    assert response.json()["bonus_multiplier"] == 2
 
-    # Check a different template
-    other_template_id = [t["id"] for t in templates if t["id"] != bounty_template_id][0]
-    response2 = client.get(f"/api/bounty/check/{other_template_id}")
-
-    assert response2.status_code == 200
-    assert response2.json()["is_daily_bounty"] is False
-    assert response2.json()["bonus_multiplier"] == 1
+    data = response.json()
+    assert data["status"] == "assigned"
+    assert data["bonus_multiplier"] == 2
+    assert data["quest"] is not None
+    assert data["quest"]["id"] == quest["id"]
 
 
-def test_complete_bounty_quest_gives_double_rewards(client: TestClient, home_with_templates):
-    """Test completing a quest from today's bounty gives 2x rewards"""
-    home_id, user_id, templates = home_with_templates
+def test_get_today_bounty_enforces_strict_48h_gate(client: TestClient, home_with_user, db: Session):
+    """Quest younger than 48 hours should not be eligible."""
+    _, user_id, _ = home_with_user
+    quest = _create_standalone_quest(client, user_id, title="Too New")
+    _age_quest(db, quest["id"], hours_ago=47)
 
-    # Get today's bounty
-    bounty_response = client.get("/api/bounty/today")
-    bounty_template = bounty_response.json()["template"]
-    bounty_template_id = bounty_template["id"]
+    response = client.get("/api/bounty/today")
+    assert response.status_code == 200
 
-    # Create a quest from the bounty template
-    quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": bounty_template_id})
-    quest_id = quest_response.json()["id"]
+    data = response.json()
+    assert data["status"] == "none_eligible"
+    assert data["quest"] is None
+    assert data["bonus_multiplier"] == 1
 
-    # Get user stats before completion
-    user_before = client.get("/api/users/me").json()
-    xp_before = user_before["xp"]
-    gold_before = user_before["gold_balance"]
 
-    # Complete the quest
-    complete_response = client.post(f"/api/quests/{quest_id}/complete")
+def test_complete_quest_without_prior_bounty_fetch_still_applies_bounty(
+    client: TestClient, home_with_user, db: Session
+):
+    """Completing an eligible quest should apply bounty even if /bounty/today was never called."""
+    _, user_id, _ = home_with_user
+    quest = _create_standalone_quest(client, user_id, title="Complete Me", xp=12, gold=7)
+    _age_quest(db, quest["id"], hours_ago=50)
 
-    assert complete_response.status_code == 200
-    result = complete_response.json()
+    complete = client.post(f"/api/quests/{quest['id']}/complete")
+    assert complete.status_code == 200
+    result = complete.json()
 
-    # Check rewards are doubled
     assert result["rewards"]["is_daily_bounty"] is True
     assert result["rewards"]["bounty_multiplier"] == 2
-    assert result["rewards"]["xp"] == bounty_template["xp_reward"] * 2
-    assert result["rewards"]["gold"] == bounty_template["gold_reward"] * 2
-
-    # Verify user stats updated correctly
-    user_after = client.get("/api/users/me").json()
-    assert user_after["xp"] == xp_before + (bounty_template["xp_reward"] * 2)
-    assert user_after["gold_balance"] == gold_before + (bounty_template["gold_reward"] * 2)
+    assert result["rewards"]["xp"] == 24
+    assert result["rewards"]["gold"] == 14
 
 
-def test_complete_non_bounty_quest_gives_normal_rewards(client: TestClient, home_with_templates):
-    """Test completing a non-bounty quest gives normal (1x) rewards"""
-    home_id, user_id, templates = home_with_templates
+def test_complete_non_bounty_quest_has_normal_rewards(client: TestClient, home_with_user, db: Session):
+    """Only the selected quest instance should receive 2x rewards."""
+    _, user_id, _ = home_with_user
+    quest1 = _create_standalone_quest(client, user_id, title="A", xp=10, gold=5)
+    quest2 = _create_standalone_quest(client, user_id, title="B", xp=20, gold=9)
+    _age_quest(db, quest1["id"], hours_ago=60)
+    _age_quest(db, quest2["id"], hours_ago=61)
 
-    # Get today's bounty
-    bounty_response = client.get("/api/bounty/today")
-    bounty_template_id = bounty_response.json()["bounty"]["quest_template_id"]
+    bounty = client.get("/api/bounty/today")
+    assert bounty.status_code == 200
+    assigned_id = bounty.json()["quest"]["id"]
+    other = quest1 if assigned_id == quest2["id"] else quest2
 
-    # Find a different template (not the bounty)
-    other_template = [t for t in templates if t["id"] != bounty_template_id][0]
+    complete = client.post(f"/api/quests/{other['id']}/complete")
+    assert complete.status_code == 200
+    result = complete.json()
 
-    # Create quest from non-bounty template
-    quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": other_template["id"]})
-    quest_id = quest_response.json()["id"]
-
-    # Get user stats before completion
-    user_before = client.get("/api/users/me").json()
-    xp_before = user_before["xp"]
-    gold_before = user_before["gold_balance"]
-
-    # Complete the quest
-    complete_response = client.post(f"/api/quests/{quest_id}/complete")
-
-    assert complete_response.status_code == 200
-    result = complete_response.json()
-
-    # Check rewards are NOT doubled
     assert result["rewards"]["is_daily_bounty"] is False
     assert result["rewards"]["bounty_multiplier"] == 1
-    assert result["rewards"]["xp"] == other_template["xp_reward"]
-    assert result["rewards"]["gold"] == other_template["gold_reward"]
-
-    # Verify user stats updated correctly
-    user_after = client.get("/api/users/me").json()
-    assert user_after["xp"] == xp_before + other_template["xp_reward"]
-    assert user_after["gold_balance"] == gold_before + other_template["gold_reward"]
+    assert result["rewards"]["xp"] == other["xp_reward"]
+    assert result["rewards"]["gold"] == other["gold_reward"]
 
 
-def test_bounty_with_no_templates(client: TestClient):
-    """Test getting bounty when home has no templates returns None"""
-    # Create home and user via signup (but no templates)
-    signup = client.post(
-        "/api/auth/signup",
-        json={
-            "email": "testuser@example.com",
-            "username": "testuser",
-            "password": "testpass",
-            "home_name": "Empty Home",
-        },
+def test_no_consecutive_repeat_unless_only_one_candidate(client: TestClient, home_with_user, db: Session):
+    """Yesterday's assigned quest should be excluded when more than one candidate exists."""
+    home_id, user_id, _ = home_with_user
+    quest1 = _create_standalone_quest(client, user_id, title="Yesterday")
+    quest2 = _create_standalone_quest(client, user_id, title="Today")
+    _age_quest(db, quest1["id"], hours_ago=55)
+    _age_quest(db, quest2["id"], hours_ago=56)
+
+    yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
+    db.add(
+        DailyBounty(
+            home_id=home_id,
+            user_id=user_id,
+            quest_id=quest1["id"],
+            bounty_date=yesterday,
+            status="assigned",
+        )
     )
-    assert signup.status_code == 200
+    db.commit()
 
-    # Try to get bounty
     response = client.get("/api/bounty/today")
-
     assert response.status_code == 200
     data = response.json()
-    assert data["bounty"] is None
-    assert data["message"] == "No quest templates available to create bounty"
+    assert data["status"] == "assigned"
+    assert data["quest"]["id"] == quest2["id"]
+
+
+def test_repeat_allowed_when_only_one_candidate(client: TestClient, home_with_user, db: Session):
+    """If only one candidate exists, repeating yesterday's quest is allowed."""
+    home_id, user_id, _ = home_with_user
+    quest = _create_standalone_quest(client, user_id, title="Only Candidate")
+    _age_quest(db, quest["id"], hours_ago=55)
+
+    yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
+    db.add(
+        DailyBounty(
+            home_id=home_id,
+            user_id=user_id,
+            quest_id=quest["id"],
+            bounty_date=yesterday,
+            status="assigned",
+        )
+    )
+    db.commit()
+
+    response = client.get("/api/bounty/today")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "assigned"
+    assert data["quest"]["id"] == quest["id"]
