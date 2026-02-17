@@ -103,7 +103,7 @@ const toUpcomingQuest = (upcoming: UpcomingSubscription): Quest => ({
 const getPageCount = (items: unknown[]) => Math.max(1, Math.ceil(items.length / QUESTS_PER_PAGE));
 
 export default function Board() {
-  const { token, userId } = useAuth();
+  const { token } = useAuth();
   const [view, setView] = useState<"current" | "upcoming">("current");
   const [quests, setQuests] = useState<Quest[]>([]);
   const [upcomingQuests, setUpcomingQuests] = useState<UpcomingSubscription[]>([]);
@@ -161,6 +161,11 @@ export default function Board() {
   }, [upcomingQuests]);
 
   const handleCompleteQuest = async (questId: number) => {
+    if (!token) {
+      setError("Not authenticated");
+      return;
+    }
+
     try {
       const result = await api.quests.complete(questId, token);
       const updatedQuest = result.quest;
@@ -177,6 +182,8 @@ export default function Board() {
   };
 
   const handleCreateFormClose = async () => {
+    if (!token) return;
+
     try {
       const data = await api.quests.getAll(token);
       setQuests(data);
@@ -189,6 +196,7 @@ export default function Board() {
   const upcomingPageCount = getPageCount(upcomingQuests);
   const activePage = view === "current" ? currentPage : upcomingPage;
   const activePageCount = view === "current" ? currentPageCount : upcomingPageCount;
+  const activeBountyQuest = dailyBounty?.status === "assigned" ? dailyBounty.quest : null;
 
   const pagedCurrentQuests = useMemo(
     () => quests.slice(currentPage * QUESTS_PER_PAGE, (currentPage + 1) * QUESTS_PER_PAGE),
@@ -266,7 +274,7 @@ export default function Board() {
         </div>
       )}
 
-      {view === "current" && dailyBounty?.template && (
+      {view === "current" && activeBountyQuest && (
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
             <h2
@@ -296,47 +304,31 @@ export default function Board() {
               className="text-xl md:text-2xl font-serif font-bold mb-2"
               style={{ color: "#9d84ff" }}
             >
-              {dailyBounty.template.display_name || dailyBounty.template.title}
+              {activeBountyQuest.display_name || activeBountyQuest.title}
             </h3>
             <p className="font-serif italic mb-4" style={{ color: COLORS.parchment }}>
-              {dailyBounty.template.description || "Complete this quest for double rewards!"}
+              {activeBountyQuest.description || "Complete this quest for double rewards!"}
             </p>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex gap-6 text-sm font-serif" style={{ color: COLORS.gold }}>
                 <span>
-                  XP: {dailyBounty.template.xp_reward} x2 = {dailyBounty.template.xp_reward * 2}
+                  XP: {activeBountyQuest.xp_reward} x2 = {activeBountyQuest.xp_reward * 2}
                 </span>
                 <span>
-                  Gold: {dailyBounty.template.gold_reward} x2 ={" "}
-                  {dailyBounty.template.gold_reward * 2}
+                  Gold: {activeBountyQuest.gold_reward} x2 ={" "}
+                  {activeBountyQuest.gold_reward * 2}
                 </span>
               </div>
-              <button
-                onClick={async () => {
-                  try {
-                    if (userId === null) {
-                      throw new Error("User ID not found in session");
-                    }
-                    await api.quests.create(
-                      { quest_template_id: dailyBounty.template.id },
-                      token,
-                      userId
-                    );
-                    const data = await api.quests.getAll(token);
-                    setQuests(data);
-                  } catch (err) {
-                    setError(err instanceof Error ? err.message : "Failed to accept bounty");
-                  }
-                }}
-                className="px-4 py-2 font-serif font-semibold text-sm uppercase tracking-wider rounded transition-all"
+              <span
+                className="px-4 py-2 font-serif font-semibold text-sm uppercase tracking-wider rounded"
                 style={{
                   backgroundColor: "rgba(107, 95, 183, 0.3)",
                   border: "2px solid #6b5fb7",
                   color: "#9d84ff",
                 }}
               >
-                Accept Bounty
-              </button>
+                Bounty Locked
+              </span>
             </div>
           </div>
         </div>
@@ -377,13 +369,11 @@ export default function Board() {
                     <CompactQuestCard
                       key={quest.id}
                       quest={quest}
-                      isDailyBounty={dailyBounty?.template?.id === quest.quest_template_id}
+                      isDailyBounty={activeBountyQuest?.id === quest.id}
                       onClick={() => {
                         setSelectedQuest(quest);
                         setSelectedUpcomingSpawnTime(undefined);
-                        setSelectedIsDailyBounty(
-                          dailyBounty?.template?.id === quest.quest_template_id
-                        );
+                        setSelectedIsDailyBounty(activeBountyQuest?.id === quest.id);
                       }}
                     />
                   ))}
@@ -467,7 +457,7 @@ export default function Board() {
         +
       </button>
 
-      {showCreateForm && (
+      {showCreateForm && token && (
         <CreateQuestForm
           token={token}
           onQuestCreated={handleQuestCreated}

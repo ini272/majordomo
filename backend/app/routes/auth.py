@@ -34,6 +34,7 @@ class SignupRequest(BaseModel):
     username: str
     password: str
     home_name: str
+    home_timezone: str = "UTC"
 
 
 class JoinHomeRequest(BaseModel):
@@ -100,13 +101,17 @@ def signup(request: SignupRequest, db: Session = Depends(get_db)):
     - **username**: Display name for the user (unique within the home)
     - **password**: User's password
     - **home_name**: Name for the new home/household
+    - **home_timezone**: IANA timezone for this household (default `UTC`)
 
     Creates a new home with auto-generated invite code and registers the user as the first member.
     Returns access token for immediate login.
     """
     try:
         # Create the home
-        home = crud_home.create_home(db, HomeCreate(name=request.home_name))
+        home = crud_home.create_home(
+            db,
+            HomeCreate(name=request.home_name, timezone=request.home_timezone),
+        )
 
         # Create default starter achievements for the new home
         crud_achievement.create_default_achievements(db, home.id)

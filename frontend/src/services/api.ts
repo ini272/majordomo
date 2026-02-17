@@ -100,14 +100,21 @@ export const api = {
       email: string,
       username: string,
       password: string,
-      homeName: string
+      homeName: string,
+      homeTimezone?: string
     ): Promise<LoginResponse & { invite_code: string }> =>
       requestJSON<LoginResponse & { invite_code: string }>(
         "/auth/signup",
         {
           method: "POST",
           headers: buildHeaders(undefined, true),
-          body: JSON.stringify({ email, username, password, home_name: homeName }),
+          body: JSON.stringify({
+            email,
+            username,
+            password,
+            home_name: homeName,
+            home_timezone: homeTimezone ?? "UTC",
+          }),
         },
         "Signup failed"
       ),
@@ -311,8 +318,8 @@ export const api = {
   },
 
   bounty: {
-    getToday: async (token: string): Promise<DailyBounty | null> =>
-      requestJSON<DailyBounty | null>(
+    getToday: async (token: string): Promise<DailyBounty> =>
+      requestJSON<DailyBounty>(
         "/bounty/today",
         { headers: buildHeaders(token) },
         "Failed to fetch daily bounty"
@@ -328,9 +335,9 @@ export const api = {
         "Failed to refresh daily bounty"
       ),
 
-    checkTemplate: async (templateId: number, token: string): Promise<BountyCheckResponse> =>
+    checkTemplate: async (questId: number, token: string): Promise<BountyCheckResponse> =>
       requestJSON<BountyCheckResponse>(
-        `/bounty/check/${templateId}`,
+        `/bounty/check/${questId}`,
         { headers: buildHeaders(token) },
         "Failed to check bounty status"
       ),

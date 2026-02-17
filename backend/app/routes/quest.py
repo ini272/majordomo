@@ -386,9 +386,11 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
             detail=create_error_detail(ErrorCode.USER_NOT_FOUND, details={"user_id": quest.user_id}),
         )
 
-    # Check if this quest's template is today's daily bounty
-    today_bounty = crud_daily_bounty.get_today_bounty(db, auth["home_id"])
-    is_daily_bounty = today_bounty and today_bounty.quest_template_id == quest.quest_template_id
+    # Resolve today's bounty decision for the quest owner.
+    today_bounty = crud_daily_bounty.get_or_create_today_bounty(db, auth["home_id"], quest.user_id)
+    is_daily_bounty = bool(
+        today_bounty.status == "assigned" and today_bounty.quest_id == quest.id
+    )
 
     # Check if quest is corrupted (overdue) - for display purposes only (not bonus rewards)
     is_corrupted = quest.quest_type == "corrupted"

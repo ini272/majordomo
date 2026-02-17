@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to seed test data: home, user, and consumables.
+Script to seed test data: home, user, consumables, and achievements.
 Useful when recreating the database for testing.
 
 Run this from the backend directory: uv run python seed_test_data.py
@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from app.database import get_db
+from app.crud import achievement as crud_achievement
 from app.crud import reward as crud_reward
 from app.crud import home as crud_home
 from app.crud import user as crud_user
@@ -22,7 +23,7 @@ from app.models.user import UserCreate
 
 
 def seed_test_data():
-    """Seed test data: home, user, and consumables"""
+    """Seed test data: home, user, consumables, and achievements"""
     db = next(get_db())
 
     try:
@@ -102,6 +103,13 @@ def seed_test_data():
             print(f"  ⏭️  Purification Shield already exists")
 
         # ============================================
+        # 4. ENSURE DEFAULT ACHIEVEMENTS
+        # ============================================
+        print("🏆 Ensuring default achievements exist")
+        achievements = crud_achievement.create_default_achievements(db, test_home.id)
+        print(f"  ✅ {len(achievements)} default achievement(s) available")
+
+        # ============================================
         # SUMMARY
         # ============================================
         print("\n" + "="*60)
@@ -113,6 +121,7 @@ def seed_test_data():
         print(f"   Username: {username}")
         print(f"   Email: {email}")
         print(f"   Password: {password}")
+        print(f"\n🏆 Default Achievements: {len(achievements)}")
         print(f"\n💡 You can now login at the frontend with these credentials!")
         print("="*60 + "\n")
 

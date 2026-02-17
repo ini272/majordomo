@@ -1,4 +1,5 @@
 import secrets
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from typing import Optional
 
 from sqlmodel import Session, select
@@ -38,7 +39,17 @@ def create_home(db: Session, home_in: HomeCreate) -> Home:
     if existing_home:
         raise ValueError(f"A home with the name '{home_in.name}' already exists")
 
-    db_home = Home(**home_in.model_dump(), invite_code=generate_invite_code())
+    timezone = home_in.timezone.strip() if home_in.timezone else "UTC"
+    try:
+        ZoneInfo(timezone)
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError(f"Invalid home timezone: {timezone}") from exc
+
+    db_home = Home(
+        **home_in.model_dump(exclude={"timezone"}),
+        timezone=timezone,
+        invite_code=generate_invite_code(),
+    )
     db.add(db_home)
     db.commit()
     db.refresh(db_home)

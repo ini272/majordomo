@@ -16,6 +16,7 @@ class Home(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     invite_code: str = Field(unique=True, index=True)
+    timezone: str = Field(default="UTC", max_length=100)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Relationships
@@ -32,6 +33,7 @@ class HomeRead(SQLModel):
     id: int
     name: str
     invite_code: str
+    timezone: str
     created_at: datetime
 
 
@@ -39,6 +41,7 @@ class HomeCreate(SQLModel):
     """Schema for creating a home"""
 
     name: str = Field(min_length=1, max_length=100)
+    timezone: str = Field(default="UTC", min_length=1, max_length=100)
 
 
 class HomeJoin(SQLModel):

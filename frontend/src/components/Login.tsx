@@ -29,8 +29,9 @@ export default function Login() {
         const username = form.get("username") as string;
         const password = form.get("password") as string;
         const homeName = form.get("homeName") as string;
+        const homeTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
-        data = await api.auth.signup(email, username, password, homeName);
+        data = await api.auth.signup(email, username, password, homeName, homeTimezone);
         setInviteCode(data.invite_code);
       } else if (mode === "join") {
         const inviteCode = form.get("inviteCode") as string;
