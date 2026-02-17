@@ -9,6 +9,7 @@ import type { QuestTemplate } from "../types/api";
 import { useAuth } from "../contexts/AuthContext";
 
 type CreationMode = "ai-scribe" | "random" | "from-template";
+type TemplateAction = "quick-create" | "edit-defaults";
 
 interface CreateQuestFormProps {
   token: string;
@@ -34,20 +35,22 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   const [selectedTemplate, setSelectedTemplate] = useState<QuestTemplate | null>(null);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
 
+  const fetchTemplates = async (): Promise<QuestTemplate[] | null> => {
+    setLoadingTemplates(true);
+    try {
+      const fetchedTemplates = await api.quests.getAllTemplates(token);
+      setTemplates(fetchedTemplates);
+      return fetchedTemplates;
+    } catch (err) {
+      console.error("Failed to fetch templates:", err);
+      return null;
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
   // Fetch templates on mount
   useEffect(() => {
-    const fetchTemplates = async () => {
-      setLoadingTemplates(true);
-      try {
-        const fetchedTemplates = await api.quests.getAllTemplates(token);
-        setTemplates(fetchedTemplates);
-      } catch (err) {
-        console.error("Failed to fetch templates:", err);
-      } finally {
-        setLoadingTemplates(false);
-      }
-    };
-
     fetchTemplates();
   }, [token]);
 
@@ -125,7 +128,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
     }
   };
 
-  const handleCreateFromTemplate = async (openEditModal: boolean) => {
+  const handleCreateFromTemplate = async (action: TemplateAction) => {
     if (!selectedTemplate) return;
 
     if (userId === null) {
@@ -133,9 +136,10 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       return;
     }
 
-    if (openEditModal) {
-      // Open edit modal to edit the template
+    if (action === "edit-defaults") {
+      // Open modal for template-default editing
       setCreatedTemplateId(selectedTemplate.id);
+      setCreateQuestOnSave(false);
       setShowEditModal(true);
     } else {
       // Quick create - create quest immediately
@@ -423,12 +427,12 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
 
                   {/* Action buttons for selected template */}
                   {selectedTemplate && (
-                    <div className="flex gap-3 mt-4">
+                    <div className="grid gap-3 mt-4 md:grid-cols-2">
                       <button
                         type="button"
-                        onClick={() => handleCreateFromTemplate(false)}
+                        onClick={() => handleCreateFromTemplate("quick-create")}
                         disabled={loading}
-                        className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
+                        className="py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
                         style={{
                           backgroundColor: loading
                             ? `rgba(212, 175, 55, 0.1)`
@@ -440,13 +444,13 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
                           opacity: loading ? 0.5 : 1,
                         }}
                       >
-                        {loading ? "Creating..." : "Create Quest"}
+                        {loading ? "Creating..." : "Create Quest Now"}
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleCreateFromTemplate(true)}
+                        onClick={() => handleCreateFromTemplate("edit-defaults")}
                         disabled={loading}
-                        className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
+                        className="py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
                         style={{
                           backgroundColor: loading
                             ? `rgba(107, 95, 183, 0.1)`
@@ -458,7 +462,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
                           opacity: loading ? 0.5 : 1,
                         }}
                       >
-                        Edit
+                        Edit Template Defaults
                       </button>
                     </div>
                   )}
@@ -488,7 +492,10 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
           token={token}
           skipAI={skipAI}
           createQuestOnSave={createQuestOnSave}
-          onSave={() => {
+          onSave={async result => {
+            const isTemplateDefaultsFlow = !!createdTemplateId && !createQuestOnSave && !editingQuestId && !templateInitialData;
+            const editedTemplateId = createdTemplateId;
+
             // Clear state before calling user callbacks (prevents delete logic)
             setShowEditModal(false);
             setEditingQuestId(null);
@@ -496,12 +503,28 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
             setTemplateInitialData(null);
             setCreateQuestOnSave(false);
             setDeleteQuestOnCancel(false);
+
+            if (isTemplateDefaultsFlow) {
+              const refreshedTemplates = await fetchTemplates();
+              if (editedTemplateId && refreshedTemplates) {
+                const updatedTemplate = refreshedTemplates.find(template => template.id === editedTemplateId) || null;
+                setSelectedTemplate(updatedTemplate);
+              }
+
+              if (result?.createdQuest) {
+                onQuestCreated();
+                onClose();
+              }
+              return;
+            }
+
             onQuestCreated();
             onClose();
           }}
           onClose={async () => {
             // Capture the current quest ID before clearing state
             const questIdToDelete = deleteQuestOnCancel ? editingQuestId : null;
+            const isTemplateDefaultsFlow = !!createdTemplateId && !createQuestOnSave && !editingQuestId && !templateInitialData;
 
             // Clear state first
             setShowEditModal(false);
@@ -518,6 +541,10 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
               } catch (err) {
                 console.error("Failed to cleanup quest:", err);
               }
+            }
+
+            if (isTemplateDefaultsFlow) {
+              return;
             }
 
             onClose();

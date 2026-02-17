@@ -6,6 +6,12 @@ import StewardImage from "../assets/thesteward.png";
 import ParchmentTypeWriter from "./ParchmentTypeWriter";
 import { useAuth } from "../contexts/AuthContext";
 import { buildSchedule, parseSchedule, type QuestRecurrence } from "../utils/schedule";
+import {
+  buildStandaloneQuestUpdateData,
+  deriveDifficultySlidersFromXP,
+  getEditQuestModalLabels,
+  toDueInHoursStateValue,
+} from "./editQuestModalHelpers";
 
 const AVAILABLE_TAGS = ["Chores", "Learning", "Exercise", "Health", "Organization"];
 
@@ -32,7 +38,7 @@ interface EditQuestModalProps {
   token: string;
   skipAI: boolean;
   createQuestOnSave?: boolean;  // If true, creates quest on save (for template/initialData modes)
-  onSave?: () => void;
+  onSave?: (result: { createdQuest: boolean; updatedTemplateDefaults: boolean }) => void;
   onClose?: () => void;
 }
 
@@ -47,6 +53,12 @@ export default function EditQuestModal({
   onClose,
 }: EditQuestModalProps) {
   const isCreateMode = !!initialData;
+  const isTemplateDefaultsMode = !!templateId && !createQuestOnSave;
+  const modalLabels = getEditQuestModalLabels({
+    hasTemplateId: !!templateId,
+    isCreateMode,
+    hasQuestId: !!questId,
+  });
   const { userId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -90,6 +102,11 @@ export default function EditQuestModal({
             });
             setSelectedTags(tags);
           }
+          const createModeSliders = deriveDifficultySlidersFromXP(initialData.xp_reward);
+          setTime(createModeSliders.time);
+          setEffort(createModeSliders.effort);
+          setDread(createModeSliders.dread);
+          setDueInHours(toDueInHoursStateValue(initialData.due_in_hours));
 
           setLoading(false);
           if (initialData.display_name || initialData.description) {
@@ -118,6 +135,10 @@ export default function EditQuestModal({
             });
             setSelectedTags(tags);
           }
+          const templateSliders = deriveDifficultySlidersFromXP(response.xp_reward);
+          setTime(templateSliders.time);
+          setEffort(templateSliders.effort);
+          setDread(templateSliders.dread);
 
           // Use subscription schedule if available (Phase 3)
           const effectiveRecurrence = userSubscription ? userSubscription.recurrence : response.recurrence;
@@ -130,12 +151,14 @@ export default function EditQuestModal({
           const parsedSchedule = parseSchedule(effectiveSchedule);
           if (parsedSchedule) {
             if (parsedSchedule.time) setScheduleTime(parsedSchedule.time);
-            if (typeof parsedSchedule.day === "string") setScheduleDay(parsedSchedule.day);
-            if (typeof parsedSchedule.day === "number") setScheduleDayOfMonth(parsedSchedule.day);
+            if ("day" in parsedSchedule && typeof parsedSchedule.day === "string") {
+              setScheduleDay(parsedSchedule.day);
+            }
+            if ("day" in parsedSchedule && typeof parsedSchedule.day === "number") {
+              setScheduleDayOfMonth(parsedSchedule.day);
+            }
           }
-          if (effectiveDueInHours) {
-            setDueInHours(effectiveDueInHours.toString());
-          }
+          setDueInHours(toDueInHoursStateValue(effectiveDueInHours));
 
           setLoading(false);
           if (response.display_name || response.description) {
@@ -159,6 +182,10 @@ export default function EditQuestModal({
             });
             setSelectedTags(tags);
           }
+          const editModeSliders = deriveDifficultySlidersFromXP(response.xp_reward);
+          setTime(editModeSliders.time);
+          setEffort(editModeSliders.effort);
+          setDread(editModeSliders.dread);
 
           setRecurrence(response.recurrence as QuestRecurrence);
           setOriginalRecurrence(response.recurrence as QuestRecurrence);
@@ -166,9 +193,14 @@ export default function EditQuestModal({
           const parsedSchedule = parseSchedule(response.schedule);
           if (parsedSchedule) {
             if (parsedSchedule.time) setScheduleTime(parsedSchedule.time);
-            if (typeof parsedSchedule.day === "string") setScheduleDay(parsedSchedule.day);
-            if (typeof parsedSchedule.day === "number") setScheduleDayOfMonth(parsedSchedule.day);
+            if ("day" in parsedSchedule && typeof parsedSchedule.day === "string") {
+              setScheduleDay(parsedSchedule.day);
+            }
+            if ("day" in parsedSchedule && typeof parsedSchedule.day === "number") {
+              setScheduleDayOfMonth(parsedSchedule.day);
+            }
           }
+          setDueInHours(toDueInHoursStateValue(response.due_in_hours));
 
           setQuest(response);
           setLoading(false);
@@ -186,7 +218,8 @@ export default function EditQuestModal({
     loadData();
   }, [questId, templateId, initialData, token, skipAI, isCreateMode]);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (options?: { createQuestAfterTemplateSave?: boolean }) => {
+    const createQuestAfterTemplateSave = options?.createQuestAfterTemplateSave ?? false;
     setSaving(true);
     setError(null);
 
@@ -231,7 +264,7 @@ export default function EditQuestModal({
             );
           }
         } else if (templateId) {
-          // From template - create quest from template
+          // From template create mode - create quest from current template defaults
           await api.quests.create(
             { quest_template_id: templateId },
             token,
@@ -239,7 +272,7 @@ export default function EditQuestModal({
           );
         }
 
-        onSave?.();
+        onSave?.({ createdQuest: true, updatedTemplateDefaults: false });
         // Don't call onClose - parent's onSave callback handles closing
       } else if (templateId) {
         // EDIT TEMPLATE MODE: Update template and subscriptions
@@ -286,17 +319,28 @@ export default function EditQuestModal({
           );
         }
 
-        onSave?.();
+        if (createQuestAfterTemplateSave) {
+          if (userId === null) {
+            throw new Error("User ID not found in session");
+          }
+          await api.quests.create({ quest_template_id: templateId }, token, userId);
+        }
+
+        onSave?.({
+          createdQuest: createQuestAfterTemplateSave,
+          updatedTemplateDefaults: true,
+        });
         // Don't call onClose - parent's onSave callback handles closing
       } else if (quest) {
         // EDIT QUEST MODE: Update existing quest
-        const updateData = {
-          ...(displayName.trim() && { display_name: displayName.trim() }),
-          ...(description.trim() && { description: description.trim() }),
-          ...(selectedTags.length > 0 && { tags: selectedTags.join(",").toLowerCase() }),
-          xp_reward: baseXP,
-          gold_reward: baseGold,
-        };
+        const updateData = buildStandaloneQuestUpdateData({
+          displayName,
+          description,
+          selectedTags,
+          baseXP,
+          baseGold,
+          dueInHours,
+        });
 
         await api.quests.update(quest.id, updateData, token);
 
@@ -312,7 +356,7 @@ export default function EditQuestModal({
           await api.quests.convertToTemplate(quest.id, conversionData, token);
         }
 
-        onSave?.();
+        onSave?.({ createdQuest: false, updatedTemplateDefaults: false });
         // Don't call onClose - parent's onSave callback handles closing
       }
     } catch (err) {
@@ -341,6 +385,7 @@ export default function EditQuestModal({
     scheduleDayOfMonth,
     dueInHours,
     token,
+    userId,
     onSave,
     onClose,
   ]);
@@ -371,7 +416,7 @@ export default function EditQuestModal({
           <div className="mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-serif font-bold" style={{ color: COLORS.gold }}>
-                Scribe Quest Details
+                {modalLabels.title}
               </h2>
               <button
                 onClick={onClose}
@@ -432,6 +477,20 @@ export default function EditQuestModal({
                   <div className="text-xs mt-1 italic">
                     Changes only affect this quest. To edit template/schedule, go to template management.
                   </div>
+                </div>
+              )}
+
+              {isTemplateDefaultsMode && (
+                <div
+                  className="mb-4 px-3 py-2 rounded text-sm font-serif"
+                  style={{
+                    backgroundColor: `rgba(212, 175, 55, 0.1)`,
+                    borderColor: COLORS.gold,
+                    borderWidth: "1px",
+                    color: COLORS.parchment,
+                  }}
+                >
+                  Updating template defaults. Changes affect future template-based quests.
                 </div>
               )}
 
@@ -661,8 +720,8 @@ export default function EditQuestModal({
               )}
 
               {/* Recurrence Configuration */}
-              {/* Show when: (1) editing template, (2) from template mode, or (3) standalone quest with checkbox */}
-              {(templateId || saveAsTemplate) && !(quest && quest.quest_template_id !== null) && (
+              {/* Show when: (1) editing template defaults, or (2) standalone quest with save-as-template */}
+              {(isTemplateDefaultsMode || saveAsTemplate) && !(quest && quest.quest_template_id !== null) && (
                 <div className="mb-6">
                   <label
                     className="block text-sm uppercase tracking-wider mb-2 font-serif"
@@ -978,6 +1037,24 @@ export default function EditQuestModal({
                 >
                   Cancel
                 </button>
+                {isTemplateDefaultsMode && (
+                  <button
+                    type="button"
+                    onClick={() => handleSave({ createQuestAfterTemplateSave: true })}
+                    disabled={saving}
+                    className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all"
+                    style={{
+                      backgroundColor: saving ? `rgba(56, 189, 248, 0.1)` : `rgba(56, 189, 248, 0.25)`,
+                      borderColor: "#38bdf8",
+                      borderWidth: "2px",
+                      color: "#bae6fd",
+                      cursor: saving ? "not-allowed" : "pointer",
+                      opacity: saving ? 0.5 : 1,
+                    }}
+                  >
+                    {saving ? "Saving..." : "Save Defaults & Create Quest"}
+                  </button>
+                )}
                 <button
                   type="submit"
                   disabled={saving}
@@ -991,7 +1068,7 @@ export default function EditQuestModal({
                     opacity: saving ? 0.5 : 1,
                   }}
                 >
-                  {saving ? "Saving..." : "Save Quest"}
+                  {saving ? "Saving..." : modalLabels.submitLabel}
                 </button>
               </div>
             </form>
