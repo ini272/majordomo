@@ -1,0 +1,73 @@
+.quest-corruption-overlay {
+  mix-blend-mode: screen;
+  opacity: 0.58;
+  filter: saturate(1.7) brightness(1.45) drop-shadow(0 0 12px rgba(170, 90, 255, 0.65));
+  transform-origin: center;
+  animation: corruption-overlay-pulse 1.9s ease-in-out infinite;
+  will-change: opacity, transform, filter;
+}
+
+.quest-corruption-overlay-glow {
+  mix-blend-mode: color-dodge;
+  opacity: 0.34;
+  filter: blur(3px) saturate(1.9) brightness(1.55) drop-shadow(0 0 18px rgba(204, 130, 255, 0.8));
+  transform-origin: center;
+  animation: corruption-overlay-glow-pulse 1.9s ease-in-out infinite;
+  will-change: opacity, transform, filter;
+}
+
+@keyframes corruption-overlay-pulse {
+  0%,
+  100% {
+    opacity: 0.36;
+    transform: scale(1);
+    filter: saturate(1.35) brightness(1.18) drop-shadow(0 0 8px rgba(142, 63, 255, 0.45));
+  }
+
+  35% {
+    opacity: 0.78;
+    transform: scale(1.011);
+    filter: saturate(2) brightness(1.75) drop-shadow(0 0 20px rgba(182, 106, 255, 0.86));
+  }
+
+  50% {
+    opacity: 0.96;
+    transform: scale(1.019);
+    filter: saturate(2.3) brightness(1.98) drop-shadow(0 0 28px rgba(220, 152, 255, 0.96));
+  }
+
+  68% {
+    opacity: 0.7;
+    transform: scale(1.013);
+    filter: saturate(1.85) brightness(1.52) drop-shadow(0 0 18px rgba(195, 125, 255, 0.82));
+  }
+}
+
+@keyframes corruption-overlay-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(1);
+    filter: blur(2px) saturate(1.4) brightness(1.2) drop-shadow(0 0 10px rgba(170, 92, 255, 0.55));
+  }
+
+  40% {
+    opacity: 0.62;
+    transform: scale(1.014);
+    filter: blur(3px) saturate(2.05) brightness(1.95)
+      drop-shadow(0 0 24px rgba(224, 158, 255, 0.95));
+  }
+
+  55% {
+    opacity: 0.78;
+    transform: scale(1.022);
+    filter: blur(4px) saturate(2.3) brightness(2.15) drop-shadow(0 0 30px rgba(236, 176, 255, 1));
+  }
+
+  73% {
+    opacity: 0.38;
+    transform: scale(1.01);
+    filter: blur(2px) saturate(1.55) brightness(1.32)
+      drop-shadow(0 0 14px rgba(182, 108, 255, 0.67));
+  }
+}

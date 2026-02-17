@@ -1,12 +1,29 @@
 import { useState, useEffect } from "react";
 import { COLORS } from "../constants/colors";
 import { debugFontLoading, debugElementFont, getFontDebugInfo } from "../utils/fontDebug";
+import corruptedPulseMask from "../assets/corrupted_pulse.png";
+import questCardCorrupted from "../assets/quest_card_corrupted.png";
+import questCardEmpty from "../assets/quest_card_empty.png";
 
 // Import fonts locally (only for playground)
 import "../styles/playground-fonts.css";
+import "../styles/quest-card-playground.css";
+
+export interface PlaygroundQuest {
+  id: number;
+  title: string;
+  displayName: string;
+  description: string;
+  questType: "standard" | "bounty" | "corrupted";
+  xpReward: number;
+  goldReward: number;
+  dueDate: string | null;
+  tags: string[];
+  completed: boolean;
+}
 
 // Sample quest data for testing
-const sampleQuests = [
+const sampleQuests: PlaygroundQuest[] = [
   {
     id: 1,
     title: "The Grease Wars",
@@ -64,27 +81,50 @@ const MEDIEVAL_FONTS = [
 ];
 
 interface QuestCardProps {
-  quest: (typeof sampleQuests)[0];
+  quest: PlaygroundQuest;
   fontClassName: string;
 }
 
-function PlaygroundQuestCard({ quest, fontClassName }: QuestCardProps) {
+export function PlaygroundQuestCard({ quest, fontClassName }: QuestCardProps) {
+  const isCorrupted = quest.questType === "corrupted";
+  const baseCardTexture = isCorrupted ? questCardCorrupted : questCardEmpty;
+
   return (
     <div
       className={`relative mb-8 ${fontClassName}`}
       style={{
-        backgroundImage: "url(/src/assets/leonardo_4_3.png)",
-        backgroundSize: "100% 100%",
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "center",
         aspectRatio: "4/3",
         maxWidth: "700px",
         margin: "0 auto 2rem auto",
       }}
     >
+      <img
+        src={baseCardTexture}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full object-fill select-none pointer-events-none"
+      />
+      {isCorrupted && (
+        <>
+          <img
+            src={corruptedPulseMask}
+            alt=""
+            aria-hidden="true"
+            data-corruption-overlay="true"
+            className="quest-corruption-overlay absolute inset-0 h-full w-full object-fill select-none pointer-events-none"
+          />
+          <img
+            src={corruptedPulseMask}
+            alt=""
+            aria-hidden="true"
+            data-corruption-overlay-glow="true"
+            className="quest-corruption-overlay-glow absolute inset-0 h-full w-full object-fill select-none pointer-events-none"
+          />
+        </>
+      )}
       {/* Content container - positioned within parchment area */}
       <div
-        className="relative h-full flex flex-col justify-between"
+        className="relative z-10 h-full flex flex-col justify-between"
         style={{
           padding: "23% 24%", // Padding to position content in parchment center
         }}
@@ -94,7 +134,7 @@ function PlaygroundQuestCard({ quest, fontClassName }: QuestCardProps) {
           className="text-2xl font-bold mb-4"
           style={{
             color: "#000000",
-            textShadow: "0 1px 2px rgba(0,0,0,0.1)"
+            textShadow: "0 1px 2px rgba(0,0,0,0.1)",
           }}
         >
           {quest.displayName}
@@ -105,7 +145,7 @@ function PlaygroundQuestCard({ quest, fontClassName }: QuestCardProps) {
           className="text-base font-medium mb-6 flex-grow"
           style={{
             color: "#000000",
-            lineHeight: "1.7"
+            lineHeight: "1.7",
           }}
         >
           {quest.description}
@@ -114,7 +154,10 @@ function PlaygroundQuestCard({ quest, fontClassName }: QuestCardProps) {
         {/* Rewards - bottom section */}
         <div className="grid grid-cols-2 gap-6 mt-auto">
           <div>
-            <div className="text-xs uppercase tracking-wider mb-1 font-semibold" style={{ color: "#000000" }}>
+            <div
+              className="text-xs uppercase tracking-wider mb-1 font-semibold"
+              style={{ color: "#000000" }}
+            >
               XP Reward
             </div>
             <div className="text-xl font-bold" style={{ color: "#000000" }}>
@@ -122,7 +165,10 @@ function PlaygroundQuestCard({ quest, fontClassName }: QuestCardProps) {
             </div>
           </div>
           <div>
-            <div className="text-xs uppercase tracking-wider mb-1 font-semibold" style={{ color: "#000000" }}>
+            <div
+              className="text-xs uppercase tracking-wider mb-1 font-semibold"
+              style={{ color: "#000000" }}
+            >
               Gold Reward
             </div>
             <div className="text-xl font-bold" style={{ color: "#000000" }}>
@@ -172,7 +218,7 @@ export default function QuestCardPlayground() {
             Quest Card Design Playground
           </h1>
           <p className="text-sm" style={{ color: COLORS.brown }}>
-            Testing Leonardo frame integration with minimal content
+            Testing stacked base + corruption pulse mask on card art
           </p>
         </div>
 
@@ -310,7 +356,7 @@ export default function QuestCardPlayground() {
             Quest Card Examples
           </h2>
           <p className="text-sm mb-6" style={{ color: COLORS.brown }}>
-            Minimal design with Leonardo frame - Title, Description, XP & Gold only
+            Minimal design with layered frame art - Title, Description, XP & Gold only
           </p>
 
           {sampleQuests.map(quest => (
@@ -336,16 +382,20 @@ export default function QuestCardPlayground() {
           </h2>
           <ul className="space-y-2 text-sm" style={{ color: COLORS.parchment }}>
             <li>
-              • <strong>Leonardo frame:</strong> AI-generated ornate medieval border (4:3 ratio)
+              • <strong>Layered frame art:</strong> Base card texture with optional corruption mask
             </li>
             <li>
               • <strong>Minimal content:</strong> Title, description, XP, and gold only
             </li>
             <li>
+              • <strong>Corrupted pulse:</strong> Purple overlay animates only on corrupted quests
+            </li>
+            <li>
               • <strong>Authentic parchment:</strong> Real texture from the frame image
             </li>
             <li>
-              • <strong>Centered layout:</strong> 15-18% padding to position content in parchment area
+              • <strong>Centered layout:</strong> 15-18% padding to position content in parchment
+              area
             </li>
             <li>
               • <strong>Readable text:</strong> Dark brown colors for good contrast
