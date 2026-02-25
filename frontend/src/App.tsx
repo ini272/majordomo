@@ -8,9 +8,11 @@ import NFCTrigger from "./pages/NFCTrigger";
 import QuestCardPlayground from "./pages/QuestCardPlayground";
 import { COLORS } from "./constants/colors";
 import { useAuth } from "./contexts/AuthContext";
+import { useSound } from "./contexts/SoundContext";
 
 function App() {
   const { isAuthenticated, logout } = useAuth();
+  const { isMuted, toggleMute } = useSound();
 
   if (!isAuthenticated) {
     return (
@@ -51,18 +53,37 @@ function App() {
             >
               MAJORDOMO
             </h1>
-            <button
-              className="px-3 py-1 md:px-4 md:py-2 font-serif text-xs uppercase tracking-wider transition-all"
-              style={{
-                backgroundColor: COLORS.redDark,
-                borderColor: COLORS.gold,
-                borderWidth: "1px",
-                color: COLORS.gold,
-              }}
-              onClick={logout}
-            >
-              Exit
-            </button>
+            <div className="flex items-center gap-2 md:gap-3">
+              <button
+                type="button"
+                className="px-3 py-1 md:px-4 md:py-2 font-serif text-xs uppercase tracking-wider transition-all"
+                style={{
+                  backgroundColor: "rgba(212, 175, 55, 0.14)",
+                  borderColor: COLORS.gold,
+                  borderWidth: "1px",
+                  color: COLORS.gold,
+                }}
+                onClick={toggleMute}
+                title={isMuted ? "Unmute sound effects" : "Mute sound effects"}
+                aria-label={isMuted ? "Unmute sound effects" : "Mute sound effects"}
+                aria-pressed={isMuted}
+              >
+                {isMuted ? "Sound: Off" : "Sound: On"}
+              </button>
+              <button
+                type="button"
+                className="px-3 py-1 md:px-4 md:py-2 font-serif text-xs uppercase tracking-wider transition-all"
+                style={{
+                  backgroundColor: COLORS.redDark,
+                  borderColor: COLORS.gold,
+                  borderWidth: "1px",
+                  color: COLORS.gold,
+                }}
+                onClick={logout}
+              >
+                Exit
+              </button>
+            </div>
           </div>
         </header>
 

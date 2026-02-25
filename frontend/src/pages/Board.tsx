@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import QuestCard from "../components/QuestCard";
 import CreateQuestForm from "../components/CreateQuestForm";
@@ -8,6 +8,7 @@ import { LAYERS } from "../constants/layers";
 import boardBackground from "../assets/empty_board.png";
 import type { Quest, DailyBounty, UpcomingSubscription } from "../types/api";
 import { useAuth } from "../contexts/AuthContext";
+import { useSound } from "../contexts/SoundContext";
 import ModalShell from "../components/modal/ModalShell";
 
 const QUESTS_PER_PAGE = 6;
@@ -110,6 +111,7 @@ const getPageCount = (items: unknown[]) => Math.max(1, Math.ceil(items.length / 
 
 export default function Board() {
   const { token } = useAuth();
+  const { playSound } = useSound();
   const [view, setView] = useState<"current" | "upcoming">("current");
   const [quests, setQuests] = useState<Quest[]>([]);
   const [upcomingQuests, setUpcomingQuests] = useState<UpcomingSubscription[]>([]);
@@ -127,6 +129,12 @@ export default function Board() {
   const [selectedUpcomingSpawnTime, setSelectedUpcomingSpawnTime] = useState<string | undefined>();
   const [selectedIsDailyBounty, setSelectedIsDailyBounty] = useState(false);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
+  const [userLevel, setUserLevel] = useState<number | null>(null);
+  const userLevelRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    userLevelRef.current = userLevel;
+  }, [userLevel]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -159,6 +167,24 @@ export default function Board() {
 
     fetchData();
   }, [token, view]);
+
+  useEffect(() => {
+    const fetchUserLevel = async () => {
+      if (!token) {
+        setUserLevel(null);
+        return;
+      }
+
+      try {
+        const user = await api.user.getStats(token);
+        setUserLevel(user.level);
+      } catch {
+        // If stats request fails, skip level-up audio until next successful fetch.
+      }
+    };
+
+    fetchUserLevel();
+  }, [token]);
 
   useEffect(() => {
     setCurrentPage(prev => Math.min(prev, getPageCount(quests) - 1));
@@ -195,6 +221,19 @@ export default function Board() {
       const updatedQuest = result.quest;
       setQuests(prev => prev.map(q => (q.id === questId ? updatedQuest : q)));
       setSelectedQuest(prev => (prev && prev.id === questId ? updatedQuest : prev));
+      playSound("questComplete");
+
+      try {
+        const latestUser = await api.user.getStats(token);
+        const previousLevel = userLevelRef.current;
+        if (previousLevel !== null && latestUser.level > previousLevel) {
+          playSound("levelUp");
+        }
+        setUserLevel(latestUser.level);
+      } catch {
+        // Ignore stats refresh errors so completion still succeeds.
+      }
+
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to complete quest");
