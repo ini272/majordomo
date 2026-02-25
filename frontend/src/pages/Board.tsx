@@ -1,14 +1,20 @@
 import { useState, useEffect, useMemo } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import QuestCard from "../components/QuestCard";
 import CreateQuestForm from "../components/CreateQuestForm";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
+import { LAYERS } from "../constants/layers";
 import boardBackground from "../assets/empty_board.png";
 import type { Quest, DailyBounty, UpcomingSubscription } from "../types/api";
 import { useAuth } from "../contexts/AuthContext";
+import ModalShell from "../components/modal/ModalShell";
 
 const QUESTS_PER_PAGE = 6;
+const SWIPE_DISTANCE_THRESHOLD = 72;
+const SWIPE_VELOCITY_THRESHOLD = 420;
+
+type QuestCollectionView = "current" | "upcoming";
 
 interface CompactQuestCardProps {
   quest: Quest;
@@ -117,8 +123,10 @@ export default function Board() {
   const [pageDirection, setPageDirection] = useState(1);
 
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
+  const [selectedQuestView, setSelectedQuestView] = useState<QuestCollectionView | null>(null);
   const [selectedUpcomingSpawnTime, setSelectedUpcomingSpawnTime] = useState<string | undefined>();
   const [selectedIsDailyBounty, setSelectedIsDailyBounty] = useState(false);
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -160,6 +168,22 @@ export default function Board() {
     setUpcomingPage(prev => Math.min(prev, getPageCount(upcomingQuests) - 1));
   }, [upcomingQuests]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+
+    const mediaQuery = window.matchMedia("(pointer: coarse)");
+    const updatePointerType = () => setIsCoarsePointer(mediaQuery.matches);
+    updatePointerType();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", updatePointerType);
+      return () => mediaQuery.removeEventListener("change", updatePointerType);
+    }
+
+    mediaQuery.addListener(updatePointerType);
+    return () => mediaQuery.removeListener(updatePointerType);
+  }, []);
+
   const handleCompleteQuest = async (questId: number) => {
     if (!token) {
       setError("Not authenticated");
@@ -197,6 +221,20 @@ export default function Board() {
   const activePage = view === "current" ? currentPage : upcomingPage;
   const activePageCount = view === "current" ? currentPageCount : upcomingPageCount;
   const activeBountyQuest = dailyBounty?.status === "assigned" ? dailyBounty.quest : null;
+  const fullUpcomingQuests = useMemo(
+    () => upcomingQuests.map(toUpcomingQuest),
+    [upcomingQuests]
+  );
+
+  const selectedQuestSequence = useMemo(() => {
+    if (selectedQuestView === "current") return quests;
+    if (selectedQuestView === "upcoming") return fullUpcomingQuests;
+    return [];
+  }, [selectedQuestView, quests, fullUpcomingQuests]);
+  const selectedQuestIndex = useMemo(() => {
+    if (!selectedQuest) return -1;
+    return selectedQuestSequence.findIndex(quest => quest.id === selectedQuest.id);
+  }, [selectedQuest, selectedQuestSequence]);
 
   const pagedCurrentQuests = useMemo(
     () => quests.slice(currentPage * QUESTS_PER_PAGE, (currentPage + 1) * QUESTS_PER_PAGE),
@@ -220,6 +258,80 @@ export default function Board() {
       setUpcomingPage(clampedPage);
     }
   };
+
+  const openQuestDetails = (
+    quest: Quest,
+    sourceView: QuestCollectionView,
+    upcomingSpawnTime?: string
+  ) => {
+    setSelectedQuest(quest);
+    setSelectedQuestView(sourceView);
+
+    if (sourceView === "upcoming") {
+      setSelectedUpcomingSpawnTime(upcomingSpawnTime);
+      setSelectedIsDailyBounty(false);
+      return;
+    }
+
+    setSelectedUpcomingSpawnTime(undefined);
+    setSelectedIsDailyBounty(activeBountyQuest?.id === quest.id);
+  };
+
+  const closeQuestDetails = () => {
+    setSelectedQuest(null);
+    setSelectedQuestView(null);
+    setSelectedUpcomingSpawnTime(undefined);
+    setSelectedIsDailyBounty(false);
+  };
+
+  const moveSelectedQuest = (delta: 1 | -1) => {
+    if (!selectedQuest || selectedQuestSequence.length < 2) return;
+
+    const currentIndex = selectedQuestSequence.findIndex(quest => quest.id === selectedQuest.id);
+    if (currentIndex === -1) return;
+
+    const nextIndex = currentIndex + delta;
+    if (nextIndex < 0 || nextIndex >= selectedQuestSequence.length) return;
+
+    const nextQuest = selectedQuestSequence[nextIndex];
+    setSelectedQuest(nextQuest);
+
+    if (selectedQuestView === "upcoming") {
+      const nextUpcomingQuest = upcomingQuests.find(upcoming => upcoming.id === nextQuest.id);
+      setSelectedUpcomingSpawnTime(nextUpcomingQuest?.next_spawn_at);
+      setSelectedIsDailyBounty(false);
+      return;
+    }
+
+    setSelectedUpcomingSpawnTime(undefined);
+    setSelectedIsDailyBounty(activeBountyQuest?.id === nextQuest.id);
+  };
+
+  const handleDetailSwipeEnd = (
+    _event: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo
+  ) => {
+    if (!isCoarsePointer) return;
+
+    const swipedLeft =
+      info.offset.x <= -SWIPE_DISTANCE_THRESHOLD || info.velocity.x <= -SWIPE_VELOCITY_THRESHOLD;
+    const swipedRight =
+      info.offset.x >= SWIPE_DISTANCE_THRESHOLD || info.velocity.x >= SWIPE_VELOCITY_THRESHOLD;
+
+    if (swipedLeft) {
+      moveSelectedQuest(1);
+      return;
+    }
+
+    if (swipedRight) {
+      moveSelectedQuest(-1);
+    }
+  };
+
+  const canSwipeQuestDetails = isCoarsePointer && selectedQuestSequence.length > 1;
+  const canNavigatePrevQuest = selectedQuestIndex > 0;
+  const canNavigateNextQuest =
+    selectedQuestIndex !== -1 && selectedQuestIndex < selectedQuestSequence.length - 1;
 
   return (
     <div>
@@ -370,11 +482,7 @@ export default function Board() {
                       key={quest.id}
                       quest={quest}
                       isDailyBounty={activeBountyQuest?.id === quest.id}
-                      onClick={() => {
-                        setSelectedQuest(quest);
-                        setSelectedUpcomingSpawnTime(undefined);
-                        setSelectedIsDailyBounty(activeBountyQuest?.id === quest.id);
-                      }}
+                      onClick={() => openQuestDetails(quest, "current")}
                     />
                   ))}
 
@@ -386,11 +494,9 @@ export default function Board() {
                         key={upcoming.id}
                         quest={upcomingQuest}
                         isUpcoming={true}
-                        onClick={() => {
-                          setSelectedQuest(upcomingQuest);
-                          setSelectedUpcomingSpawnTime(upcoming.next_spawn_at);
-                          setSelectedIsDailyBounty(false);
-                        }}
+                        onClick={() =>
+                          openQuestDetails(upcomingQuest, "upcoming", upcoming.next_spawn_at)
+                        }
                       />
                     );
                   })}
@@ -446,11 +552,12 @@ export default function Board() {
 
       <button
         onClick={() => setShowCreateForm(true)}
-        className="fixed right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl transition-all hover:shadow-xl active:scale-95 z-40"
+        className="fixed right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl transition-all hover:shadow-xl active:scale-95"
         style={{
           backgroundColor: COLORS.gold,
           color: COLORS.darkPanel,
           bottom: "6rem",
+          zIndex: LAYERS.floatingAction,
         }}
         title="Create Quest"
       >
@@ -468,49 +575,81 @@ export default function Board() {
         />
       )}
 
-      <AnimatePresence>
-        {selectedQuest && (
-          <motion.div
-            className="fixed inset-0 z-50 p-3 sm:p-6 flex items-end sm:items-center justify-center"
-            style={{ backgroundColor: "rgba(10, 8, 7, 0.76)" }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setSelectedQuest(null)}
-          >
-            <motion.div
-              className="w-full max-w-3xl max-h-[92vh] overflow-y-auto"
-              initial={{ opacity: 0, y: 44, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 32, scale: 0.98 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              onClick={e => e.stopPropagation()}
+      {selectedQuest && (
+        <ModalShell
+          isOpen={true}
+          onClose={closeQuestDetails}
+          closeOnBackdrop={true}
+          overlayClassName="p-3 sm:p-6 items-end sm:items-center bg-black/75"
+          panelClassName="w-full max-w-3xl max-h-[92dvh]"
+          zIndex={LAYERS.modal}
+        >
+          <div className="mb-2 flex justify-end">
+            <button
+              type="button"
+              onClick={closeQuestDetails}
+              className="px-3 py-1 font-serif text-xs uppercase tracking-wider"
+              style={{
+                border: `1px solid ${COLORS.gold}`,
+                color: COLORS.gold,
+                backgroundColor: "rgba(24, 17, 14, 0.85)",
+              }}
             >
-              <div className="flex justify-end mb-2">
+              Close
+            </button>
+          </div>
+          <div className="relative">
+            {!isCoarsePointer && selectedQuestSequence.length > 1 && (
+              <>
                 <button
                   type="button"
-                  onClick={() => setSelectedQuest(null)}
-                  className="px-3 py-1 font-serif text-xs uppercase tracking-wider"
+                  aria-label="Previous quest"
+                  onClick={() => moveSelectedQuest(-1)}
+                  disabled={!canNavigatePrevQuest}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full text-lg font-bold disabled:opacity-35"
                   style={{
+                    backgroundColor: "rgba(24, 17, 14, 0.92)",
                     border: `1px solid ${COLORS.gold}`,
                     color: COLORS.gold,
-                    backgroundColor: "rgba(24, 17, 14, 0.85)",
                   }}
                 >
-                  Close
+                  ←
                 </button>
-              </div>
+                <button
+                  type="button"
+                  aria-label="Next quest"
+                  onClick={() => moveSelectedQuest(1)}
+                  disabled={!canNavigateNextQuest}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full text-lg font-bold disabled:opacity-35"
+                  style={{
+                    backgroundColor: "rgba(24, 17, 14, 0.92)",
+                    border: `1px solid ${COLORS.gold}`,
+                    color: COLORS.gold,
+                  }}
+                >
+                  →
+                </button>
+              </>
+            )}
+            <motion.div
+              drag={canSwipeQuestDetails ? "x" : false}
+              dragConstraints={{ left: 0, right: 0 }}
+              dragDirectionLock={true}
+              dragElastic={0.2}
+              onDragEnd={handleDetailSwipeEnd}
+              style={{ touchAction: canSwipeQuestDetails ? "pan-y" : "auto" }}
+            >
               <QuestCard
                 quest={selectedQuest}
                 onComplete={handleCompleteQuest}
                 isDailyBounty={selectedIsDailyBounty}
-                isUpcoming={view === "upcoming"}
+                isUpcoming={selectedQuestView === "upcoming"}
                 upcomingSpawnTime={selectedUpcomingSpawnTime}
               />
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </ModalShell>
+      )}
     </div>
   );
 }

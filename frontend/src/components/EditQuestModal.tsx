@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, ChangeEvent, FormEvent } from "react";
 import { api } from "../services/api";
 import { COLORS, PARCHMENT_STYLES } from "../constants/colors";
+import { LAYERS } from "../constants/layers";
 import type { Quest, UserTemplateSubscription } from "../types/api";
 import StewardImage from "../assets/thesteward.png";
 import ParchmentTypeWriter from "./ParchmentTypeWriter";
 import { useAuth } from "../contexts/AuthContext";
+import ModalShell from "./modal/ModalShell";
 import { buildSchedule, parseSchedule, type QuestRecurrence } from "../utils/schedule";
 import {
   buildStandaloneQuestUpdateData,
@@ -401,13 +403,19 @@ export default function EditQuestModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <ModalShell
+      isOpen={true}
+      onClose={onClose}
+      closeOnEscape={!loading && !saving}
+      overlayClassName="items-start sm:items-center p-4"
+      panelClassName="w-full max-w-4xl"
+      zIndex={LAYERS.nestedModal}
+    >
       <div
-        className="w-full max-w-4xl p-6 md:p-8 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto flex gap-6"
+        className="p-6 md:p-8 rounded-lg shadow-xl flex gap-6"
         style={{
           backgroundColor: COLORS.darkPanel,
-          borderColor: COLORS.gold,
-          borderWidth: "2px",
+          border: `2px solid ${COLORS.gold}`,
         }}
       >
         {/* Form Content */}
@@ -419,6 +427,7 @@ export default function EditQuestModal({
                 {modalLabels.title}
               </h2>
               <button
+                type="button"
                 onClick={onClose}
                 className="text-2xl leading-none"
                 style={{ color: COLORS.gold }}
@@ -1085,6 +1094,6 @@ export default function EditQuestModal({
           />
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 }
