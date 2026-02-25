@@ -8,6 +8,7 @@ import StewardImage from "../assets/thesteward.png";
 import SearchableSelect from "./SearchableSelect";
 import type { QuestTemplate } from "../types/api";
 import { useAuth } from "../contexts/AuthContext";
+import { useSound } from "../contexts/SoundContext";
 import ModalShell from "./modal/ModalShell";
 
 type CreationMode = "ai-scribe" | "random" | "from-template";
@@ -21,6 +22,7 @@ interface CreateQuestFormProps {
 
 export default function CreateQuestForm({ token, onQuestCreated, onClose }: CreateQuestFormProps) {
   const { userId } = useAuth();
+  const { playSound } = useSound();
   const [mode, setMode] = useState<CreationMode>("ai-scribe");
   const [title, setTitle] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -89,6 +91,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       setEditingQuestId(quest.id);
       setDeleteQuestOnCancel(true);
       setShowEditModal(true);
+      playSound("questActivate");
 
       // Reset form
       setTitle("");
@@ -150,6 +153,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
 
       try {
         await api.quests.create({ quest_template_id: selectedTemplate.id }, token, userId);
+        playSound("questActivate");
         onQuestCreated();
         onClose();
       } catch (err) {
@@ -522,12 +526,16 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
               }
 
               if (result?.createdQuest) {
+                playSound("questActivate");
                 onQuestCreated();
                 onClose();
               }
               return;
             }
 
+            if (result?.createdQuest) {
+              playSound("questActivate");
+            }
             onQuestCreated();
             onClose();
           }}
