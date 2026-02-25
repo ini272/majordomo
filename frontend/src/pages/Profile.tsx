@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { COLORS } from "../constants/colors";
 import { api } from "../services/api";
 import type { User, Quest, Achievement, UserAchievement } from "../types/api";
 import { useAuth } from "../contexts/AuthContext";
+import QuestCard from "../components/QuestCard";
+import ModalShell from "../components/modal/ModalShell";
+import { LAYERS } from "../constants/layers";
 
 export default function Profile() {
   const { token } = useAuth();
@@ -15,6 +18,7 @@ export default function Profile() {
   const [copiedInvite, setCopiedInvite] = useState(false);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
+  const [selectedCompletedQuest, setSelectedCompletedQuest] = useState<Quest | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -53,6 +57,18 @@ export default function Profile() {
     fetchData();
   }, [token]);
 
+  const completedQuests = useMemo(() => quests.filter(q => q.completed), [quests]);
+  const sortedCompletedQuests = useMemo(
+    () =>
+      [...completedQuests].sort((a, b) => {
+        const dateA = new Date(a.completed_at || 0).getTime();
+        const dateB = new Date(b.completed_at || 0).getTime();
+        return dateB - dateA;
+      }),
+    [completedQuests]
+  );
+  const completedCount = completedQuests.length;
+
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -82,9 +98,6 @@ export default function Profile() {
   if (!userStats) {
     return null;
   }
-
-  const completedQuests = quests.filter(q => q.completed);
-  const completedCount = completedQuests.length;
 
   // Helper function to check if user has unlocked an achievement
   const isAchievementUnlocked = (achievementId: number): boolean => {
@@ -458,18 +471,14 @@ export default function Profile() {
         </div>
         {completedQuests.length > 0 ? (
           <div className="space-y-3">
-            {completedQuests
-              .sort((a, b) => {
-                // Sort by completed_at timestamp, newest first
-                const dateA = new Date(a.completed_at!).getTime();
-                const dateB = new Date(b.completed_at!).getTime();
-                return dateB - dateA;
-              })
-              .slice(0, showAllQuests ? completedQuests.length : 5)
+            {sortedCompletedQuests
+              .slice(0, showAllQuests ? sortedCompletedQuests.length : 5)
               .map(quest => (
-                <div
+                <button
+                  type="button"
+                  onClick={() => setSelectedCompletedQuest(quest)}
                   key={quest.id}
-                  className="p-4 rounded"
+                  className="w-full p-4 rounded text-left transition-all hover:brightness-110"
                   style={{
                     backgroundColor: COLORS.dark,
                     borderLeftColor: COLORS.greenSuccess,
@@ -483,16 +492,12 @@ export default function Profile() {
                     <p style={{ color: COLORS.brown }}>
                       Completed {new Date(quest.completed_at!).toLocaleDateString()}
                     </p>
-                    <div className="flex gap-3">
-                      <span style={{ color: COLORS.gold }}>
-                        +{quest.xp_reward} XP
-                      </span>
-                      <span style={{ color: COLORS.gold }}>
-                        +{quest.gold_reward} Gold
-                      </span>
+                    <div className="flex gap-3 items-center">
+                      <span style={{ color: COLORS.gold }}>+{quest.xp_reward} XP</span>
+                      <span style={{ color: COLORS.gold }}>+{quest.gold_reward} Gold</span>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             {!showAllQuests && completedQuests.length > 5 && (
               <p className="text-center text-sm pt-2" style={{ color: COLORS.brown }}>
@@ -511,6 +516,33 @@ export default function Profile() {
           </div>
         )}
       </div>
+
+      {selectedCompletedQuest && (
+        <ModalShell
+          isOpen={true}
+          onClose={() => setSelectedCompletedQuest(null)}
+          closeOnBackdrop={true}
+          overlayClassName="p-3 sm:p-6 items-end sm:items-center bg-black/75"
+          panelClassName="w-full max-w-3xl max-h-[92dvh]"
+          zIndex={LAYERS.modal}
+        >
+          <div className="mb-2 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setSelectedCompletedQuest(null)}
+              className="px-3 py-1 font-serif text-xs uppercase tracking-wider"
+              style={{
+                border: `1px solid ${COLORS.gold}`,
+                color: COLORS.gold,
+                backgroundColor: "rgba(24, 17, 14, 0.85)",
+              }}
+            >
+              Close
+            </button>
+          </div>
+          <QuestCard quest={selectedCompletedQuest} onComplete={() => undefined} />
+        </ModalShell>
+      )}
     </div>
   );
 }
