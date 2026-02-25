@@ -197,7 +197,7 @@ export default function Market() {
 
       // Filter to only show consumables (Heroic Elixir and Purification Shield)
       const consumables = rewardsData.filter(
-        r => r.name === "Heroic Elixir" || r.name === "Purification Shield"
+        (r) => r.name === "Heroic Elixir" || r.name === "Purification Shield"
       );
 
       setRewards(consumables);
@@ -224,7 +224,7 @@ export default function Market() {
       await api.rewards.claim(rewardId, userId, token);
 
       // Show success message
-      const reward = rewards.find(r => r.id === rewardId);
+      const reward = rewards.find((r) => r.id === rewardId);
       setSuccessMessage(`Successfully purchased ${reward?.name}!`);
 
       // Reload data to update user stats and consumable status
@@ -314,7 +314,7 @@ export default function Market() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-          {rewards.map(reward => (
+          {rewards.map((reward) => (
             <ConsumableCard
               key={reward.id}
               reward={reward}

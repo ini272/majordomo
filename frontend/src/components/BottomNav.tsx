@@ -27,7 +27,7 @@ export default function BottomNav() {
         borderTopWidth: "2px",
       }}
     >
-      {navItems.map(item => (
+      {navItems.map((item) => (
         <Link
           key={item.path}
           to={item.path}

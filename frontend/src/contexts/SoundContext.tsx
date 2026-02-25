@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import levelUpSound from "../sounds/LevelUp.ogg";
 import questActivateSound from "../sounds/iQuestActivate.ogg";
 import questCompleteSound from "../sounds/iQuestComplete.ogg";
@@ -50,7 +58,7 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
   }, [isMuted]);
 
   const toggleMute = useCallback(() => {
-    setIsMuted(prev => !prev);
+    setIsMuted((prev) => !prev);
   }, []);
 
   const setMuted = useCallback((muted: boolean) => {

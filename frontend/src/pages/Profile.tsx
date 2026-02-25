@@ -57,7 +57,7 @@ export default function Profile() {
     fetchData();
   }, [token]);
 
-  const completedQuests = useMemo(() => quests.filter(q => q.completed), [quests]);
+  const completedQuests = useMemo(() => quests.filter((q) => q.completed), [quests]);
   const sortedCompletedQuests = useMemo(
     () =>
       [...completedQuests].sort((a, b) => {
@@ -101,7 +101,7 @@ export default function Profile() {
 
   // Helper function to check if user has unlocked an achievement
   const isAchievementUnlocked = (achievementId: number): boolean => {
-    return userAchievements.some(ua => ua.achievement_id === achievementId);
+    return userAchievements.some((ua) => ua.achievement_id === achievementId);
   };
 
   // Helper function to calculate progress toward an achievement
@@ -318,7 +318,7 @@ export default function Profile() {
         </h3>
         {achievements.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {achievements.map(achievement => {
+            {achievements.map((achievement) => {
               const unlocked = isAchievementUnlocked(achievement.id);
               const progress = getAchievementProgress(achievement);
 
@@ -408,7 +408,7 @@ export default function Profile() {
                       <p className="text-xs" style={{ color: COLORS.brown }}>
                         Unlocked{" "}
                         {new Date(
-                          userAchievements.find(ua => ua.achievement_id === achievement.id)
+                          userAchievements.find((ua) => ua.achievement_id === achievement.id)
                             ?.unlocked_at || ""
                         ).toLocaleDateString()}
                       </p>
@@ -456,11 +456,11 @@ export default function Profile() {
                 borderWidth: "1px",
                 backgroundColor: "transparent",
               }}
-              onMouseEnter={e => {
+              onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = COLORS.gold;
                 e.currentTarget.style.color = COLORS.dark;
               }}
-              onMouseLeave={e => {
+              onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = "transparent";
                 e.currentTarget.style.color = COLORS.gold;
               }}
@@ -473,7 +473,7 @@ export default function Profile() {
           <div className="space-y-3">
             {sortedCompletedQuests
               .slice(0, showAllQuests ? sortedCompletedQuests.length : 5)
-              .map(quest => (
+              .map((quest) => (
                 <button
                   type="button"
                   onClick={() => setSelectedCompletedQuest(quest)}

@@ -34,8 +34,8 @@ export default function SearchableSelect<T>({
     if (!searchTerm.trim()) return items;
 
     const lowerSearch = searchTerm.toLowerCase();
-    return items.filter(item => {
-      return searchFields.some(field => {
+    return items.filter((item) => {
+      return searchFields.some((field) => {
         const value = item[field];
         if (value === null || value === undefined) return false;
         return String(value).toLowerCase().includes(lowerSearch);
@@ -70,11 +70,11 @@ export default function SearchableSelect<T>({
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
-        setHighlightedIndex(prev => Math.min(prev + 1, filteredItems.length - 1));
+        setHighlightedIndex((prev) => Math.min(prev + 1, filteredItems.length - 1));
         break;
       case "ArrowUp":
         e.preventDefault();
-        setHighlightedIndex(prev => Math.max(prev - 1, 0));
+        setHighlightedIndex((prev) => Math.max(prev - 1, 0));
         break;
       case "Escape":
         e.preventDefault();
@@ -91,7 +91,7 @@ export default function SearchableSelect<T>({
           ref={searchInputRef}
           type="text"
           value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
+          onChange={(e) => setSearchTerm(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className="w-full px-3 py-2 font-serif focus:outline-none focus:shadow-lg transition-all"
@@ -144,7 +144,6 @@ export default function SearchableSelect<T>({
           ))
         )}
       </div>
-
     </div>
   );
 }

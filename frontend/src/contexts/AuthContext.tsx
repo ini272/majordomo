@@ -34,7 +34,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       homeId,
       username,
       isAuthenticated: !!token,
-      login: ({ token: nextToken, userId: nextUserId, homeId: nextHomeId, username: nextUsername }) => {
+      login: ({
+        token: nextToken,
+        userId: nextUserId,
+        homeId: nextHomeId,
+        username: nextUsername,
+      }) => {
         session.setLogin(nextToken, nextUserId, nextHomeId);
         setToken(nextToken);
         setUserId(nextUserId);

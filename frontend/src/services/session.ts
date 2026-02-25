@@ -28,7 +28,6 @@ export const session = {
   },
 
   clear: () => {
-    Object.values(SESSION_KEYS).forEach(key => localStorage.removeItem(key));
+    Object.values(SESSION_KEYS).forEach((key) => localStorage.removeItem(key));
   },
 };
-

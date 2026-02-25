@@ -49,14 +49,14 @@ export function debugFontLoading(): void {
   // Listen for individual font loading events
   document.fonts.addEventListener("loadingdone", (event: FontFaceSetLoadEvent) => {
     console.log("✅ Font loading done:", event.fontfaces);
-    event.fontfaces.forEach(font => {
+    event.fontfaces.forEach((font) => {
       console.log(`  Loaded: ${font.family} ${font.weight} ${font.style}`);
     });
   });
 
   document.fonts.addEventListener("loadingerror", (event: FontFaceSetLoadEvent) => {
     console.error("❌ Font loading error!", event.fontfaces);
-    event.fontfaces.forEach(font => {
+    event.fontfaces.forEach((font) => {
       console.error(`  Failed: ${font.family} ${font.weight} ${font.style}`);
     });
   });

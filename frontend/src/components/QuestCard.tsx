@@ -99,7 +99,10 @@ export default function QuestCard({
     return "Due soon";
   };
 
-  const scheduleInfo = formatScheduleLabel(quest.recurrence as "one-off" | "daily" | "weekly" | "monthly", quest.schedule);
+  const scheduleInfo = formatScheduleLabel(
+    quest.recurrence as "one-off" | "daily" | "weekly" | "monthly",
+    quest.schedule
+  );
   const isRecurring = quest.recurrence !== "one-off";
   const showAbandonAction = Boolean(onAbandon) && !quest.completed;
 
@@ -188,7 +191,7 @@ export default function QuestCard({
       {/* Tags */}
       {quest.tags && (
         <div className="flex flex-wrap gap-2 mb-6 md:mb-8">
-          {quest.tags.split(",").map(tag => (
+          {quest.tags.split(",").map((tag) => (
             <span
               key={tag}
               className="px-2 py-1 text-xs uppercase font-serif rounded"
@@ -217,9 +220,7 @@ export default function QuestCard({
             XP Reward
           </div>
           <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
-            {isDailyBounty && !quest.completed
-              ? (quest.xp_reward || 0) * 2
-              : quest.xp_reward || 0}
+            {isDailyBounty && !quest.completed ? (quest.xp_reward || 0) * 2 : quest.xp_reward || 0}
             {isDailyBounty && !quest.completed && (
               <span className="text-sm ml-2" style={{ color: "#9d84ff" }}>
                 (2x)

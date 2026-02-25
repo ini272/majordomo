@@ -81,7 +81,7 @@ export default function ModalShell({
         )}
         role="dialog"
         aria-modal="true"
-        onMouseDown={event => {
+        onMouseDown={(event) => {
           event.stopPropagation();
         }}
       >

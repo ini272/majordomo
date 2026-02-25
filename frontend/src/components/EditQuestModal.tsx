@@ -39,7 +39,7 @@ interface EditQuestModalProps {
 
   token: string;
   skipAI: boolean;
-  createQuestOnSave?: boolean;  // If true, creates quest on save (for template/initialData modes)
+  createQuestOnSave?: boolean; // If true, creates quest on save (for template/initialData modes)
   onSave?: (result: { createdQuest: boolean; updatedTemplateDefaults: boolean }) => void;
   onClose?: () => void;
 }
@@ -79,9 +79,7 @@ export default function EditQuestModal({
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
 
   // Recurring quest fields
-  const [recurrence, setRecurrence] = useState<QuestRecurrence>(
-    "one-off"
-  );
+  const [recurrence, setRecurrence] = useState<QuestRecurrence>("one-off");
   const [scheduleTime, setScheduleTime] = useState("08:00");
   const [scheduleDay, setScheduleDay] = useState<string>("monday");
   const [scheduleDayOfMonth, setScheduleDayOfMonth] = useState<number>(1);
@@ -98,7 +96,7 @@ export default function EditQuestModal({
 
           // Parse tags
           if (initialData.tags) {
-            const tags = initialData.tags.split(",").map(t => {
+            const tags = initialData.tags.split(",").map((t) => {
               const trimmed = t.trim();
               return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
             });
@@ -117,21 +115,23 @@ export default function EditQuestModal({
         } else if (templateId) {
           // FROM TEMPLATE MODE: Fetch template to review before creating quest
           if (!skipAI) {
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await new Promise((resolve) => setTimeout(resolve, 1500));
           }
 
           const response = await api.quests.getTemplate(templateId, token);
 
           // Fetch user's subscriptions
           const subscriptions = await api.subscriptions.getAll(token);
-          const userSubscription = subscriptions.find(sub => sub.quest_template_id === templateId);
+          const userSubscription = subscriptions.find(
+            (sub) => sub.quest_template_id === templateId
+          );
           setSubscription(userSubscription || null);
 
           setDisplayName(response.display_name || "");
           setDescription(response.description || "");
 
           if (response.tags) {
-            const tags = response.tags.split(",").map(t => {
+            const tags = response.tags.split(",").map((t) => {
               const trimmed = t.trim();
               return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
             });
@@ -143,7 +143,9 @@ export default function EditQuestModal({
           setDread(templateSliders.dread);
 
           // Use subscription schedule if available (Phase 3)
-          const effectiveRecurrence = userSubscription ? userSubscription.recurrence : response.recurrence;
+          const effectiveRecurrence = userSubscription
+            ? userSubscription.recurrence
+            : response.recurrence;
           const effectiveSchedule = userSubscription?.schedule || response.schedule;
           const effectiveDueInHours = userSubscription?.due_in_hours ?? response.due_in_hours;
 
@@ -169,7 +171,7 @@ export default function EditQuestModal({
         } else if (questId) {
           // EDIT QUEST MODE: Fetch quest by ID
           if (!skipAI) {
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await new Promise((resolve) => setTimeout(resolve, 1500));
           }
 
           const response = await api.quests.getQuest(questId, token);
@@ -178,7 +180,7 @@ export default function EditQuestModal({
           setDescription(response.description || "");
 
           if (response.tags) {
-            const tags = response.tags.split(",").map(t => {
+            const tags = response.tags.split(",").map((t) => {
               const trimmed = t.trim();
               return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
             });
@@ -220,43 +222,95 @@ export default function EditQuestModal({
     loadData();
   }, [questId, templateId, initialData, token, skipAI, isCreateMode]);
 
-  const handleSave = useCallback(async (options?: { createQuestAfterTemplateSave?: boolean }) => {
-    const createQuestAfterTemplateSave = options?.createQuestAfterTemplateSave ?? false;
-    setSaving(true);
-    setError(null);
+  const handleSave = useCallback(
+    async (options?: { createQuestAfterTemplateSave?: boolean }) => {
+      const createQuestAfterTemplateSave = options?.createQuestAfterTemplateSave ?? false;
+      setSaving(true);
+      setError(null);
 
-    try {
-      // Calculate XP/Gold based on sliders
-      const baseXP = (time + effort + dread) * 2;
-      const baseGold = Math.floor(baseXP / 2);
+      try {
+        // Calculate XP/Gold based on sliders
+        const baseXP = (time + effort + dread) * 2;
+        const baseGold = Math.floor(baseXP / 2);
 
-      // Build schedule JSON if needed
-      const schedule = buildSchedule(recurrence, scheduleTime, scheduleDay, scheduleDayOfMonth);
+        // Build schedule JSON if needed
+        const schedule = buildSchedule(recurrence, scheduleTime, scheduleDay, scheduleDayOfMonth);
 
-      if (createQuestOnSave) {
-        // CREATE QUEST MODE (From Template or Random with initialData)
-        if (userId === null) {
-          throw new Error("User ID not found in session");
-        }
+        if (createQuestOnSave) {
+          // CREATE QUEST MODE (From Template or Random with initialData)
+          if (userId === null) {
+            throw new Error("User ID not found in session");
+          }
 
-        if (isCreateMode) {
-          // Random quest with initialData - create standalone quest
-          const questData = {
-            title: initialData!.title,
+          if (isCreateMode) {
+            // Random quest with initialData - create standalone quest
+            const questData = {
+              title: initialData!.title,
+              ...(displayName.trim() && { display_name: displayName.trim() }),
+              ...(description.trim() && { description: description.trim() }),
+              ...(selectedTags.length > 0 && { tags: selectedTags.join(",").toLowerCase() }),
+              xp_reward: baseXP,
+              gold_reward: baseGold,
+              ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
+            };
+
+            const createdQuest = await api.quests.createAIScribe(questData, token, userId, true); // skip_ai=true
+
+            // Convert to template if checkbox checked
+            if (saveAsTemplate) {
+              await api.quests.convertToTemplate(
+                createdQuest.id,
+                {
+                  recurrence: recurrence,
+                  schedule: schedule,
+                  due_in_hours: dueInHours ? parseInt(dueInHours) : null,
+                },
+                token
+              );
+            }
+          } else if (templateId) {
+            // From template create mode - create quest from current template defaults
+            await api.quests.create({ quest_template_id: templateId }, token, userId);
+          }
+
+          onSave?.({ createdQuest: true, updatedTemplateDefaults: false });
+          // Don't call onClose - parent's onSave callback handles closing
+        } else if (templateId) {
+          // EDIT TEMPLATE MODE: Update template and subscriptions
+          const updateData = {
             ...(displayName.trim() && { display_name: displayName.trim() }),
             ...(description.trim() && { description: description.trim() }),
             ...(selectedTags.length > 0 && { tags: selectedTags.join(",").toLowerCase() }),
             xp_reward: baseXP,
             gold_reward: baseGold,
-            ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
+            recurrence: recurrence,
+            schedule: schedule,
+            due_in_hours: dueInHours ? parseInt(dueInHours) : null,
           };
 
-          const createdQuest = await api.quests.createAIScribe(questData, token, userId, true); // skip_ai=true
+          await api.quests.updateTemplate(templateId, updateData, token);
 
-          // Convert to template if checkbox checked
-          if (saveAsTemplate) {
-            await api.quests.convertToTemplate(
-              createdQuest.id,
+          // Handle subscription changes
+          if (originalRecurrence === "one-off" && recurrence !== "one-off") {
+            // Create subscription
+            await api.subscriptions.create(
+              {
+                quest_template_id: templateId,
+                recurrence: recurrence,
+                ...(schedule && { schedule }),
+                ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
+              },
+              token
+            );
+          } else if (originalRecurrence !== "one-off" && recurrence === "one-off") {
+            // Delete subscription
+            if (subscription) {
+              await api.subscriptions.delete(subscription.id, token);
+            }
+          } else if (recurrence !== "one-off" && subscription) {
+            // Update subscription
+            await api.subscriptions.update(
+              subscription.id,
               {
                 recurrence: recurrence,
                 schedule: schedule,
@@ -265,132 +319,79 @@ export default function EditQuestModal({
               token
             );
           }
-        } else if (templateId) {
-          // From template create mode - create quest from current template defaults
-          await api.quests.create(
-            { quest_template_id: templateId },
-            token,
-            userId
-          );
-        }
 
-        onSave?.({ createdQuest: true, updatedTemplateDefaults: false });
-        // Don't call onClose - parent's onSave callback handles closing
-      } else if (templateId) {
-        // EDIT TEMPLATE MODE: Update template and subscriptions
-        const updateData = {
-          ...(displayName.trim() && { display_name: displayName.trim() }),
-          ...(description.trim() && { description: description.trim() }),
-          ...(selectedTags.length > 0 && { tags: selectedTags.join(",").toLowerCase() }),
-          xp_reward: baseXP,
-          gold_reward: baseGold,
-          recurrence: recurrence,
-          schedule: schedule,
-          due_in_hours: dueInHours ? parseInt(dueInHours) : null,
-        };
-
-        await api.quests.updateTemplate(templateId, updateData, token);
-
-        // Handle subscription changes
-        if (originalRecurrence === "one-off" && recurrence !== "one-off") {
-          // Create subscription
-          await api.subscriptions.create(
-            {
-              quest_template_id: templateId,
-              recurrence: recurrence,
-              ...(schedule && { schedule }),
-              ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
-            },
-            token
-          );
-        } else if (originalRecurrence !== "one-off" && recurrence === "one-off") {
-          // Delete subscription
-          if (subscription) {
-            await api.subscriptions.delete(subscription.id, token);
+          if (createQuestAfterTemplateSave) {
+            if (userId === null) {
+              throw new Error("User ID not found in session");
+            }
+            await api.quests.create({ quest_template_id: templateId }, token, userId);
           }
-        } else if (recurrence !== "one-off" && subscription) {
-          // Update subscription
-          await api.subscriptions.update(
-            subscription.id,
-            {
+
+          onSave?.({
+            createdQuest: createQuestAfterTemplateSave,
+            updatedTemplateDefaults: true,
+          });
+          // Don't call onClose - parent's onSave callback handles closing
+        } else if (quest) {
+          // EDIT QUEST MODE: Update existing quest
+          const updateData = buildStandaloneQuestUpdateData({
+            displayName,
+            description,
+            selectedTags,
+            baseXP,
+            baseGold,
+            dueInHours,
+          });
+
+          await api.quests.update(quest.id, updateData, token);
+
+          // Convert to template if checkbox checked
+          if (saveAsTemplate && quest.quest_template_id === null) {
+            const conversionData = {
               recurrence: recurrence,
               schedule: schedule,
               due_in_hours: dueInHours ? parseInt(dueInHours) : null,
-            },
-            token
-          );
-        }
-
-        if (createQuestAfterTemplateSave) {
-          if (userId === null) {
-            throw new Error("User ID not found in session");
+            };
+            console.log("Converting to template with data:", conversionData);
+            console.log("dueInHours state:", dueInHours);
+            await api.quests.convertToTemplate(quest.id, conversionData, token);
           }
-          await api.quests.create({ quest_template_id: templateId }, token, userId);
+
+          onSave?.({ createdQuest: false, updatedTemplateDefaults: false });
+          // Don't call onClose - parent's onSave callback handles closing
         }
-
-        onSave?.({
-          createdQuest: createQuestAfterTemplateSave,
-          updatedTemplateDefaults: true,
-        });
-        // Don't call onClose - parent's onSave callback handles closing
-      } else if (quest) {
-        // EDIT QUEST MODE: Update existing quest
-        const updateData = buildStandaloneQuestUpdateData({
-          displayName,
-          description,
-          selectedTags,
-          baseXP,
-          baseGold,
-          dueInHours,
-        });
-
-        await api.quests.update(quest.id, updateData, token);
-
-        // Convert to template if checkbox checked
-        if (saveAsTemplate && quest.quest_template_id === null) {
-          const conversionData = {
-            recurrence: recurrence,
-            schedule: schedule,
-            due_in_hours: dueInHours ? parseInt(dueInHours) : null,
-          };
-          console.log("Converting to template with data:", conversionData);
-          console.log("dueInHours state:", dueInHours);
-          await api.quests.convertToTemplate(quest.id, conversionData, token);
-        }
-
-        onSave?.({ createdQuest: false, updatedTemplateDefaults: false });
-        // Don't call onClose - parent's onSave callback handles closing
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to save");
+      } finally {
+        setSaving(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save");
-    } finally {
-      setSaving(false);
-    }
-  }, [
-    quest,
-    createQuestOnSave,
-    isCreateMode,
-    initialData,
-    templateId,
-    subscription,
-    originalRecurrence,
-    time,
-    effort,
-    dread,
-    displayName,
-    description,
-    selectedTags,
-    saveAsTemplate,
-    recurrence,
-    scheduleTime,
-    scheduleDay,
-    scheduleDayOfMonth,
-    dueInHours,
-    token,
-    userId,
-    onSave,
-    onClose,
-  ]);
+    },
+    [
+      quest,
+      createQuestOnSave,
+      isCreateMode,
+      initialData,
+      templateId,
+      subscription,
+      originalRecurrence,
+      time,
+      effort,
+      dread,
+      displayName,
+      description,
+      selectedTags,
+      saveAsTemplate,
+      recurrence,
+      scheduleTime,
+      scheduleDay,
+      scheduleDayOfMonth,
+      dueInHours,
+      token,
+      userId,
+      onSave,
+      onClose,
+    ]
+  );
 
   const xp = (time + effort + dread) * 2;
   const gold = Math.floor(xp / 2);
@@ -466,7 +467,11 @@ export default function EditQuestModal({
                 />
               </div>
               <p className="text-center font-serif" style={{ color: COLORS.brown }}>
-                {templateId ? "Loading template..." : questId ? "Loading quest..." : "The Scribe is weaving your quest..."}
+                {templateId
+                  ? "Loading template..."
+                  : questId
+                    ? "Loading quest..."
+                    : "The Scribe is weaving your quest..."}
               </p>
             </div>
           ) : (
@@ -482,9 +487,11 @@ export default function EditQuestModal({
                     color: COLORS.parchment,
                   }}
                 >
-                  📜 From template: {quest.template?.display_name || quest.template?.title || "Unknown"}
+                  📜 From template:{" "}
+                  {quest.template?.display_name || quest.template?.title || "Unknown"}
                   <div className="text-xs mt-1 italic">
-                    Changes only affect this quest. To edit template/schedule, go to template management.
+                    Changes only affect this quest. To edit template/schedule, go to template
+                    management.
                   </div>
                 </div>
               )}
@@ -537,7 +544,7 @@ export default function EditQuestModal({
                     <input
                       type="text"
                       value={displayName}
-                      onChange={e => setDisplayName(e.target.value)}
+                      onChange={(e) => setDisplayName(e.target.value)}
                       placeholder="e.g., The Cookery Cleanup"
                       className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
                       style={{
@@ -596,7 +603,7 @@ export default function EditQuestModal({
                   >
                     <textarea
                       value={description}
-                      onChange={e => setDescription(e.target.value)}
+                      onChange={(e) => setDescription(e.target.value)}
                       placeholder="e.g., Vanquish the grimy counters and slay the sink dragon."
                       rows={3}
                       className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
@@ -622,13 +629,13 @@ export default function EditQuestModal({
                   Tags (Optional)
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {AVAILABLE_TAGS.map(tag => (
+                  {AVAILABLE_TAGS.map((tag) => (
                     <button
                       key={tag}
                       type="button"
                       onClick={() => {
                         if (selectedTags.includes(tag)) {
-                          setSelectedTags(selectedTags.filter(t => t !== tag));
+                          setSelectedTags(selectedTags.filter((t) => t !== tag));
                         } else {
                           setSelectedTags([...selectedTags, tag]);
                         }
@@ -665,7 +672,7 @@ export default function EditQuestModal({
                     { label: "3 Days", hours: 72 },
                     { label: "7 Days", hours: 168 },
                     { label: "1 Month", hours: 720 },
-                  ].map(option => (
+                  ].map((option) => (
                     <button
                       key={option.label}
                       type="button"
@@ -692,10 +699,7 @@ export default function EditQuestModal({
                   ))}
                 </div>
                 {dueInHours && parseInt(dueInHours) > 0 && (
-                  <p
-                    className="text-xs mt-2 font-serif italic"
-                    style={{ color: COLORS.parchment }}
-                  >
+                  <p className="text-xs mt-2 font-serif italic" style={{ color: COLORS.parchment }}>
                     Quest will corrupt if not completed within {parseInt(dueInHours)} hours
                   </p>
                 )}
@@ -708,7 +712,7 @@ export default function EditQuestModal({
                     <input
                       type="checkbox"
                       checked={saveAsTemplate}
-                      onChange={e => setSaveAsTemplate(e.target.checked)}
+                      onChange={(e) => setSaveAsTemplate(e.target.checked)}
                       className="w-4 h-4"
                       style={{ accentColor: COLORS.gold }}
                       disabled={saving}
@@ -721,7 +725,10 @@ export default function EditQuestModal({
                     </span>
                   </label>
                   {saveAsTemplate && (
-                    <p className="text-xs mt-1 font-serif italic" style={{ color: COLORS.parchment }}>
+                    <p
+                      className="text-xs mt-1 font-serif italic"
+                      style={{ color: COLORS.parchment }}
+                    >
                       Template can be reused and scheduled for recurring quests
                     </p>
                   )}
@@ -730,191 +737,194 @@ export default function EditQuestModal({
 
               {/* Recurrence Configuration */}
               {/* Show when: (1) editing template defaults, or (2) standalone quest with save-as-template */}
-              {(isTemplateDefaultsMode || saveAsTemplate) && !(quest && quest.quest_template_id !== null) && (
-                <div className="mb-6">
-                  <label
-                    className="block text-sm uppercase tracking-wider mb-2 font-serif"
-                    style={{ color: COLORS.gold }}
-                  >
-                    Recurrence
-                  </label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-                  {(["one-off", "daily", "weekly", "monthly"] as const).map(type => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setRecurrence(type)}
-                      className="py-2 px-3 font-serif font-semibold text-xs uppercase tracking-wider transition-all"
-                      style={{
-                        backgroundColor:
-                          recurrence === type ? COLORS.gold : `rgba(212, 175, 55, 0.2)`,
-                        color: recurrence === type ? COLORS.darkPanel : COLORS.gold,
-                        border: `2px solid ${COLORS.gold}`,
-                        cursor: saving ? "not-allowed" : "pointer",
-                      }}
-                      disabled={saving}
+              {(isTemplateDefaultsMode || saveAsTemplate) &&
+                !(quest && quest.quest_template_id !== null) && (
+                  <div className="mb-6">
+                    <label
+                      className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                      style={{ color: COLORS.gold }}
                     >
-                      {type === "one-off"
-                        ? "One-off"
-                        : type.charAt(0).toUpperCase() + type.slice(1)}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Schedule Configuration */}
-                {recurrence !== "one-off" && (
-                  <div
-                    className="space-y-3 p-3 rounded"
-                    style={{
-                      backgroundColor: `rgba(212, 175, 55, 0.1)`,
-                      border: `1px solid ${COLORS.gold}`,
-                    }}
-                  >
-                    {recurrence === "daily" && (
-                      <div>
-                        <label
-                          className="block text-xs uppercase tracking-wider mb-1 font-serif"
-                          style={{ color: COLORS.parchment }}
-                        >
-                          Time
-                        </label>
-                        <input
-                          type="time"
-                          value={scheduleTime}
-                          onChange={e => setScheduleTime(e.target.value)}
-                          className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                      Recurrence
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                      {(["one-off", "daily", "weekly", "monthly"] as const).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setRecurrence(type)}
+                          className="py-2 px-3 font-serif font-semibold text-xs uppercase tracking-wider transition-all"
                           style={{
-                            backgroundColor: COLORS.black,
-                            borderColor: COLORS.gold,
-                            borderWidth: "2px",
-                            color: COLORS.parchment,
-                            colorScheme: "dark",
+                            backgroundColor:
+                              recurrence === type ? COLORS.gold : `rgba(212, 175, 55, 0.2)`,
+                            color: recurrence === type ? COLORS.darkPanel : COLORS.gold,
+                            border: `2px solid ${COLORS.gold}`,
+                            cursor: saving ? "not-allowed" : "pointer",
                           }}
                           disabled={saving}
-                        />
+                        >
+                          {type === "one-off"
+                            ? "One-off"
+                            : type.charAt(0).toUpperCase() + type.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Schedule Configuration */}
+                    {recurrence !== "one-off" && (
+                      <div
+                        className="space-y-3 p-3 rounded"
+                        style={{
+                          backgroundColor: `rgba(212, 175, 55, 0.1)`,
+                          border: `1px solid ${COLORS.gold}`,
+                        }}
+                      >
+                        {recurrence === "daily" && (
+                          <div>
+                            <label
+                              className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                              style={{ color: COLORS.parchment }}
+                            >
+                              Time
+                            </label>
+                            <input
+                              type="time"
+                              value={scheduleTime}
+                              onChange={(e) => setScheduleTime(e.target.value)}
+                              className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                              style={{
+                                backgroundColor: COLORS.black,
+                                borderColor: COLORS.gold,
+                                borderWidth: "2px",
+                                color: COLORS.parchment,
+                                colorScheme: "dark",
+                              }}
+                              disabled={saving}
+                            />
+                          </div>
+                        )}
+
+                        {recurrence === "weekly" && (
+                          <>
+                            <div>
+                              <label
+                                className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                                style={{ color: COLORS.parchment }}
+                              >
+                                Day of Week
+                              </label>
+                              <select
+                                value={scheduleDay}
+                                onChange={(e) => setScheduleDay(e.target.value)}
+                                className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                                style={{
+                                  backgroundColor: COLORS.black,
+                                  borderColor: COLORS.gold,
+                                  borderWidth: "2px",
+                                  color: COLORS.parchment,
+                                }}
+                                disabled={saving}
+                              >
+                                {[
+                                  "monday",
+                                  "tuesday",
+                                  "wednesday",
+                                  "thursday",
+                                  "friday",
+                                  "saturday",
+                                  "sunday",
+                                ].map((day) => (
+                                  <option key={day} value={day}>
+                                    {day.charAt(0).toUpperCase() + day.slice(1)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label
+                                className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                                style={{ color: COLORS.parchment }}
+                              >
+                                Time
+                              </label>
+                              <input
+                                type="time"
+                                value={scheduleTime}
+                                onChange={(e) => setScheduleTime(e.target.value)}
+                                className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                                style={{
+                                  backgroundColor: COLORS.black,
+                                  borderColor: COLORS.gold,
+                                  borderWidth: "2px",
+                                  color: COLORS.parchment,
+                                  colorScheme: "dark",
+                                }}
+                                disabled={saving}
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {recurrence === "monthly" && (
+                          <>
+                            <div>
+                              <label
+                                className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                                style={{ color: COLORS.parchment }}
+                              >
+                                Day of Month
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="31"
+                                value={scheduleDayOfMonth}
+                                onChange={(e) =>
+                                  setScheduleDayOfMonth(parseInt(e.target.value) || 1)
+                                }
+                                className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                                style={{
+                                  backgroundColor: COLORS.black,
+                                  borderColor: COLORS.gold,
+                                  borderWidth: "2px",
+                                  color: COLORS.parchment,
+                                }}
+                                disabled={saving}
+                              />
+                              <p
+                                className="text-xs mt-1 font-serif italic"
+                                style={{ color: COLORS.parchment }}
+                              >
+                                If day doesn't exist in month, uses last day
+                              </p>
+                            </div>
+                            <div>
+                              <label
+                                className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                                style={{ color: COLORS.parchment }}
+                              >
+                                Time
+                              </label>
+                              <input
+                                type="time"
+                                value={scheduleTime}
+                                onChange={(e) => setScheduleTime(e.target.value)}
+                                className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                                style={{
+                                  backgroundColor: COLORS.black,
+                                  borderColor: COLORS.gold,
+                                  borderWidth: "2px",
+                                  color: COLORS.parchment,
+                                  colorScheme: "dark",
+                                }}
+                                disabled={saving}
+                              />
+                            </div>
+                          </>
+                        )}
                       </div>
-                    )}
-
-                    {recurrence === "weekly" && (
-                      <>
-                        <div>
-                          <label
-                            className="block text-xs uppercase tracking-wider mb-1 font-serif"
-                            style={{ color: COLORS.parchment }}
-                          >
-                            Day of Week
-                          </label>
-                          <select
-                            value={scheduleDay}
-                            onChange={e => setScheduleDay(e.target.value)}
-                            className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
-                            style={{
-                              backgroundColor: COLORS.black,
-                              borderColor: COLORS.gold,
-                              borderWidth: "2px",
-                              color: COLORS.parchment,
-                            }}
-                            disabled={saving}
-                          >
-                            {[
-                              "monday",
-                              "tuesday",
-                              "wednesday",
-                              "thursday",
-                              "friday",
-                              "saturday",
-                              "sunday",
-                            ].map(day => (
-                              <option key={day} value={day}>
-                                {day.charAt(0).toUpperCase() + day.slice(1)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label
-                            className="block text-xs uppercase tracking-wider mb-1 font-serif"
-                            style={{ color: COLORS.parchment }}
-                          >
-                            Time
-                          </label>
-                          <input
-                            type="time"
-                            value={scheduleTime}
-                            onChange={e => setScheduleTime(e.target.value)}
-                            className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
-                            style={{
-                              backgroundColor: COLORS.black,
-                              borderColor: COLORS.gold,
-                              borderWidth: "2px",
-                              color: COLORS.parchment,
-                              colorScheme: "dark",
-                            }}
-                            disabled={saving}
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {recurrence === "monthly" && (
-                      <>
-                        <div>
-                          <label
-                            className="block text-xs uppercase tracking-wider mb-1 font-serif"
-                            style={{ color: COLORS.parchment }}
-                          >
-                            Day of Month
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="31"
-                            value={scheduleDayOfMonth}
-                            onChange={e => setScheduleDayOfMonth(parseInt(e.target.value) || 1)}
-                            className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
-                            style={{
-                              backgroundColor: COLORS.black,
-                              borderColor: COLORS.gold,
-                              borderWidth: "2px",
-                              color: COLORS.parchment,
-                            }}
-                            disabled={saving}
-                          />
-                          <p
-                            className="text-xs mt-1 font-serif italic"
-                            style={{ color: COLORS.parchment }}
-                          >
-                            If day doesn't exist in month, uses last day
-                          </p>
-                        </div>
-                        <div>
-                          <label
-                            className="block text-xs uppercase tracking-wider mb-1 font-serif"
-                            style={{ color: COLORS.parchment }}
-                          >
-                            Time
-                          </label>
-                          <input
-                            type="time"
-                            value={scheduleTime}
-                            onChange={e => setScheduleTime(e.target.value)}
-                            className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
-                            style={{
-                              backgroundColor: COLORS.black,
-                              borderColor: COLORS.gold,
-                              borderWidth: "2px",
-                              color: COLORS.parchment,
-                              colorScheme: "dark",
-                            }}
-                            disabled={saving}
-                          />
-                        </div>
-                      </>
                     )}
                   </div>
                 )}
-              </div>
-              )}
 
               {/* Sliders */}
               <div
@@ -1053,7 +1063,9 @@ export default function EditQuestModal({
                     disabled={saving}
                     className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all"
                     style={{
-                      backgroundColor: saving ? `rgba(56, 189, 248, 0.1)` : `rgba(56, 189, 248, 0.25)`,
+                      backgroundColor: saving
+                        ? `rgba(56, 189, 248, 0.1)`
+                        : `rgba(56, 189, 248, 0.25)`,
                       borderColor: "#38bdf8",
                       borderWidth: "2px",
                       color: "#bae6fd",

@@ -235,7 +235,7 @@ export default function QuestCardPlayground() {
             Select Font
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {MEDIEVAL_FONTS.map(font => (
+            {MEDIEVAL_FONTS.map((font) => (
               <button
                 key={font.name}
                 onClick={() => setSelectedFont(font)}
@@ -359,7 +359,7 @@ export default function QuestCardPlayground() {
             Minimal design with layered frame art - Title, Description, XP & Gold only
           </p>
 
-          {sampleQuests.map(quest => (
+          {sampleQuests.map((quest) => (
             <PlaygroundQuestCard
               key={quest.id}
               quest={quest}

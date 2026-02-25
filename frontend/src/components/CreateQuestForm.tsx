@@ -182,307 +182,310 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
         >
           {/* Form Content */}
           <div className="flex-1 min-w-0">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-serif font-bold" style={{ color: COLORS.gold }}>
-              Create Quest
-            </h2>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-2xl leading-none"
-              style={{ color: COLORS.gold }}
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Mode Selection */}
-          <div className="flex gap-2 mb-6">
-            <button
-              type="button"
-              onClick={() => {
-                setMode("ai-scribe");
-                setSelectedTemplate(null);
-                setError(null);
-              }}
-              className="flex-1 py-2 px-3 font-serif font-semibold text-xs uppercase tracking-wider transition-all"
-              style={{
-                backgroundColor:
-                  mode === "ai-scribe" ? `rgba(212, 175, 55, 0.3)` : `rgba(212, 175, 55, 0.1)`,
-                borderColor: COLORS.gold,
-                borderWidth: "2px",
-                color: COLORS.gold,
-                opacity: mode === "ai-scribe" ? 1 : 0.6,
-              }}
-            >
-              AI Scribe
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("from-template");
-                setTitle("");
-                setSelectedTags([]);
-                setError(null);
-              }}
-              className="flex-1 py-2 px-3 font-serif font-semibold text-xs uppercase tracking-wider transition-all"
-              style={{
-                backgroundColor:
-                  mode === "from-template" ? `rgba(212, 175, 55, 0.3)` : `rgba(212, 175, 55, 0.1)`,
-                borderColor: COLORS.gold,
-                borderWidth: "2px",
-                color: COLORS.gold,
-                opacity: mode === "from-template" ? 1 : 0.6,
-              }}
-            >
-              From Template
-            </button>
-          </div>
-
-          {error && (
-            <div
-              className="px-3 py-2 mb-4 rounded-sm text-sm font-serif"
-              style={{
-                backgroundColor: COLORS.redDarker,
-                borderColor: COLORS.redBorder,
-                borderWidth: "1px",
-                color: COLORS.redLight,
-              }}
-            >
-              {error}
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-serif font-bold" style={{ color: COLORS.gold }}>
+                Create Quest
+              </h2>
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-2xl leading-none"
+                style={{ color: COLORS.gold }}
+              >
+                ✕
+              </button>
             </div>
-          )}
 
-          {mode === "ai-scribe" && (
-            <form onSubmit={handleSubmit}>
-              <div className="mb-6">
-                <label
-                  className="block text-sm uppercase tracking-wider mb-2 font-serif"
-                  style={{ color: COLORS.gold }}
-                >
-                  Quest Title
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  placeholder="e.g., Clean Kitchen"
-                  className="w-full px-3 py-2 font-serif focus:outline-none focus:shadow-lg transition-all"
-                  style={{
-                    backgroundColor: COLORS.black,
-                    borderColor: COLORS.gold,
-                    borderWidth: "2px",
-                    color: COLORS.parchment,
-                  }}
-                  disabled={loading}
-                />
+            {/* Mode Selection */}
+            <div className="flex gap-2 mb-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("ai-scribe");
+                  setSelectedTemplate(null);
+                  setError(null);
+                }}
+                className="flex-1 py-2 px-3 font-serif font-semibold text-xs uppercase tracking-wider transition-all"
+                style={{
+                  backgroundColor:
+                    mode === "ai-scribe" ? `rgba(212, 175, 55, 0.3)` : `rgba(212, 175, 55, 0.1)`,
+                  borderColor: COLORS.gold,
+                  borderWidth: "2px",
+                  color: COLORS.gold,
+                  opacity: mode === "ai-scribe" ? 1 : 0.6,
+                }}
+              >
+                AI Scribe
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("from-template");
+                  setTitle("");
+                  setSelectedTags([]);
+                  setError(null);
+                }}
+                className="flex-1 py-2 px-3 font-serif font-semibold text-xs uppercase tracking-wider transition-all"
+                style={{
+                  backgroundColor:
+                    mode === "from-template"
+                      ? `rgba(212, 175, 55, 0.3)`
+                      : `rgba(212, 175, 55, 0.1)`,
+                  borderColor: COLORS.gold,
+                  borderWidth: "2px",
+                  color: COLORS.gold,
+                  opacity: mode === "from-template" ? 1 : 0.6,
+                }}
+              >
+                From Template
+              </button>
+            </div>
+
+            {error && (
+              <div
+                className="px-3 py-2 mb-4 rounded-sm text-sm font-serif"
+                style={{
+                  backgroundColor: COLORS.redDarker,
+                  borderColor: COLORS.redBorder,
+                  borderWidth: "1px",
+                  color: COLORS.redLight,
+                }}
+              >
+                {error}
               </div>
+            )}
 
-              {/* Skip AI Scribe Checkbox */}
-              <div className="mb-6 flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="skipAI"
-                  checked={skipAI}
-                  onChange={e => setSkipAI(e.target.checked)}
-                  className="w-4 h-4"
-                  style={{ accentColor: COLORS.gold }}
-                  disabled={loading}
-                />
-                <label
-                  htmlFor="skipAI"
-                  className="text-xs uppercase tracking-wider font-serif"
-                  style={{
-                    color: COLORS.gold,
-                    cursor: loading ? "not-allowed" : "pointer",
-                  }}
-                >
-                  Skip AI Scribe (testing)
-                </label>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  disabled={loading || !title.trim()}
-                  className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
-                  style={{
-                    backgroundColor:
-                      loading || !title.trim()
-                        ? `rgba(212, 175, 55, 0.1)`
-                        : `rgba(212, 175, 55, 0.2)`,
-                    borderColor: COLORS.gold,
-                    borderWidth: "2px",
-                    color: COLORS.gold,
-                    cursor: loading || !title.trim() ? "not-allowed" : "pointer",
-                    opacity: loading || !title.trim() ? 0.5 : 1,
-                  }}
-                >
-                  {loading ? "Creating..." : "Create Quest"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRandomQuest}
-                  disabled={loading}
-                  className="py-3 px-4 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
-                  style={{
-                    backgroundColor: loading
-                      ? `rgba(107, 95, 183, 0.1)`
-                      : `rgba(107, 95, 183, 0.3)`,
-                    borderColor: "#6b5fb7",
-                    borderWidth: "2px",
-                    color: "#9d84ff",
-                    cursor: loading ? "not-allowed" : "pointer",
-                    opacity: loading ? 0.5 : 1,
-                  }}
-                  title="Create a random test quest with pre-filled content"
-                >
-                  Random
-                </button>
-              </div>
-            </form>
-          )}
-
-          {mode === "from-template" && (
-            <div className="flex flex-col gap-4 min-h-[500px]">
-              {loadingTemplates ? (
-                <div
-                  className="flex items-center justify-center h-full text-sm font-serif"
-                  style={{ color: COLORS.gold }}
-                >
-                  Loading templates...
+            {mode === "ai-scribe" && (
+              <form onSubmit={handleSubmit}>
+                <div className="mb-6">
+                  <label
+                    className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                    style={{ color: COLORS.gold }}
+                  >
+                    Quest Title
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g., Clean Kitchen"
+                    className="w-full px-3 py-2 font-serif focus:outline-none focus:shadow-lg transition-all"
+                    style={{
+                      backgroundColor: COLORS.black,
+                      borderColor: COLORS.gold,
+                      borderWidth: "2px",
+                      color: COLORS.parchment,
+                    }}
+                    disabled={loading}
+                  />
                 </div>
-              ) : (
-                <>
-                  <SearchableSelect<QuestTemplate>
-                    items={templates}
-                    onSelect={template => setSelectedTemplate(template)}
-                    searchFields={["title", "display_name", "description"]}
-                    placeholder="Search templates by name, description..."
-                    emptyMessage="No templates found. Create some quests first!"
-                    renderItem={(template, isHighlighted) => (
-                      <div
-                        className="p-4 transition-all"
-                        style={{
-                          backgroundColor:
-                            selectedTemplate?.id === template.id
-                              ? `rgba(212, 175, 55, 0.25)`
-                              : isHighlighted
-                                ? `rgba(212, 175, 55, 0.1)`
-                                : "transparent",
-                        }}
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <h3 className="font-serif font-bold" style={{ color: COLORS.gold }}>
-                              {template.display_name || template.title}
-                            </h3>
-                            {template.display_name && template.title !== template.display_name && (
-                              <div
-                                className="text-xs font-serif italic mt-1"
-                                style={{ color: COLORS.goldDarker }}
-                              >
-                                {template.title}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex gap-2 ml-4">
-                            <span
-                              className="text-xs font-serif px-2 py-1"
-                              style={{
-                                color: "#9d84ff",
-                                backgroundColor: "rgba(107, 95, 183, 0.2)",
-                                border: "1px solid #6b5fb7",
-                              }}
-                            >
-                              {template.xp_reward} XP
-                            </span>
-                            <span
-                              className="text-xs font-serif px-2 py-1"
-                              style={{
-                                color: COLORS.gold,
-                                backgroundColor: "rgba(212, 175, 55, 0.2)",
-                                border: `1px solid ${COLORS.gold}`,
-                              }}
-                            >
-                              {template.gold_reward} Gold
-                            </span>
-                          </div>
-                        </div>
-                        {template.description && (
-                          <p
-                            className="text-xs font-serif mb-2 line-clamp-2"
-                            style={{ color: COLORS.parchment }}
-                          >
-                            {template.description}
-                          </p>
-                        )}
-                        {template.tags && (
-                          <div className="flex flex-wrap gap-1">
-                            {template.tags.split(",").map((tag, idx) => (
+
+                {/* Skip AI Scribe Checkbox */}
+                <div className="mb-6 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="skipAI"
+                    checked={skipAI}
+                    onChange={(e) => setSkipAI(e.target.checked)}
+                    className="w-4 h-4"
+                    style={{ accentColor: COLORS.gold }}
+                    disabled={loading}
+                  />
+                  <label
+                    htmlFor="skipAI"
+                    className="text-xs uppercase tracking-wider font-serif"
+                    style={{
+                      color: COLORS.gold,
+                      cursor: loading ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Skip AI Scribe (testing)
+                  </label>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    disabled={loading || !title.trim()}
+                    className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
+                    style={{
+                      backgroundColor:
+                        loading || !title.trim()
+                          ? `rgba(212, 175, 55, 0.1)`
+                          : `rgba(212, 175, 55, 0.2)`,
+                      borderColor: COLORS.gold,
+                      borderWidth: "2px",
+                      color: COLORS.gold,
+                      cursor: loading || !title.trim() ? "not-allowed" : "pointer",
+                      opacity: loading || !title.trim() ? 0.5 : 1,
+                    }}
+                  >
+                    {loading ? "Creating..." : "Create Quest"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRandomQuest}
+                    disabled={loading}
+                    className="py-3 px-4 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
+                    style={{
+                      backgroundColor: loading
+                        ? `rgba(107, 95, 183, 0.1)`
+                        : `rgba(107, 95, 183, 0.3)`,
+                      borderColor: "#6b5fb7",
+                      borderWidth: "2px",
+                      color: "#9d84ff",
+                      cursor: loading ? "not-allowed" : "pointer",
+                      opacity: loading ? 0.5 : 1,
+                    }}
+                    title="Create a random test quest with pre-filled content"
+                  >
+                    Random
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {mode === "from-template" && (
+              <div className="flex flex-col gap-4 min-h-[500px]">
+                {loadingTemplates ? (
+                  <div
+                    className="flex items-center justify-center h-full text-sm font-serif"
+                    style={{ color: COLORS.gold }}
+                  >
+                    Loading templates...
+                  </div>
+                ) : (
+                  <>
+                    <SearchableSelect<QuestTemplate>
+                      items={templates}
+                      onSelect={(template) => setSelectedTemplate(template)}
+                      searchFields={["title", "display_name", "description"]}
+                      placeholder="Search templates by name, description..."
+                      emptyMessage="No templates found. Create some quests first!"
+                      renderItem={(template, isHighlighted) => (
+                        <div
+                          className="p-4 transition-all"
+                          style={{
+                            backgroundColor:
+                              selectedTemplate?.id === template.id
+                                ? `rgba(212, 175, 55, 0.25)`
+                                : isHighlighted
+                                  ? `rgba(212, 175, 55, 0.1)`
+                                  : "transparent",
+                          }}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                              <h3 className="font-serif font-bold" style={{ color: COLORS.gold }}>
+                                {template.display_name || template.title}
+                              </h3>
+                              {template.display_name &&
+                                template.title !== template.display_name && (
+                                  <div
+                                    className="text-xs font-serif italic mt-1"
+                                    style={{ color: COLORS.goldDarker }}
+                                  >
+                                    {template.title}
+                                  </div>
+                                )}
+                            </div>
+                            <div className="flex gap-2 ml-4">
                               <span
-                                key={idx}
-                                className="text-xs font-serif px-2 py-0.5"
+                                className="text-xs font-serif px-2 py-1"
                                 style={{
-                                  color: COLORS.goldDarker,
-                                  backgroundColor: "rgba(212, 175, 55, 0.1)",
-                                  border: `1px solid ${COLORS.goldDarker}`,
+                                  color: "#9d84ff",
+                                  backgroundColor: "rgba(107, 95, 183, 0.2)",
+                                  border: "1px solid #6b5fb7",
                                 }}
                               >
-                                {tag.trim()}
+                                {template.xp_reward} XP
                               </span>
-                            ))}
+                              <span
+                                className="text-xs font-serif px-2 py-1"
+                                style={{
+                                  color: COLORS.gold,
+                                  backgroundColor: "rgba(212, 175, 55, 0.2)",
+                                  border: `1px solid ${COLORS.gold}`,
+                                }}
+                              >
+                                {template.gold_reward} Gold
+                              </span>
+                            </div>
                           </div>
-                        )}
+                          {template.description && (
+                            <p
+                              className="text-xs font-serif mb-2 line-clamp-2"
+                              style={{ color: COLORS.parchment }}
+                            >
+                              {template.description}
+                            </p>
+                          )}
+                          {template.tags && (
+                            <div className="flex flex-wrap gap-1">
+                              {template.tags.split(",").map((tag, idx) => (
+                                <span
+                                  key={idx}
+                                  className="text-xs font-serif px-2 py-0.5"
+                                  style={{
+                                    color: COLORS.goldDarker,
+                                    backgroundColor: "rgba(212, 175, 55, 0.1)",
+                                    border: `1px solid ${COLORS.goldDarker}`,
+                                  }}
+                                >
+                                  {tag.trim()}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    />
+
+                    {/* Action buttons for selected template */}
+                    {selectedTemplate && (
+                      <div className="grid gap-3 mt-4 md:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => handleCreateFromTemplate("quick-create")}
+                          disabled={loading}
+                          className="py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
+                          style={{
+                            backgroundColor: loading
+                              ? `rgba(212, 175, 55, 0.1)`
+                              : `rgba(212, 175, 55, 0.2)`,
+                            borderColor: COLORS.gold,
+                            borderWidth: "2px",
+                            color: COLORS.gold,
+                            cursor: loading ? "not-allowed" : "pointer",
+                            opacity: loading ? 0.5 : 1,
+                          }}
+                        >
+                          {loading ? "Creating..." : "Create Quest Now"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCreateFromTemplate("edit-defaults")}
+                          disabled={loading}
+                          className="py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
+                          style={{
+                            backgroundColor: loading
+                              ? `rgba(107, 95, 183, 0.1)`
+                              : `rgba(107, 95, 183, 0.3)`,
+                            borderColor: "#6b5fb7",
+                            borderWidth: "2px",
+                            color: "#9d84ff",
+                            cursor: loading ? "not-allowed" : "pointer",
+                            opacity: loading ? 0.5 : 1,
+                          }}
+                        >
+                          Edit Template Defaults
+                        </button>
                       </div>
                     )}
-                  />
-
-                  {/* Action buttons for selected template */}
-                  {selectedTemplate && (
-                    <div className="grid gap-3 mt-4 md:grid-cols-2">
-                      <button
-                        type="button"
-                        onClick={() => handleCreateFromTemplate("quick-create")}
-                        disabled={loading}
-                        className="py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
-                        style={{
-                          backgroundColor: loading
-                            ? `rgba(212, 175, 55, 0.1)`
-                            : `rgba(212, 175, 55, 0.2)`,
-                          borderColor: COLORS.gold,
-                          borderWidth: "2px",
-                          color: COLORS.gold,
-                          cursor: loading ? "not-allowed" : "pointer",
-                          opacity: loading ? 0.5 : 1,
-                        }}
-                      >
-                        {loading ? "Creating..." : "Create Quest Now"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleCreateFromTemplate("edit-defaults")}
-                        disabled={loading}
-                        className="py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all duration-300"
-                        style={{
-                          backgroundColor: loading
-                            ? `rgba(107, 95, 183, 0.1)`
-                            : `rgba(107, 95, 183, 0.3)`,
-                          borderColor: "#6b5fb7",
-                          borderWidth: "2px",
-                          color: "#9d84ff",
-                          cursor: loading ? "not-allowed" : "pointer",
-                          opacity: loading ? 0.5 : 1,
-                        }}
-                      >
-                        Edit Template Defaults
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Steward Image - Right side (hidden on mobile/tablet) */}
@@ -506,8 +509,9 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
           token={token}
           skipAI={skipAI}
           createQuestOnSave={createQuestOnSave}
-          onSave={async result => {
-            const isTemplateDefaultsFlow = !!createdTemplateId && !createQuestOnSave && !editingQuestId && !templateInitialData;
+          onSave={async (result) => {
+            const isTemplateDefaultsFlow =
+              !!createdTemplateId && !createQuestOnSave && !editingQuestId && !templateInitialData;
             const editedTemplateId = createdTemplateId;
 
             // Clear state before calling user callbacks (prevents delete logic)
@@ -521,7 +525,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
             if (isTemplateDefaultsFlow) {
               const refreshedTemplates = await fetchTemplates();
               if (editedTemplateId && refreshedTemplates) {
-                const updatedTemplate = refreshedTemplates.find(template => template.id === editedTemplateId) || null;
+                const updatedTemplate =
+                  refreshedTemplates.find((template) => template.id === editedTemplateId) || null;
                 setSelectedTemplate(updatedTemplate);
               }
 
@@ -542,7 +547,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
           onClose={async () => {
             // Capture the current quest ID before clearing state
             const questIdToDelete = deleteQuestOnCancel ? editingQuestId : null;
-            const isTemplateDefaultsFlow = !!createdTemplateId && !createQuestOnSave && !editingQuestId && !templateInitialData;
+            const isTemplateDefaultsFlow =
+              !!createdTemplateId && !createQuestOnSave && !editingQuestId && !templateInitialData;
 
             // Clear state first
             setShowEditModal(false);

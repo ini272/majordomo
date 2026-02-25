@@ -23,7 +23,7 @@ export interface Quest {
   id: number;
   home_id: number;
   user_id: number;
-  quest_template_id: number | null;  // Nullable for standalone quests
+  quest_template_id: number | null; // Nullable for standalone quests
   completed: boolean;
   created_at: string;
   completed_at: string | null;
@@ -33,16 +33,16 @@ export interface Quest {
   display_name: string | null;
   description: string | null;
   tags: string | null;
-  xp_reward: number;  // Base at creation, actual earned after completion
+  xp_reward: number; // Base at creation, actual earned after completion
   gold_reward: number;
-  recurrence: string;  // Snapshot of recurrence when quest was created
-  schedule: string | null;  // Snapshot of schedule when quest was created
+  recurrence: string; // Snapshot of recurrence when quest was created
+  schedule: string | null; // Snapshot of schedule when quest was created
 
   quest_type: string;
-  due_in_hours: number | null;  // Hours until corruption (deadline = created_at + due_in_hours)
-  due_date: string | null;  // DEPRECATED: use due_in_hours instead
+  due_in_hours: number | null; // Hours until corruption (deadline = created_at + due_in_hours)
+  due_date: string | null; // DEPRECATED: use due_in_hours instead
   corrupted_at: string | null;
-  template: QuestTemplate | null;  // Null for standalone quests
+  template: QuestTemplate | null; // Null for standalone quests
 }
 
 export interface User {

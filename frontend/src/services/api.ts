@@ -53,7 +53,11 @@ const extractErrorMessage = (error: unknown, fallback: string): string => {
   return fallback;
 };
 
-const requestJSON = async <T>(path: string, options: RequestInit = {}, fallbackError: string): Promise<T> => {
+const requestJSON = async <T>(
+  path: string,
+  options: RequestInit = {},
+  fallbackError: string
+): Promise<T> => {
   const res = await fetch(`${API_URL}${path}`, options);
   if (!res.ok) {
     try {
@@ -67,7 +71,11 @@ const requestJSON = async <T>(path: string, options: RequestInit = {}, fallbackE
   return res.json();
 };
 
-const requestVoid = async (path: string, options: RequestInit = {}, fallbackError: string): Promise<void> => {
+const requestVoid = async (
+  path: string,
+  options: RequestInit = {},
+  fallbackError: string
+): Promise<void> => {
   const res = await fetch(`${API_URL}${path}`, options);
   if (!res.ok) throw new Error(fallbackError);
 };
@@ -138,7 +146,11 @@ export const api = {
 
   user: {
     getStats: async (token: string): Promise<User> =>
-      requestJSON<User>("/users/me", { headers: buildHeaders(token) }, "Failed to fetch user stats"),
+      requestJSON<User>(
+        "/users/me",
+        { headers: buildHeaders(token) },
+        "Failed to fetch user stats"
+      ),
   },
 
   quests: {
@@ -228,7 +240,11 @@ export const api = {
       ),
 
     getQuest: async (questId: number, token: string): Promise<Quest> =>
-      requestJSON<Quest>(`/quests/${questId}`, { headers: buildHeaders(token) }, "Failed to fetch quest"),
+      requestJSON<Quest>(
+        `/quests/${questId}`,
+        { headers: buildHeaders(token) },
+        "Failed to fetch quest"
+      ),
 
     update: async (
       questId: number,
@@ -285,11 +301,7 @@ export const api = {
         "Failed to create quest template"
       ),
 
-    create: async (
-      questData: QuestCreateRequest,
-      token: string,
-      userId: number
-    ): Promise<Quest> =>
+    create: async (questData: QuestCreateRequest, token: string, userId: number): Promise<Quest> =>
       requestJSON<Quest>(
         `/quests?user_id=${userId}`,
         {
@@ -308,7 +320,9 @@ export const api = {
     ): Promise<
       QuestCompleteResponse & { user_stats: { level: number; xp: number; gold: number } }
     > =>
-      requestJSON<QuestCompleteResponse & { user_stats: { level: number; xp: number; gold: number } }>(
+      requestJSON<
+        QuestCompleteResponse & { user_stats: { level: number; xp: number; gold: number } }
+      >(
         `/triggers/quest/${questTemplateId}`,
         {
           method: "POST",
@@ -374,7 +388,11 @@ export const api = {
 
   rewards: {
     getAll: async (token: string): Promise<Reward[]> =>
-      requestJSON<Reward[]>("/rewards", { headers: buildHeaders(token) }, "Failed to fetch rewards"),
+      requestJSON<Reward[]>(
+        "/rewards",
+        { headers: buildHeaders(token) },
+        "Failed to fetch rewards"
+      ),
 
     claim: async (rewardId: number, userId: number, token: string): Promise<UserRewardClaim> =>
       requestJSON<UserRewardClaim>(
