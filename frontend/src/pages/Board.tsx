@@ -128,6 +128,8 @@ export default function Board() {
   const [selectedQuestView, setSelectedQuestView] = useState<QuestCollectionView | null>(null);
   const [selectedUpcomingSpawnTime, setSelectedUpcomingSpawnTime] = useState<string | undefined>();
   const [selectedIsDailyBounty, setSelectedIsDailyBounty] = useState(false);
+  const [questPendingAbandon, setQuestPendingAbandon] = useState<Quest | null>(null);
+  const [abandoningQuestId, setAbandoningQuestId] = useState<number | null>(null);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   const [userLevel, setUserLevel] = useState<number | null>(null);
   const userLevelRef = useRef<number | null>(null);
@@ -240,6 +242,51 @@ export default function Board() {
     }
   };
 
+  const openAbandonConfirm = (questId: number) => {
+    const questToAbandon = quests.find(quest => quest.id === questId);
+    if (!questToAbandon) return;
+
+    setQuestPendingAbandon(questToAbandon);
+  };
+
+  const closeAbandonConfirm = () => {
+    if (abandoningQuestId !== null) return;
+    setQuestPendingAbandon(null);
+  };
+
+  const handleAbandonQuest = async () => {
+    if (!questPendingAbandon) return;
+
+    if (!token) {
+      setError("Not authenticated");
+      return;
+    }
+
+    const questId = questPendingAbandon.id;
+    setAbandoningQuestId(questId);
+
+    try {
+      await api.quests.delete(questId, token);
+      setQuests(prev => prev.filter(quest => quest.id !== questId));
+      setDailyBounty(prev => {
+        if (!prev || prev.quest?.id !== questId) return prev;
+        return { ...prev, quest: null };
+      });
+
+      if (selectedQuest?.id === questId) {
+        closeQuestDetails();
+      } else {
+        setQuestPendingAbandon(null);
+      }
+
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to abandon quest");
+    } finally {
+      setAbandoningQuestId(null);
+    }
+  };
+
   const handleQuestCreated = () => {
     // Quest created - no additional action needed
   };
@@ -321,6 +368,7 @@ export default function Board() {
     setSelectedQuestView(null);
     setSelectedUpcomingSpawnTime(undefined);
     setSelectedIsDailyBounty(false);
+    setQuestPendingAbandon(null);
   };
 
   const moveSelectedQuest = (delta: 1 | -1) => {
@@ -371,6 +419,8 @@ export default function Board() {
   const canNavigatePrevQuest = selectedQuestIndex > 0;
   const canNavigateNextQuest =
     selectedQuestIndex !== -1 && selectedQuestIndex < selectedQuestSequence.length - 1;
+  const pendingAbandonQuestLabel =
+    questPendingAbandon?.display_name || questPendingAbandon?.title || "this quest";
 
   return (
     <div>
@@ -681,11 +731,70 @@ export default function Board() {
               <QuestCard
                 quest={selectedQuest}
                 onComplete={handleCompleteQuest}
+                onAbandon={selectedQuestView === "current" ? openAbandonConfirm : undefined}
                 isDailyBounty={selectedIsDailyBounty}
                 isUpcoming={selectedQuestView === "upcoming"}
                 upcomingSpawnTime={selectedUpcomingSpawnTime}
+                isAbandoning={abandoningQuestId === selectedQuest.id}
               />
             </motion.div>
+          </div>
+        </ModalShell>
+      )}
+
+      {questPendingAbandon && (
+        <ModalShell
+          isOpen={true}
+          onClose={closeAbandonConfirm}
+          closeOnBackdrop={abandoningQuestId === null}
+          closeOnEscape={abandoningQuestId === null}
+          overlayClassName="items-center p-4 bg-black/80"
+          panelClassName="w-full max-w-md"
+          zIndex={LAYERS.nestedModal}
+        >
+          <div
+            className="rounded-lg p-6 shadow-xl"
+            style={{
+              backgroundColor: COLORS.darkPanel,
+              border: `2px solid ${COLORS.redLight}`,
+            }}
+          >
+            <h3 className="font-serif text-xl font-bold mb-3" style={{ color: COLORS.redLight }}>
+              Abandon quest?
+            </h3>
+            <p className="font-serif text-sm leading-relaxed" style={{ color: COLORS.parchment }}>
+              This will permanently delete{" "}
+              <span style={{ color: COLORS.gold }}>{pendingAbandonQuestLabel}</span> from your
+              board.
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeAbandonConfirm}
+                disabled={abandoningQuestId !== null}
+                className="px-4 py-2 font-serif text-sm uppercase tracking-wider disabled:opacity-50"
+                style={{
+                  border: `1px solid ${COLORS.gold}`,
+                  color: COLORS.gold,
+                  backgroundColor: "rgba(24, 17, 14, 0.85)",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAbandonQuest}
+                disabled={abandoningQuestId !== null}
+                className="px-4 py-2 font-serif text-sm uppercase tracking-wider disabled:opacity-50"
+                style={{
+                  border: `1px solid ${COLORS.redLight}`,
+                  color: COLORS.redLight,
+                  backgroundColor: "rgba(139, 58, 58, 0.25)",
+                }}
+              >
+                {abandoningQuestId !== null ? "Abandoning..." : "Abandon"}
+              </button>
+            </div>
           </div>
         </ModalShell>
       )}

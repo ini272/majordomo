@@ -38,12 +38,22 @@ const getQuestTypeStyles = (questType: string): QuestTypeStyles => {
 interface QuestCardProps {
   quest: Quest;
   onComplete: (questId: number) => void;
+  onAbandon?: (questId: number) => void;
   isDailyBounty?: boolean;
   isUpcoming?: boolean;
   upcomingSpawnTime?: string;
+  isAbandoning?: boolean;
 }
 
-export default function QuestCard({ quest, onComplete, isDailyBounty = false, isUpcoming = false, upcomingSpawnTime }: QuestCardProps) {
+export default function QuestCard({
+  quest,
+  onComplete,
+  onAbandon,
+  isDailyBounty = false,
+  isUpcoming = false,
+  upcomingSpawnTime,
+  isAbandoning = false,
+}: QuestCardProps) {
   const typeStyles = getQuestTypeStyles(quest.quest_type);
   const isCorrupted = quest.quest_type === "corrupted";
 
@@ -91,6 +101,7 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false, is
 
   const scheduleInfo = formatScheduleLabel(quest.recurrence as "one-off" | "daily" | "weekly" | "monthly", quest.schedule);
   const isRecurring = quest.recurrence !== "one-off";
+  const showAbandonAction = Boolean(onAbandon) && !quest.completed;
 
   return (
     <div
@@ -260,19 +271,39 @@ export default function QuestCard({ quest, onComplete, isDailyBounty = false, is
         >
           📅 {formatUpcomingTime(upcomingSpawnTime)}
         </div>
-      ) : !quest.completed ? (
-        <button
-          className="w-full mt-6 md:mt-8 py-3 md:py-4 px-4 font-serif font-semibold text-sm md:text-base uppercase tracking-wider transition-all duration-300 hover:shadow-lg cursor-pointer"
-          style={{
-            backgroundColor: "rgba(95, 183, 84, 0.25)",
-            borderColor: COLORS.greenSuccess,
-            borderWidth: "2px",
-            color: COLORS.greenSuccess,
-          }}
-          onClick={() => onComplete(quest.id)}
-        >
-          ⚔ Complete Quest
-        </button>
+      ) : !quest.completed || showAbandonAction ? (
+        <div className="mt-7 md:mt-8 flex items-stretch gap-2">
+          {showAbandonAction && (
+            <button
+              className="flex-1 min-w-0 py-2.5 md:py-3 px-3 font-serif font-semibold text-xs md:text-sm uppercase tracking-wide transition-all duration-300 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: "rgba(196, 72, 72, 0.2)",
+                borderColor: COLORS.redLight,
+                borderWidth: "2px",
+                color: COLORS.redLight,
+              }}
+              onClick={() => onAbandon?.(quest.id)}
+              disabled={isAbandoning}
+            >
+              {isAbandoning ? "Abandoning..." : "Abandon"}
+            </button>
+          )}
+          {!quest.completed && (
+            <button
+              className="flex-1 min-w-0 py-2.5 md:py-3 px-3 font-serif font-semibold text-xs md:text-sm uppercase tracking-wide transition-all duration-300 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: "rgba(95, 183, 84, 0.25)",
+                borderColor: COLORS.greenSuccess,
+                borderWidth: "2px",
+                color: COLORS.greenSuccess,
+              }}
+              onClick={() => onComplete(quest.id)}
+              disabled={isAbandoning}
+            >
+              Complete
+            </button>
+          )}
+        </div>
       ) : null}
     </div>
   );
