@@ -9,6 +9,10 @@ node_modules/
 # Build output
 dist/
 dist-ssr/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
 
 # IDE
 .vscode/*
