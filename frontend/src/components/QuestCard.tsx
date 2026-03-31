@@ -151,7 +151,7 @@ export default function QuestCard({
               color: "#9d84ff",
             }}
           >
-            2x Bounty
+            3x Gold Bounty
           </span>
         )}
         {quest.due_in_hours && !quest.completed && (
@@ -220,12 +220,7 @@ export default function QuestCard({
             XP Reward
           </div>
           <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
-            {isDailyBounty && !quest.completed ? (quest.xp_reward || 0) * 2 : quest.xp_reward || 0}
-            {isDailyBounty && !quest.completed && (
-              <span className="text-sm ml-2" style={{ color: "#9d84ff" }}>
-                (2x)
-              </span>
-            )}
+            {quest.xp_reward || 0}
           </div>
         </div>
         <div className="text-center flex-1">
@@ -237,11 +232,11 @@ export default function QuestCard({
           </div>
           <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
             {isDailyBounty && !quest.completed
-              ? (quest.gold_reward || 0) * 2
+              ? (quest.gold_reward || 0) * 3
               : quest.gold_reward || 0}
             {isDailyBounty && !quest.completed && (
               <span className="text-sm ml-2" style={{ color: "#9d84ff" }}>
-                (2x)
+                (3x)
               </span>
             )}
           </div>
