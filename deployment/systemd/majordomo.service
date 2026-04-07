@@ -1,0 +1,17 @@
+[Unit]
+Description=Majordomo Docker Compose Stack
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/srv/majordomo
+ExecStart=/usr/bin/docker compose --env-file /srv/majordomo/.env -f /srv/majordomo/deployment/docker-compose.yml up -d
+ExecStop=/usr/bin/docker compose --env-file /srv/majordomo/.env -f /srv/majordomo/deployment/docker-compose.yml down
+ExecReload=/usr/bin/docker compose --env-file /srv/majordomo/.env -f /srv/majordomo/deployment/docker-compose.yml up -d --build
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

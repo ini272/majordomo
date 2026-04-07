@@ -36,31 +36,26 @@ def create_app():
 # Initialize FastAPI
 app = create_app()
 
-# Environment-specific CORS configuration
 ENV = os.getenv("NODE_ENV", "development")
 IS_PRODUCTION = ENV == "production"
 
-if IS_PRODUCTION:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["https://grindstone.example.com"],  # Update with actual domain
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-else:
-    # In development, allow all origins (frontend will be on same network)
-    # For production, configure specific origins via environment
-    allow_origins_config = os.getenv("CORS_ORIGINS", "*")
-    allow_origins = ["*"] if allow_origins_config == "*" else allow_origins_config.split(",")
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=allow_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+def parse_cors_origins() -> list[str]:
+    allow_origins_config = os.getenv("CORS_ORIGINS")
+    if not allow_origins_config:
+        return ["*"] if not IS_PRODUCTION else []
+
+    allow_origins = [origin.strip() for origin in allow_origins_config.split(",") if origin.strip()]
+    return ["*"] if "*" in allow_origins else allow_origins
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=parse_cors_origins(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include routers
 app.include_router(auth.router)

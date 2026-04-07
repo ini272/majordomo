@@ -26,7 +26,12 @@ const getAPIURL = (): string => {
     return configuredUrl.endsWith("/api") ? configuredUrl : `${configuredUrl}/api`;
   }
 
-  const { hostname, protocol } = window.location;
+  const { hostname, protocol, port } = window.location;
+
+  if (!port || port === "80" || port === "443") {
+    return "/api";
+  }
+
   return `${protocol}//${hostname}:8000/api`;
 };
 

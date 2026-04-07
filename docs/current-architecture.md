@@ -39,4 +39,5 @@ Last verified: 2026-02-12
 ## Deployment shape
 
 - Local dev: `backend/main.py` + `frontend` Vite dev server
-- Container config: `deployment/docker-compose.yml`
+- Server deploy: Docker Compose in `deployment/docker-compose.yml`
+- Frontend container: Caddy serving static build + reverse proxying `/api`
