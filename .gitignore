@@ -71,6 +71,7 @@ ehthumbs.db
 *.db
 *.sqlite
 *.sqlite3
+backups/
 
 # Migrations (if using Alembic)
 alembic/versions/__pycache__/
