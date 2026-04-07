@@ -16,6 +16,10 @@ mkdir -p "$BACKUP_DIR"
 TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
 BACKUP_PATH="$BACKUP_DIR/majordomo-$TIMESTAMP.db"
 
+if [[ -e "$BACKUP_PATH" ]]; then
+  BACKUP_PATH="$BACKUP_DIR/majordomo-$TIMESTAMP-$(date +%N).db"
+fi
+
 python3 - "$DB_PATH" "$BACKUP_PATH" <<'PY'
 import sqlite3
 import sys
