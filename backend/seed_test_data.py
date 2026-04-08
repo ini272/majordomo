@@ -18,7 +18,6 @@ from app.crud import achievement as crud_achievement
 from app.crud import reward as crud_reward
 from app.crud import home as crud_home
 from app.crud import user as crud_user
-from app.models.reward import RewardCreate
 from app.models.home import HomeCreate
 from app.models.user import UserCreate
 
@@ -76,32 +75,14 @@ def seed_test_data():
         # ============================================
         print(f"🛒 Adding consumables to '{test_home.name}'")
 
-        existing_rewards = crud_reward.get_home_rewards(db, test_home.id)
-        existing_names = {r.name for r in existing_rewards}
+        existing_rewards = {reward.name: reward for reward in crud_reward.get_home_rewards(db, test_home.id)}
+        starter_rewards = crud_reward.ensure_starter_rewards(db, test_home.id)
 
-        # Heroic Elixir
-        if "Heroic Elixir" not in existing_names:
-            elixir = RewardCreate(
-                name="Heroic Elixir",
-                description="Double XP for your next 3 completed quests",
-                cost=150
-            )
-            created_elixir = crud_reward.create_reward(db, test_home.id, elixir)
-            print(f"  ✅ Created Heroic Elixir (ID: {created_elixir.id})")
-        else:
-            print(f"  ⏭️  Heroic Elixir already exists")
-
-        # Purification Shield
-        if "Purification Shield" not in existing_names:
-            shield = RewardCreate(
-                name="Purification Shield",
-                description="Protect household from corruption debuff for 24h",
-                cost=200
-            )
-            created_shield = crud_reward.create_reward(db, test_home.id, shield)
-            print(f"  ✅ Created Purification Shield (ID: {created_shield.id})")
-        else:
-            print(f"  ⏭️  Purification Shield already exists")
+        for reward in starter_rewards:
+            if reward.name in existing_rewards:
+                print(f"  ⏭️  {reward.name} already exists")
+            else:
+                print(f"  ✅ Created {reward.name} (ID: {reward.id})")
 
         # ============================================
         # 4. ENSURE DEFAULT ACHIEVEMENTS

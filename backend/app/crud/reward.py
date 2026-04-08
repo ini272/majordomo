@@ -7,6 +7,19 @@ from app.crud import user as crud_user
 from app.errors import ErrorCode, create_error_detail
 from app.models.reward import Reward, RewardCreate, UserRewardClaim
 
+STARTER_REWARDS = (
+    RewardCreate(
+        name="Heroic Elixir",
+        description="Double XP for your next 3 completed quests",
+        cost=150,
+    ),
+    RewardCreate(
+        name="Purification Shield",
+        description="Protect household from corruption debuff for 24h",
+        cost=200,
+    ),
+)
+
 
 def get_reward(db: Session, reward_id: int) -> Optional[Reward]:
     """Get reward by ID"""
@@ -30,6 +43,18 @@ def create_reward(db: Session, home_id: int, reward_in: RewardCreate) -> Reward:
     db.commit()
     db.refresh(db_reward)
     return db_reward
+
+
+def ensure_starter_rewards(db: Session, home_id: int) -> list[Reward]:
+    """Ensure the default consumables exist for the given home."""
+    existing_rewards = get_home_rewards(db, home_id)
+    rewards_by_name = {reward.name: reward for reward in existing_rewards}
+
+    for reward_in in STARTER_REWARDS:
+        if reward_in.name not in rewards_by_name:
+            rewards_by_name[reward_in.name] = create_reward(db, home_id, reward_in)
+
+    return [rewards_by_name[reward_in.name] for reward_in in STARTER_REWARDS]
 
 
 def claim_reward(db: Session, user_id: int, reward_id: int) -> Optional[UserRewardClaim]:

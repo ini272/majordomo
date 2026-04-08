@@ -1,9 +1,10 @@
 import secrets
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from typing import Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlmodel import Session, select
 
+from app.crud import reward as crud_reward
 from app.models.home import Home, HomeCreate
 
 
@@ -53,6 +54,10 @@ def create_home(db: Session, home_in: HomeCreate) -> Home:
     db.add(db_home)
     db.commit()
     db.refresh(db_home)
+
+    # Ensure each home starts with the default shop consumables.
+    crud_reward.ensure_starter_rewards(db, db_home.id)
+
     return db_home
 
 
