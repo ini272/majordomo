@@ -91,7 +91,6 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       setEditingQuestId(quest.id);
       setDeleteQuestOnCancel(true);
       setShowEditModal(true);
-      playSound("questActivate");
 
       // Reset form
       setTitle("");
@@ -512,6 +511,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
           onSave={async (result) => {
             const isTemplateDefaultsFlow =
               !!createdTemplateId && !createQuestOnSave && !editingQuestId && !templateInitialData;
+            const isAIScribeFinalizeFlow = !!editingQuestId && deleteQuestOnCancel;
             const editedTemplateId = createdTemplateId;
 
             // Clear state before calling user callbacks (prevents delete logic)
@@ -538,7 +538,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
               return;
             }
 
-            if (result?.createdQuest) {
+            if (result?.createdQuest || isAIScribeFinalizeFlow) {
               playSound("questActivate");
             }
             onQuestCreated();
