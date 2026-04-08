@@ -6,6 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import QuestCard from "../components/QuestCard";
 import ModalShell from "../components/modal/ModalShell";
 import { LAYERS } from "../constants/layers";
+import { copyTextToClipboard } from "../utils/clipboard";
 
 export default function Profile() {
   const { token } = useAuth();
@@ -68,6 +69,16 @@ export default function Profile() {
     [completedQuests]
   );
   const completedCount = completedQuests.length;
+
+  const handleCopyInviteCode = async () => {
+    if (!homeInfo) return;
+
+    const copied = await copyTextToClipboard(homeInfo.invite_code);
+    if (!copied) return;
+
+    setCopiedInvite(true);
+    setTimeout(() => setCopiedInvite(false), 2000);
+  };
 
   if (loading) {
     return (
@@ -278,11 +289,7 @@ export default function Profile() {
                 {homeInfo.invite_code}
               </p>
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(homeInfo.invite_code);
-                  setCopiedInvite(true);
-                  setTimeout(() => setCopiedInvite(false), 2000);
-                }}
+                onClick={handleCopyInviteCode}
                 className="px-3 py-1 text-xs font-serif uppercase tracking-wider transition-all"
                 style={{
                   backgroundColor: copiedInvite ? COLORS.greenSuccess : "transparent",
