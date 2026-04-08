@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 from sqlmodel import Session, SQLModel
 
@@ -23,6 +23,21 @@ _ensure_sqlite_parent_dir(DATABASE_URL)
 engine = create_engine(
     DATABASE_URL, connect_args={"check_same_thread": False}, echo=os.getenv("SQL_ECHO", "false").lower() == "true"
 )
+
+
+def ensure_runtime_schema_compatibility() -> None:
+    inspector = inspect(engine)
+    if "quest" not in inspector.get_table_names():
+        return
+
+    column_names = {column["name"] for column in inspector.get_columns("quest")}
+    if "created_by" in column_names:
+        return
+
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE quest ADD COLUMN created_by INTEGER"))
+        connection.execute(text("UPDATE quest SET created_by = user_id WHERE created_by IS NULL"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_quest_created_by ON quest (created_by)"))
 
 
 def get_session():

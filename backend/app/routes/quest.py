@@ -150,7 +150,7 @@ def create_quest(
     if not template or template.home_id != home_id:
         raise HTTPException(status_code=404, detail="Quest template not found in home")
 
-    return crud_quest.create_quest(db, home_id, user_id, quest, template)
+    return crud_quest.create_quest(db, home_id, auth["user_id"], user_id, quest, template)
 
 
 @router.post("/standalone", response_model=QuestRead)
@@ -165,7 +165,7 @@ def create_standalone_quest(
     if not user or user.home_id != home_id:
         raise HTTPException(status_code=404, detail="User not found in home")
 
-    return crud_quest.create_standalone_quest(db, home_id, user_id, quest)
+    return crud_quest.create_standalone_quest(db, home_id, auth["user_id"], user_id, quest)
 
 
 @router.post("/ai-scribe", response_model=QuestRead)
@@ -195,7 +195,7 @@ def create_ai_scribe_quest(
         raise HTTPException(status_code=404, detail="User not found in home")
 
     # Create standalone quest
-    quest = crud_quest.create_standalone_quest(db, home_id, user_id, quest_data)
+    quest = crud_quest.create_standalone_quest(db, home_id, auth["user_id"], user_id, quest_data)
 
     # Trigger AI generation in background (unless skipping)
     if not skip_ai:
@@ -272,7 +272,7 @@ def create_random_quest(
         gold_reward=gold_reward,
     )
 
-    quest = crud_quest.create_standalone_quest(db, home_id, user_id, quest_data)
+    quest = crud_quest.create_standalone_quest(db, home_id, auth["user_id"], user_id, quest_data)
     return quest
 
 
@@ -309,6 +309,7 @@ def generate_quest_instance(
     # Create quest instance for requesting user only, snapshotting template data
     new_quest = Quest(
         home_id=auth["home_id"],
+        created_by=auth["user_id"],
         user_id=auth["user_id"],
         quest_template_id=template.id,
         # Snapshot template data
@@ -768,9 +769,7 @@ def convert_quest_to_template(
         schedule=conversion_data.schedule,
         due_in_hours=conversion_data.due_in_hours
     )
-    template = crud_quest_template.create_quest_template(
-        db, home_id, quest.user_id, template_data
-    )
+    template = crud_quest_template.create_quest_template(db, home_id, auth["user_id"], template_data)
 
     # Link quest to template
     quest.quest_template_id = template.id

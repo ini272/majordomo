@@ -150,6 +150,9 @@ export const api = {
   },
 
   user: {
+    getAll: async (token: string): Promise<User[]> =>
+      requestJSON<User[]>("/users", { headers: buildHeaders(token) }, "Failed to fetch home users"),
+
     getStats: async (token: string): Promise<User> =>
       requestJSON<User>(
         "/users/me",

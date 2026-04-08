@@ -6,7 +6,7 @@ import { LAYERS } from "../constants/layers";
 import EditQuestModal from "./EditQuestModal";
 import StewardImage from "../assets/thesteward.png";
 import SearchableSelect from "./SearchableSelect";
-import type { QuestTemplate } from "../types/api";
+import type { QuestTemplate, User } from "../types/api";
 import { useAuth } from "../contexts/AuthContext";
 import { useSound } from "../contexts/SoundContext";
 import ModalShell from "./modal/ModalShell";
@@ -36,8 +36,11 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   const [createQuestOnSave, setCreateQuestOnSave] = useState(false);
   const [deleteQuestOnCancel, setDeleteQuestOnCancel] = useState(false);
   const [templates, setTemplates] = useState<QuestTemplate[]>([]);
+  const [homeUsers, setHomeUsers] = useState<User[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<QuestTemplate | null>(null);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(userId);
 
   const fetchTemplates = async (): Promise<QuestTemplate[] | null> => {
     setLoadingTemplates(true);
@@ -58,6 +61,33 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
     fetchTemplates();
   }, [token]);
 
+  useEffect(() => {
+    setSelectedUserId(userId);
+  }, [userId]);
+
+  useEffect(() => {
+    const fetchHomeUsers = async () => {
+      setLoadingUsers(true);
+      try {
+        const users = await api.user.getAll(token);
+        setHomeUsers(users);
+        if (users.length > 0) {
+          const defaultUser =
+            userId !== null && users.some((user) => user.id === userId) ? userId : users[0].id;
+          setSelectedUserId((current) => current ?? defaultUser);
+        } else {
+          setSelectedUserId(null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch home users:", err);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    fetchHomeUsers();
+  }, [token, userId]);
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!title.trim()) {
@@ -65,8 +95,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       return;
     }
 
-    if (userId === null) {
-      setError("User ID not found in session");
+    if (selectedUserId === null) {
+      setError("Select who this quest is for");
       return;
     }
 
@@ -83,7 +113,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
           gold_reward: 15,
         },
         token,
-        userId,
+        selectedUserId,
         skipAI
       );
 
@@ -104,6 +134,11 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   };
 
   const handleRandomQuest = async () => {
+    if (selectedUserId === null) {
+      setError("Select who this quest is for");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -135,8 +170,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   const handleCreateFromTemplate = async (action: TemplateAction) => {
     if (!selectedTemplate) return;
 
-    if (userId === null) {
-      setError("User ID not found in session");
+    if (selectedUserId === null) {
+      setError("Select who this quest is for");
       return;
     }
 
@@ -151,7 +186,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       setError(null);
 
       try {
-        await api.quests.create({ quest_template_id: selectedTemplate.id }, token, userId);
+        await api.quests.create({ quest_template_id: selectedTemplate.id }, token, selectedUserId);
         playSound("questActivate");
         onQuestCreated();
         onClose();
@@ -253,6 +288,43 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
                 {error}
               </div>
             )}
+
+            <div className="mb-6">
+              <label
+                className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                style={{ color: COLORS.gold }}
+              >
+                Quest For
+              </label>
+              <div
+                className="rounded"
+                style={{
+                  backgroundColor: COLORS.black,
+                  borderColor: COLORS.gold,
+                  borderWidth: "2px",
+                }}
+              >
+                <select
+                  value={selectedUserId ?? ""}
+                  onChange={(e) => setSelectedUserId(e.target.value ? parseInt(e.target.value, 10) : null)}
+                  className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                  style={{
+                    backgroundColor: "transparent",
+                    color: COLORS.parchment,
+                  }}
+                  disabled={loading || loadingUsers}
+                >
+                  <option value="" disabled>
+                    {loadingUsers ? "Loading household members..." : "Select a household member"}
+                  </option>
+                  {homeUsers.map((member) => (
+                    <option key={member.id} value={member.id} style={{ color: COLORS.darkPanel }}>
+                      {member.username}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             {mode === "ai-scribe" && (
               <form onSubmit={handleSubmit}>
@@ -507,6 +579,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
           initialData={templateInitialData || undefined}
           token={token}
           skipAI={skipAI}
+          targetUserId={selectedUserId}
           createQuestOnSave={createQuestOnSave}
           onSave={async (result) => {
             const isTemplateDefaultsFlow =

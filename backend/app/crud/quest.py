@@ -31,10 +31,13 @@ def get_quests_by_user(db: Session, home_id: int, user_id: int, completed: Optio
     return db.exec(query.order_by(Quest.created_at.desc())).all()
 
 
-def create_quest(db: Session, home_id: int, user_id: int, quest_in: QuestCreate, template: QuestTemplate) -> Quest:
+def create_quest(
+    db: Session, home_id: int, created_by: int, user_id: int, quest_in: QuestCreate, template: QuestTemplate
+) -> Quest:
     """Create a new quest instance for a user from a template, snapshotting template data"""
     db_quest = Quest(
         home_id=home_id,
+        created_by=created_by,
         user_id=user_id,
         quest_template_id=template.id,
         # Snapshot template data
@@ -54,10 +57,13 @@ def create_quest(db: Session, home_id: int, user_id: int, quest_in: QuestCreate,
     return db_quest
 
 
-def create_standalone_quest(db: Session, home_id: int, user_id: int, quest_in: QuestCreateStandalone) -> Quest:
+def create_standalone_quest(
+    db: Session, home_id: int, created_by: int, user_id: int, quest_in: QuestCreateStandalone
+) -> Quest:
     """Create a standalone quest without a template"""
     db_quest = Quest(
         home_id=home_id,
+        created_by=created_by,
         user_id=user_id,
         quest_template_id=None,  # No template
         # Set fields directly from input

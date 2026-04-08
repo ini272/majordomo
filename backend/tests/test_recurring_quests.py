@@ -379,6 +379,7 @@ def test_generate_skips_when_incomplete_exists(db: Session, db_home_with_users):
     # Create existing incomplete quest (with snapshot fields)
     existing_quest = Quest(
         home_id=home.id,
+        created_by=user.id,
         user_id=user.id,
         quest_template_id=template.id,
         title=template.title,

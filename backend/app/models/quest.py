@@ -125,6 +125,7 @@ class Quest(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     home_id: int = Field(foreign_key="home.id", index=True)
+    created_by: int = Field(foreign_key="user.id", index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     quest_template_id: Optional[int] = Field(default=None, foreign_key="quest_template.id", index=True)
     completed: bool = Field(default=False)
@@ -153,7 +154,10 @@ class Quest(SQLModel, table=True):
 
     # Relationships
     home: "Home" = Relationship(back_populates="quests")
-    user: "User" = Relationship(back_populates="quests")
+    user: "User" = Relationship(
+        back_populates="quests",
+        sa_relationship_kwargs={"foreign_keys": "Quest.user_id"},
+    )
     template: Optional[QuestTemplate] = Relationship(back_populates="quests")
 
 
@@ -162,6 +166,7 @@ class QuestRead(SQLModel):
 
     id: int
     home_id: int
+    created_by: int
     user_id: int
     quest_template_id: Optional[int]
     completed: bool
