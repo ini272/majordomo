@@ -296,7 +296,10 @@ export default function Board() {
   };
 
   const handleQuestCreated = () => {
-    // Quest created - no additional action needed
+    // New quests appear first; return to page 1 of the current board to reveal them immediately.
+    setView("current");
+    setCurrentPage(0);
+    setPageDirection(-1);
   };
 
   const handleCreateFormClose = async () => {
@@ -495,7 +498,7 @@ export default function Board() {
                 color: "#9d84ff",
               }}
             >
-              2x Rewards
+              3x Gold
             </span>
           </div>
           <div
@@ -512,15 +515,15 @@ export default function Board() {
               {activeBountyQuest.display_name || activeBountyQuest.title}
             </h3>
             <p className="font-serif italic mb-4" style={{ color: COLORS.parchment }}>
-              {activeBountyQuest.description || "Complete this quest for double rewards!"}
+              {activeBountyQuest.description || "Complete this quest for triple gold rewards!"}
             </p>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex gap-6 text-sm font-serif" style={{ color: COLORS.gold }}>
                 <span>
-                  XP: {activeBountyQuest.xp_reward} x2 = {activeBountyQuest.xp_reward * 2}
+                  XP: {activeBountyQuest.xp_reward}
                 </span>
                 <span>
-                  Gold: {activeBountyQuest.gold_reward} x2 = {activeBountyQuest.gold_reward * 2}
+                  Gold: {activeBountyQuest.gold_reward} x3 = {activeBountyQuest.gold_reward * 3}
                 </span>
               </div>
               <span

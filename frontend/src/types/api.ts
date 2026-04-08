@@ -77,7 +77,9 @@ export interface QuestCompleteResponse {
     gold: number;
     is_daily_bounty: boolean;
     is_corrupted: boolean;
-    multiplier: number;
+    bounty_multiplier: number;
+    bounty_gold_multiplier?: number;
+    bounty_xp_multiplier?: number;
   };
 }
 

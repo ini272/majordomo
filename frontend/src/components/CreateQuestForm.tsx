@@ -91,7 +91,6 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       setEditingQuestId(quest.id);
       setDeleteQuestOnCancel(true);
       setShowEditModal(true);
-      playSound("questActivate");
 
       // Reset form
       setTitle("");

@@ -60,7 +60,7 @@ def test_get_today_bounty_assigns_eligible_standalone_quest(client: TestClient, 
 
     data = response.json()
     assert data["status"] == "assigned"
-    assert data["bonus_multiplier"] == 2
+    assert data["bonus_multiplier"] == 3
     assert data["quest"] is not None
     assert data["quest"]["id"] == quest["id"]
 
@@ -93,13 +93,15 @@ def test_complete_quest_without_prior_bounty_fetch_still_applies_bounty(
     result = complete.json()
 
     assert result["rewards"]["is_daily_bounty"] is True
-    assert result["rewards"]["bounty_multiplier"] == 2
-    assert result["rewards"]["xp"] == 24
-    assert result["rewards"]["gold"] == 14
+    assert result["rewards"]["bounty_multiplier"] == 3
+    assert result["rewards"]["bounty_xp_multiplier"] == 1
+    assert result["rewards"]["bounty_gold_multiplier"] == 3
+    assert result["rewards"]["xp"] == 12
+    assert result["rewards"]["gold"] == 21
 
 
 def test_complete_non_bounty_quest_has_normal_rewards(client: TestClient, home_with_user, db: Session):
-    """Only the selected quest instance should receive 2x rewards."""
+    """Only the selected quest instance should receive the bounty gold bonus."""
     _, user_id, _ = home_with_user
     quest1 = _create_standalone_quest(client, user_id, title="A", xp=10, gold=5)
     quest2 = _create_standalone_quest(client, user_id, title="B", xp=20, gold=9)

@@ -346,7 +346,7 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
     **Reward Calculation Order**:
     1. Base rewards from template
     2. Apply corruption debuff (-5% per corrupted quest in home, capped at -50%)
-    3. Apply bounty multiplier (2x if daily bounty)
+    3. Apply bounty bonus (3x gold only if daily bounty; XP unchanged)
     4. Apply XP boost (2x if Heroic Elixir active)
 
     **Corruption System**: House-wide debuff applies when ANY quests are corrupted (overdue).
@@ -402,12 +402,13 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
     has_xp_boost = user.active_xp_boost_count > 0
 
     # Award XP and gold to user from template
-    # Apply order: base → corruption_debuff → bounty_multiplier → xp_boost
+    # Apply order: base → corruption_debuff → bounty_bonus → xp_boost
     xp_awarded = 0
     gold_awarded = 0
     base_xp = 0
     base_gold = 0
-    bounty_multiplier = 2 if is_daily_bounty else 1
+    bounty_gold_multiplier = 3 if is_daily_bounty else 1
+    bounty_xp_multiplier = 1
     xp_boost_multiplier = 2 if has_xp_boost else 1
 
     # Use quest's snapshot fields as base values
@@ -418,9 +419,9 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
     xp_after_debuff = base_xp * corruption_debuff_multiplier
     gold_after_debuff = base_gold * corruption_debuff_multiplier
 
-    # Apply bounty multiplier to both
-    xp_after_bounty = xp_after_debuff * bounty_multiplier
-    gold_after_bounty = gold_after_debuff * bounty_multiplier
+    # Apply bounty bonus: daily bounty triples gold only (XP unchanged)
+    xp_after_bounty = xp_after_debuff * bounty_xp_multiplier
+    gold_after_bounty = gold_after_debuff * bounty_gold_multiplier
 
     # Apply XP boost only to XP (not gold)
     xp_awarded = int(xp_after_bounty * xp_boost_multiplier)
@@ -466,7 +467,9 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
             "is_daily_bounty": is_daily_bounty,
             "is_corrupted": is_corrupted,
             "corruption_debuff": corruption_debuff_multiplier,
-            "bounty_multiplier": bounty_multiplier,
+            "bounty_multiplier": bounty_gold_multiplier,
+            "bounty_gold_multiplier": bounty_gold_multiplier,
+            "bounty_xp_multiplier": bounty_xp_multiplier,
             "xp_boost_active": has_xp_boost,
             "xp_boost_remaining": user.active_xp_boost_count,  # After decrement
         },

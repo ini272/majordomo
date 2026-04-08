@@ -17,7 +17,7 @@ def _serialize_bounty_response(db: Session, decision: DailyBounty) -> dict:
     return {
         "bounty_date": decision.bounty_date.isoformat(),
         "status": decision.status,
-        "bonus_multiplier": 2 if decision.status == "assigned" else 1,
+        "bonus_multiplier": 3 if decision.status == "assigned" else 1,
         "quest": QuestRead.model_validate(quest) if quest else None,
     }
 
@@ -65,5 +65,5 @@ def check_if_bounty(
 
     return {
         "is_daily_bounty": is_bounty,
-        "bonus_multiplier": 2 if is_bounty else 1,
+        "bonus_multiplier": 3 if is_bounty else 1,
     }

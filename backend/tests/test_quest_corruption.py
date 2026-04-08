@@ -359,7 +359,7 @@ def test_corruption_timestamp_set_correctly(client: TestClient, home_with_user_a
 
 
 def test_daily_bounty_and_corruption_combined(client: TestClient, home_with_user_and_template, db: Session):
-    """Test that a quest can be both a daily bounty and corrupted (debuff + bounty multiplier apply)"""
+    """Test that a quest can be both a daily bounty and corrupted (debuff + bounty gold bonus apply)."""
     home_id, user_id, template_id = home_with_user_and_template
 
     # Update template to have due_in_hours
@@ -393,11 +393,12 @@ def test_daily_bounty_and_corruption_combined(client: TestClient, home_with_user
     assert result["rewards"]["is_daily_bounty"] is True
     assert result["rewards"]["is_corrupted"] is True
 
-    # Check that both debuff and bounty multiplier are applied
-    # Debuff: -5% (0.95) for 1 corrupted quest, Bounty: 2x
+    # Check that both debuff and bounty multipliers are applied
+    # Debuff: -5% (0.95) for 1 corrupted quest, Bounty: XP x1 and Gold x3
     assert result["rewards"]["corruption_debuff"] == 0.95
-    assert result["rewards"]["bounty_multiplier"] == 2
-    # Calculation: base * 0.95 * 2 = base * 1.9 (net positive due to bounty)
+    assert result["rewards"]["bounty_multiplier"] == 3
+    assert result["rewards"]["bounty_xp_multiplier"] == 1
+    assert result["rewards"]["bounty_gold_multiplier"] == 3
 
 
 def test_update_quest_due_in_hours(client: TestClient):
