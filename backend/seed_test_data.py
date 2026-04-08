@@ -3,6 +3,7 @@
 Script to seed test data: home, user, consumables, and achievements.
 Useful when recreating the database for testing.
 
+Uses DATABASE_URL when set, otherwise seeds the repo-level data/majordomo.db.
 Run this from the backend directory: uv run python seed_test_data.py
 """
 
