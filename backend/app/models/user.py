@@ -29,7 +29,10 @@ class User(SQLModel, table=True):
 
     # Relationships
     home: "Home" = Relationship(back_populates="users")
-    quests: list["Quest"] = Relationship(back_populates="user")
+    quests: list["Quest"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"foreign_keys": "Quest.user_id"},
+    )
     reward_claims: list["UserRewardClaim"] = Relationship(back_populates="user")
     user_achievements: list["UserAchievement"] = Relationship(back_populates="user")
     template_subscriptions: list["UserTemplateSubscription"] = Relationship(back_populates="user")

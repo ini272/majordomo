@@ -252,6 +252,7 @@ def generate_due_quests(home_id: int, session: Session) -> None:
                 # Create new quest instance for THIS USER
                 new_quest = Quest(
                     home_id=home_id,
+                    created_by=subscription.user_id,
                     user_id=subscription.user_id,
                     quest_template_id=template.id,
                     # Snapshot template data

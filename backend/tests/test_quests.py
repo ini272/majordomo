@@ -86,7 +86,7 @@ def test_get_home_quest_templates(client: TestClient, home_with_user):
     assert len(response.json()) == 2
 
 
-def test_create_quest_from_template(client: TestClient, home_with_user):
+def test_create_quest_from_template(client: TestClient, home_with_user, auth_context):
     """Test creating a quest instance from a template"""
     home_id, user_id, invite_code = home_with_user
 
@@ -109,10 +109,14 @@ def test_create_quest_from_template(client: TestClient, home_with_user):
     )
     template_id = template_response.json()["id"]
 
+    auth_context.set_user(creator_id, home_id)
+
     # Create quest from template
     response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
     assert response.status_code == 200
     assert response.json()["quest_template_id"] == template_id
+    assert response.json()["created_by"] == creator_id
+    assert response.json()["user_id"] == user_id
     assert response.json()["completed"] is False
 
 
@@ -247,7 +251,7 @@ def test_get_user_quests_filtered(client: TestClient, home_with_user):
     assert len(response.json()) == 1
 
 
-def test_complete_quest(client: TestClient, home_with_user):
+def test_complete_quest(client: TestClient, home_with_user, auth_context):
     """Test completing a quest and awarding XP/gold"""
     home_id, user_id, invite_code = home_with_user
 
@@ -269,9 +273,12 @@ def test_complete_quest(client: TestClient, home_with_user):
     )
     template_id = template_response.json()["id"]
 
+    auth_context.set_user(creator_id, home_id)
+
     # Create quest
     quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
     quest_id = quest_response.json()["id"]
+    assert quest_response.json()["created_by"] == creator_id
 
     # Complete quest
     response = client.post(f"/api/quests/{quest_id}/complete?user_id={user_id}")
@@ -285,6 +292,10 @@ def test_complete_quest(client: TestClient, home_with_user):
     user = client.get(f"/api/users/{user_id}").json()
     assert user["xp"] == 50
     assert user["gold_balance"] == 25
+
+    creator = client.get(f"/api/users/{creator_id}").json()
+    assert creator["xp"] == 0
+    assert creator["gold_balance"] == 0
 
 
 def test_complete_quest_updates_level(client: TestClient, home_with_user):
@@ -753,9 +764,21 @@ def test_quest_template_created_by_tracking(client: TestClient, home_with_user):
     assert template2["created_by"] == user2_id
 
 
-def test_create_standalone_quest(client: TestClient, home_with_user):
+def test_create_standalone_quest(client: TestClient, home_with_user, auth_context):
     """Test creating a standalone quest without a template (Phase 2)"""
     home_id, user_id, invite_code = home_with_user
+
+    creator_response = client.post(
+        "/api/auth/join",
+        json={
+            "invite_code": invite_code,
+            "email": "creator-standalone@example.com",
+            "username": "creator-standalone",
+            "password": "creatorpass",
+        },
+    )
+    creator_id = creator_response.json()["user_id"]
+    auth_context.set_user(creator_id, home_id)
 
     # Create standalone quest
     quest_data = {
@@ -770,6 +793,8 @@ def test_create_standalone_quest(client: TestClient, home_with_user):
 
     # Verify quest has no template
     assert quest["quest_template_id"] is None
+    assert quest["created_by"] == creator_id
+    assert quest["user_id"] == user_id
     assert quest["title"] == "One-time deep clean"
     assert quest["description"] == "Spring cleaning the garage"
     assert quest["xp_reward"] == 200
@@ -838,9 +863,10 @@ def test_delete_template_orphans_quests(client: TestClient, home_with_user):
     assert result["rewards"]["xp"] == 50
 
 
-def test_create_ai_scribe_quest(client: TestClient, db_home_with_users):
+def test_create_ai_scribe_quest(client: TestClient, db_home_with_users, auth_context):
     """Test creating standalone quest via AI Scribe"""
-    home, user, _user2 = db_home_with_users
+    home, user, user2 = db_home_with_users
+    auth_context.set_user(user2.id, home.id)
 
     response = client.post(
         f"/api/quests/ai-scribe?user_id={user.id}&skip_ai=true",
@@ -856,13 +882,16 @@ def test_create_ai_scribe_quest(client: TestClient, db_home_with_users):
     quest = response.json()
     assert quest["title"] == "Clean kitchen"
     assert quest["tags"] == "chores,cleaning"
+    assert quest["created_by"] == user2.id
+    assert quest["user_id"] == user.id
     assert quest["quest_template_id"] is None  # Standalone
     assert quest["completed"] is False
 
 
-def test_create_random_quest(client: TestClient, db_home_with_users):
+def test_create_random_quest(client: TestClient, db_home_with_users, auth_context):
     """Test creating random quest with sample data"""
-    home, user, _user2 = db_home_with_users
+    home, user, user2 = db_home_with_users
+    auth_context.set_user(user2.id, home.id)
 
     response = client.post(f"/api/quests/random?user_id={user.id}")
 
@@ -870,5 +899,7 @@ def test_create_random_quest(client: TestClient, db_home_with_users):
     quest = response.json()
     assert quest["title"] is not None
     assert quest["display_name"] is not None
+    assert quest["created_by"] == user2.id
+    assert quest["user_id"] == user.id
     assert quest["quest_template_id"] is None  # Standalone
     assert quest["xp_reward"] > 0

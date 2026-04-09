@@ -37,6 +37,8 @@ const getQuestTypeStyles = (questType: string): QuestTypeStyles => {
 
 interface QuestCardProps {
   quest: Quest;
+  questOwnerName?: string;
+  questCreatorName?: string;
   onComplete: (questId: number) => void;
   onAbandon?: (questId: number) => void;
   isDailyBounty?: boolean;
@@ -47,6 +49,8 @@ interface QuestCardProps {
 
 export default function QuestCard({
   quest,
+  questOwnerName,
+  questCreatorName,
   onComplete,
   onAbandon,
   isDailyBounty = false,
@@ -187,6 +191,21 @@ export default function QuestCard({
       >
         {quest.description || "No description"}
       </p>
+
+      {(questOwnerName || questCreatorName) && (
+        <div className="mb-6 md:mb-8 flex flex-wrap gap-3 text-xs font-serif uppercase tracking-wide">
+          {questOwnerName && (
+            <span style={{ color: COLORS.brown }}>
+              For: <span style={{ color: COLORS.gold }}>{questOwnerName}</span>
+            </span>
+          )}
+          {questCreatorName && questCreatorName !== questOwnerName && (
+            <span style={{ color: COLORS.brown }}>
+              Created by: <span style={{ color: COLORS.parchment }}>{questCreatorName}</span>
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Tags */}
       {quest.tags && (

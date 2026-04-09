@@ -39,6 +39,7 @@ interface EditQuestModalProps {
 
   token: string;
   skipAI: boolean;
+  targetUserId?: number | null;
   createQuestOnSave?: boolean; // If true, creates quest on save (for template/initialData modes)
   onSave?: (result: { createdQuest: boolean; updatedTemplateDefaults: boolean }) => void;
   onClose?: () => void;
@@ -50,6 +51,7 @@ export default function EditQuestModal({
   initialData,
   token,
   skipAI,
+  targetUserId,
   createQuestOnSave = false,
   onSave,
   onClose,
@@ -254,7 +256,12 @@ export default function EditQuestModal({
               ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
             };
 
-            const createdQuest = await api.quests.createAIScribe(questData, token, userId, true); // skip_ai=true
+            const createdQuest = await api.quests.createAIScribe(
+              questData,
+              token,
+              targetUserId ?? userId,
+              true
+            ); // skip_ai=true
 
             // Convert to template if checkbox checked
             if (saveAsTemplate) {
@@ -270,7 +277,7 @@ export default function EditQuestModal({
             }
           } else if (templateId) {
             // From template create mode - create quest from current template defaults
-            await api.quests.create({ quest_template_id: templateId }, token, userId);
+            await api.quests.create({ quest_template_id: templateId }, token, targetUserId ?? userId);
           }
 
           onSave?.({ createdQuest: true, updatedTemplateDefaults: false });
@@ -324,7 +331,7 @@ export default function EditQuestModal({
             if (userId === null) {
               throw new Error("User ID not found in session");
             }
-            await api.quests.create({ quest_template_id: templateId }, token, userId);
+            await api.quests.create({ quest_template_id: templateId }, token, targetUserId ?? userId);
           }
 
           onSave?.({
@@ -388,6 +395,7 @@ export default function EditQuestModal({
       dueInHours,
       token,
       userId,
+      targetUserId,
       onSave,
       onClose,
     ]

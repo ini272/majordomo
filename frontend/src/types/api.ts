@@ -23,6 +23,7 @@ export interface Quest {
   id: number;
   home_id: number;
   user_id: number;
+  created_by: number;
   quest_template_id: number | null; // Nullable for standalone quests
   completed: boolean;
   created_at: string;

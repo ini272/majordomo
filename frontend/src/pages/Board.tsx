@@ -19,6 +19,7 @@ type QuestCollectionView = "current" | "upcoming";
 
 interface CompactQuestCardProps {
   quest: Quest;
+  questOwnerName?: string;
   isUpcoming?: boolean;
   isDailyBounty?: boolean;
   onClick: () => void;
@@ -26,6 +27,7 @@ interface CompactQuestCardProps {
 
 function CompactQuestCard({
   quest,
+  questOwnerName,
   isUpcoming = false,
   isDailyBounty = false,
   onClick,
@@ -66,6 +68,13 @@ function CompactQuestCard({
         {quest.description || "No description"}
       </p>
 
+      {questOwnerName && (
+        <div className="mb-3 text-[11px] sm:text-xs font-serif uppercase tracking-wide">
+          <span style={{ color: COLORS.brown }}>For:</span>{" "}
+          <span style={{ color: COLORS.gold }}>{questOwnerName}</span>
+        </div>
+      )}
+
       <div
         className="flex items-center justify-between text-xs font-serif"
         style={{ color: COLORS.brown }}
@@ -96,6 +105,7 @@ const toUpcomingQuest = (upcoming: UpcomingSubscription): Quest => ({
   id: upcoming.id,
   home_id: 0,
   user_id: upcoming.user_id,
+  created_by: upcoming.user_id,
   quest_template_id: upcoming.quest_template_id,
   completed: false,
   created_at: upcoming.created_at,
@@ -127,6 +137,7 @@ export default function Board() {
   const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [dailyBounty, setDailyBounty] = useState<DailyBounty | null>(null);
+  const [homeUsers, setHomeUsers] = useState<Record<number, string>>({});
 
   const [currentPage, setCurrentPage] = useState(0);
   const [upcomingPage, setUpcomingPage] = useState(0);
@@ -177,6 +188,24 @@ export default function Board() {
 
     fetchData();
   }, [token, view]);
+
+  useEffect(() => {
+    const fetchHomeUsers = async () => {
+      if (!token) {
+        setHomeUsers({});
+        return;
+      }
+
+      try {
+        const users = await api.user.getAll(token);
+        setHomeUsers(Object.fromEntries(users.map((user) => [user.id, user.username])));
+      } catch {
+        // Keep stale names rather than failing the board entirely.
+      }
+    };
+
+    fetchHomeUsers();
+  }, [token]);
 
   useEffect(() => {
     const fetchUserLevel = async () => {
@@ -581,6 +610,7 @@ export default function Board() {
                       <CompactQuestCard
                         key={quest.id}
                         quest={quest}
+                        questOwnerName={homeUsers[quest.user_id]}
                         isDailyBounty={activeBountyQuest?.id === quest.id}
                         onClick={() => openQuestDetails(quest, "current")}
                       />
@@ -593,6 +623,7 @@ export default function Board() {
                         <CompactQuestCard
                           key={upcoming.id}
                           quest={upcomingQuest}
+                          questOwnerName={homeUsers[upcomingQuest.user_id]}
                           isUpcoming={true}
                           onClick={() =>
                             openQuestDetails(upcomingQuest, "upcoming", upcoming.next_spawn_at)
@@ -741,6 +772,8 @@ export default function Board() {
             >
               <QuestCard
                 quest={selectedQuest}
+                questOwnerName={homeUsers[selectedQuest.user_id]}
+                questCreatorName={homeUsers[selectedQuest.created_by]}
                 onComplete={handleCompleteQuest}
                 onAbandon={selectedQuestView === "current" ? openAbandonConfirm : undefined}
                 isDailyBounty={selectedIsDailyBounty}

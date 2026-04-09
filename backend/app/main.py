@@ -17,9 +17,10 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     """Handle startup and shutdown events"""
     # Startup
-    from app.database import engine
+    from app.database import engine, ensure_runtime_schema_compatibility
 
     SQLModel.metadata.create_all(engine)
+    ensure_runtime_schema_compatibility()
     yield
     # Shutdown
     pass
