@@ -35,7 +35,7 @@ def test_get_reward(client: TestClient):
 
 
 def test_get_home_rewards(client: TestClient):
-    """Test retrieving all rewards in a home"""
+    """Test retrieving all rewards in a home, including starter consumables"""
     # Create home
     home_response = client.post("/api/homes", json={"name": "Test Home"})
     home_id = home_response.json()["id"]
@@ -47,7 +47,8 @@ def test_get_home_rewards(client: TestClient):
     # Get rewards
     response = client.get(f"/api/rewards?home_id={home_id}")
     assert response.status_code == 200
-    assert len(response.json()) == 2
+    reward_names = {reward["name"] for reward in response.json()}
+    assert reward_names == {"Heroic Elixir", "Purification Shield", "Reward 1", "Reward 2"}
 
 
 def test_get_home_rewards_multiple(client: TestClient):
