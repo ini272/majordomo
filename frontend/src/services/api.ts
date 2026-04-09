@@ -263,6 +263,7 @@ export const api = {
         xp_reward?: number;
         gold_reward?: number;
         due_in_hours?: number | null;
+        user_id?: number;
       },
       token: string
     ): Promise<Quest> =>

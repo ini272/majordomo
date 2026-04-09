@@ -218,6 +218,7 @@ class QuestUpdate(SQLModel):
     tags: Optional[str] = None
     xp_reward: Optional[int] = None
     gold_reward: Optional[int] = None
+    user_id: Optional[int] = None
     completed: Optional[bool] = None
     quest_type: Optional[str] = None
     due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)

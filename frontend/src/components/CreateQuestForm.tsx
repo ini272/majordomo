@@ -10,6 +10,7 @@ import type { QuestTemplate, User } from "../types/api";
 import { useAuth } from "../contexts/AuthContext";
 import { useSound } from "../contexts/SoundContext";
 import ModalShell from "./modal/ModalShell";
+import { sortHomeUsers } from "../utils/homeUsers";
 
 type CreationMode = "ai-scribe" | "random" | "from-template";
 type TemplateAction = "quick-create" | "edit-defaults";
@@ -69,7 +70,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
     const fetchHomeUsers = async () => {
       setLoadingUsers(true);
       try {
-        const users = await api.user.getAll(token);
+        const users = sortHomeUsers(await api.user.getAll(token), userId);
         setHomeUsers(users);
         if (users.length > 0) {
           const defaultUser =
@@ -320,6 +321,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
                   {homeUsers.map((member) => (
                     <option key={member.id} value={member.id} style={{ color: COLORS.darkPanel }}>
                       {member.username}
+                      {member.id === userId ? " (You)" : ""}
                     </option>
                   ))}
                 </select>

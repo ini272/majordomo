@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import QuestCard from "../components/QuestCard";
 import CreateQuestForm from "../components/CreateQuestForm";
+import EditQuestModal from "../components/EditQuestModal";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
 import { LAYERS } from "../constants/layers";
@@ -136,6 +137,7 @@ export default function Board() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEditQuestModal, setShowEditQuestModal] = useState(false);
   const [dailyBounty, setDailyBounty] = useState<DailyBounty | null>(null);
   const [homeUsers, setHomeUsers] = useState<Record<number, string>>({});
 
@@ -401,11 +403,38 @@ export default function Board() {
   };
 
   const closeQuestDetails = () => {
+    setShowEditQuestModal(false);
     setSelectedQuest(null);
     setSelectedQuestView(null);
     setSelectedUpcomingSpawnTime(undefined);
     setSelectedIsDailyBounty(false);
     setQuestPendingAbandon(null);
+  };
+
+  const handleQuestEditSaved = async (updatedQuest?: Quest) => {
+    setShowEditQuestModal(false);
+
+    if (updatedQuest) {
+      setSelectedQuest(updatedQuest);
+    }
+
+    if (!token) return;
+
+    try {
+      const updatedQuests = await api.quests.getAll(token);
+      setQuests(updatedQuests);
+
+      if (updatedQuest) {
+        const refreshedQuest =
+          updatedQuests.find((quest) => quest.id === updatedQuest.id) ?? updatedQuest;
+        setSelectedQuest(refreshedQuest);
+        setSelectedIsDailyBounty(activeBountyQuest?.id === refreshedQuest.id);
+      }
+    } catch {
+      if (updatedQuest) {
+        setQuests((prev) => prev.map((quest) => (quest.id === updatedQuest.id ? updatedQuest : quest)));
+      }
+    }
   };
 
   const moveSelectedQuest = (delta: 1 | -1) => {
@@ -715,7 +744,21 @@ export default function Board() {
           panelClassName="w-full max-w-3xl max-h-[92dvh]"
           zIndex={LAYERS.modal}
         >
-          <div className="mb-2 flex justify-end">
+          <div className="mb-2 flex justify-end gap-2">
+            {selectedQuestView === "current" && (
+              <button
+                type="button"
+                onClick={() => setShowEditQuestModal(true)}
+                className="px-3 py-1 font-serif text-xs uppercase tracking-wider"
+                style={{
+                  border: `1px solid ${COLORS.gold}`,
+                  color: COLORS.gold,
+                  backgroundColor: "rgba(24, 17, 14, 0.85)",
+                }}
+              >
+                Edit
+              </button>
+            )}
             <button
               type="button"
               onClick={closeQuestDetails}
@@ -784,6 +827,16 @@ export default function Board() {
             </motion.div>
           </div>
         </ModalShell>
+      )}
+
+      {showEditQuestModal && selectedQuest && selectedQuestView === "current" && token && (
+        <EditQuestModal
+          questId={selectedQuest.id}
+          token={token}
+          skipAI={true}
+          onSave={(result) => handleQuestEditSaved(result.quest)}
+          onClose={() => setShowEditQuestModal(false)}
+        />
       )}
 
       {questPendingAbandon && (

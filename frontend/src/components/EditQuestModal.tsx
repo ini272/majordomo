@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback, ChangeEvent, FormEvent } from "react"
 import { api } from "../services/api";
 import { COLORS, PARCHMENT_STYLES } from "../constants/colors";
 import { LAYERS } from "../constants/layers";
-import type { Quest, UserTemplateSubscription } from "../types/api";
+import type { Quest, User, UserTemplateSubscription } from "../types/api";
 import StewardImage from "../assets/thesteward.png";
 import ParchmentTypeWriter from "./ParchmentTypeWriter";
 import { useAuth } from "../contexts/AuthContext";
 import ModalShell from "./modal/ModalShell";
 import { buildSchedule, parseSchedule, type QuestRecurrence } from "../utils/schedule";
+import { sortHomeUsers } from "../utils/homeUsers";
 import {
   buildStandaloneQuestUpdateData,
   deriveDifficultySlidersFromXP,
@@ -41,7 +42,11 @@ interface EditQuestModalProps {
   skipAI: boolean;
   targetUserId?: number | null;
   createQuestOnSave?: boolean; // If true, creates quest on save (for template/initialData modes)
-  onSave?: (result: { createdQuest: boolean; updatedTemplateDefaults: boolean }) => void;
+  onSave?: (result: {
+    createdQuest: boolean;
+    updatedTemplateDefaults: boolean;
+    quest?: Quest;
+  }) => void;
   onClose?: () => void;
 }
 
@@ -79,6 +84,8 @@ export default function EditQuestModal({
   const [subscription, setSubscription] = useState<UserTemplateSubscription | null>(null);
   const [originalRecurrence, setOriginalRecurrence] = useState<QuestRecurrence>("one-off");
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [homeUsers, setHomeUsers] = useState<User[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(targetUserId ?? userId);
 
   // Recurring quest fields
   const [recurrence, setRecurrence] = useState<QuestRecurrence>("one-off");
@@ -86,6 +93,25 @@ export default function EditQuestModal({
   const [scheduleDay, setScheduleDay] = useState<string>("monday");
   const [scheduleDayOfMonth, setScheduleDayOfMonth] = useState<number>(1);
   const [dueInHours, setDueInHours] = useState<string>("");
+
+  useEffect(() => {
+    const loadHomeUsers = async () => {
+      try {
+        const users = sortHomeUsers(await api.user.getAll(token), userId);
+        setHomeUsers(users);
+      } catch {
+        setHomeUsers([]);
+      }
+    };
+
+    loadHomeUsers();
+  }, [token, userId]);
+
+  useEffect(() => {
+    if (!questId) {
+      setSelectedUserId(targetUserId ?? userId);
+    }
+  }, [questId, targetUserId, userId]);
 
   // Load data based on mode
   useEffect(() => {
@@ -209,6 +235,7 @@ export default function EditQuestModal({
           setDueInHours(toDueInHoursStateValue(response.due_in_hours));
 
           setQuest(response);
+          setSelectedUserId(response.user_id);
           setLoading(false);
 
           if (response.display_name || response.description) {
@@ -275,12 +302,16 @@ export default function EditQuestModal({
                 token
               );
             }
+            onSave?.({ createdQuest: true, updatedTemplateDefaults: false, quest: createdQuest });
           } else if (templateId) {
             // From template create mode - create quest from current template defaults
-            await api.quests.create({ quest_template_id: templateId }, token, targetUserId ?? userId);
+            const createdQuest = await api.quests.create(
+              { quest_template_id: templateId },
+              token,
+              targetUserId ?? userId
+            );
+            onSave?.({ createdQuest: true, updatedTemplateDefaults: false, quest: createdQuest });
           }
-
-          onSave?.({ createdQuest: true, updatedTemplateDefaults: false });
           // Don't call onClose - parent's onSave callback handles closing
         } else if (templateId) {
           // EDIT TEMPLATE MODE: Update template and subscriptions
@@ -341,6 +372,10 @@ export default function EditQuestModal({
           // Don't call onClose - parent's onSave callback handles closing
         } else if (quest) {
           // EDIT QUEST MODE: Update existing quest
+          if (selectedUserId === null) {
+            throw new Error("Select who this quest is for");
+          }
+
           const updateData = buildStandaloneQuestUpdateData({
             displayName,
             description,
@@ -348,9 +383,10 @@ export default function EditQuestModal({
             baseXP,
             baseGold,
             dueInHours,
+            selectedUserId,
           });
 
-          await api.quests.update(quest.id, updateData, token);
+          const updatedQuest = await api.quests.update(quest.id, updateData, token);
 
           // Convert to template if checkbox checked
           if (saveAsTemplate && quest.quest_template_id === null) {
@@ -364,7 +400,7 @@ export default function EditQuestModal({
             await api.quests.convertToTemplate(quest.id, conversionData, token);
           }
 
-          onSave?.({ createdQuest: false, updatedTemplateDefaults: false });
+          onSave?.({ createdQuest: false, updatedTemplateDefaults: false, quest: updatedQuest });
           // Don't call onClose - parent's onSave callback handles closing
         }
       } catch (err) {
@@ -393,6 +429,7 @@ export default function EditQuestModal({
       scheduleDay,
       scheduleDayOfMonth,
       dueInHours,
+      selectedUserId,
       token,
       userId,
       targetUserId,
@@ -515,6 +552,53 @@ export default function EditQuestModal({
                   }}
                 >
                   Updating template defaults. Changes affect future template-based quests.
+                </div>
+              )}
+
+              {quest && (
+                <div className="mb-6">
+                  <label
+                    className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                    style={{ color: COLORS.gold }}
+                  >
+                    Quest For
+                  </label>
+                  <div
+                    className="rounded"
+                    style={{
+                      backgroundColor: COLORS.black,
+                      borderColor: COLORS.gold,
+                      borderWidth: "2px",
+                    }}
+                  >
+                    <select
+                      value={selectedUserId ?? ""}
+                      onChange={(e) =>
+                        setSelectedUserId(e.target.value ? parseInt(e.target.value, 10) : null)
+                      }
+                      className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                      style={{
+                        backgroundColor: "transparent",
+                        color: COLORS.parchment,
+                      }}
+                      disabled={saving || quest.completed}
+                    >
+                      <option value="" disabled>
+                        {homeUsers.length > 0 ? "Select a household member" : "Loading household members..."}
+                      </option>
+                      {homeUsers.map((member) => (
+                        <option key={member.id} value={member.id} style={{ color: COLORS.darkPanel }}>
+                          {member.username}
+                          {member.id === userId ? " (You)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {quest.completed && (
+                    <p className="mt-2 text-xs font-serif italic" style={{ color: COLORS.parchment }}>
+                      Completed quests keep their current owner so rewards and history stay consistent.
+                    </p>
+                  )}
                 </div>
               )}
 

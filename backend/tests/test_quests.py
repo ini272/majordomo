@@ -365,6 +365,97 @@ def test_update_quest(client: TestClient, home_with_user):
     assert response.json()["completed"] is True
 
 
+def test_update_quest_reassigns_owner_within_home(client: TestClient, home_with_user):
+    """Test reassigning a quest to another household member before completion"""
+    home_id, user_id, invite_code = home_with_user
+
+    other_user_response = client.post(
+        "/api/auth/join",
+        json={
+            "invite_code": invite_code,
+            "email": "other@example.com",
+            "username": "other",
+            "password": "otherpass",
+        },
+    )
+    other_user_id = other_user_response.json()["user_id"]
+
+    template_response = client.post(
+        f"/api/quests/templates?created_by={user_id}",
+        json={"title": "Swap owner", "xp_reward": 10, "gold_reward": 5},
+    )
+    template_id = template_response.json()["id"]
+
+    quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
+    quest_id = quest_response.json()["id"]
+
+    response = client.put(f"/api/quests/{quest_id}", json={"user_id": other_user_id})
+    assert response.status_code == 200
+    assert response.json()["user_id"] == other_user_id
+    assert response.json()["created_by"] == user_id
+
+
+def test_update_completed_quest_reassignment_fails(client: TestClient, home_with_user):
+    """Test completed quests cannot be reassigned"""
+    home_id, user_id, invite_code = home_with_user
+
+    other_user_response = client.post(
+        "/api/auth/join",
+        json={
+            "invite_code": invite_code,
+            "email": "other@example.com",
+            "username": "other",
+            "password": "otherpass",
+        },
+    )
+    other_user_id = other_user_response.json()["user_id"]
+
+    template_response = client.post(
+        f"/api/quests/templates?created_by={user_id}",
+        json={"title": "Finished quest", "xp_reward": 10, "gold_reward": 5},
+    )
+    template_id = template_response.json()["id"]
+
+    quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
+    quest_id = quest_response.json()["id"]
+
+    complete_response = client.post(f"/api/quests/{quest_id}/complete")
+    assert complete_response.status_code == 200
+
+    response = client.put(f"/api/quests/{quest_id}", json={"user_id": other_user_id})
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Completed quests cannot be reassigned"
+
+
+def test_update_quest_reassignment_outside_home_fails(client: TestClient, home_with_user):
+    """Test quests cannot be reassigned to users in another home"""
+    home_id, user_id, invite_code = home_with_user
+
+    outsider_signup = client.post(
+        "/api/auth/signup",
+        json={
+            "email": "outsider@example.com",
+            "username": "outsider",
+            "password": "outsiderpass",
+            "home_name": "Other Home",
+        },
+    )
+    outsider_user_id = outsider_signup.json()["user_id"]
+
+    template_response = client.post(
+        f"/api/quests/templates?created_by={user_id}",
+        json={"title": "Home locked quest", "xp_reward": 10, "gold_reward": 5},
+    )
+    template_id = template_response.json()["id"]
+
+    quest_response = client.post(f"/api/quests?user_id={user_id}", json={"quest_template_id": template_id})
+    quest_id = quest_response.json()["id"]
+
+    response = client.put(f"/api/quests/{quest_id}", json={"user_id": outsider_user_id})
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Quest owner must belong to your home"
+
+
 def test_complete_quest_twice_fails(client: TestClient, home_with_user):
     """Test that completing a quest twice is prevented"""
     home_id, user_id, invite_code = home_with_user

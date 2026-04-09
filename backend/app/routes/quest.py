@@ -807,6 +807,14 @@ def update_quest(
     if not quest or quest.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="Quest not found")
 
+    if quest.completed and quest_update and quest_update.user_id is not None:
+        raise HTTPException(status_code=400, detail="Completed quests cannot be reassigned")
+
+    if quest_update and quest_update.user_id is not None:
+        target_user = crud_user.get_user(db, quest_update.user_id)
+        if not target_user or target_user.home_id != auth["home_id"]:
+            raise HTTPException(status_code=400, detail="Quest owner must belong to your home")
+
     quest = crud_quest.update_quest(db, quest_id, quest_update)
     return quest
 

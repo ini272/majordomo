@@ -5,6 +5,7 @@ interface StandaloneQuestUpdateDataInput {
   baseXP: number;
   baseGold: number;
   dueInHours: string;
+  selectedUserId?: number | null;
 }
 
 interface StandaloneQuestUpdateData {
@@ -14,6 +15,7 @@ interface StandaloneQuestUpdateData {
   xp_reward: number;
   gold_reward: number;
   due_in_hours: number | null;
+  user_id?: number;
 }
 
 interface DifficultySliders {
@@ -48,6 +50,7 @@ export function buildStandaloneQuestUpdateData({
   baseXP,
   baseGold,
   dueInHours,
+  selectedUserId,
 }: StandaloneQuestUpdateDataInput): StandaloneQuestUpdateData {
   return {
     ...(displayName.trim() && { display_name: displayName.trim() }),
@@ -56,6 +59,7 @@ export function buildStandaloneQuestUpdateData({
     xp_reward: baseXP,
     gold_reward: baseGold,
     due_in_hours: dueInHours ? parseInt(dueInHours, 10) : null,
+    ...(selectedUserId !== null && selectedUserId !== undefined && { user_id: selectedUserId }),
   };
 }
 
