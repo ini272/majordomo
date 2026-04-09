@@ -35,7 +35,14 @@ def trigger_quest(
 
     # Create quest instance with snapshot of template data
     quest_in = QuestCreate(quest_template_id=quest_template_id)
-    quest = crud_quest.create_quest(db, auth["home_id"], auth["user_id"], quest_in, template)
+    quest = crud_quest.create_quest(
+        db,
+        auth["home_id"],
+        auth["user_id"],
+        auth["user_id"],
+        quest_in,
+        template,
+    )
 
     # Complete the quest immediately with base rewards (no multipliers applied for NFC triggers)
     base_xp = quest.xp_reward
