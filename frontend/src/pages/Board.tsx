@@ -127,6 +127,7 @@ const toUpcomingQuest = (upcoming: UpcomingSubscription): Quest => ({
 });
 
 const getPageCount = (items: unknown[]) => Math.max(1, Math.ceil(items.length / QUESTS_PER_PAGE));
+const getCurrentBoardQuests = (quests: Quest[]) => quests.filter((quest) => !quest.completed);
 
 export default function Board() {
   const { token } = useAuth();
@@ -174,7 +175,7 @@ export default function Board() {
             api.quests.getAll(token),
             api.bounty.getToday(token),
           ]);
-          setQuests(questsData);
+          setQuests(getCurrentBoardQuests(questsData));
           setDailyBounty(bountyData);
         } else {
           const upcomingData = await api.subscriptions.getUpcoming(token);
@@ -260,8 +261,16 @@ export default function Board() {
     try {
       const result = await api.quests.complete(questId, token);
       const updatedQuest = result.quest;
-      setQuests((prev) => prev.map((q) => (q.id === questId ? updatedQuest : q)));
-      setSelectedQuest((prev) => (prev && prev.id === questId ? updatedQuest : prev));
+      setQuests((prev) => prev.filter((quest) => quest.id !== questId));
+      setDailyBounty((prev) => {
+        if (!prev || prev.quest?.id !== questId) return prev;
+        return { ...prev, quest: updatedQuest };
+      });
+      if (selectedQuest?.id === questId && selectedQuestView === "current") {
+        closeQuestDetails();
+      } else {
+        setSelectedQuest((prev) => (prev && prev.id === questId ? updatedQuest : prev));
+      }
       playSound("questComplete");
 
       try {
@@ -338,7 +347,7 @@ export default function Board() {
 
     try {
       const data = await api.quests.getAll(token);
-      setQuests(data);
+      setQuests(getCurrentBoardQuests(data));
     } catch {
       // Silently fail - quests might be stale but UI won't break
     }
@@ -348,7 +357,10 @@ export default function Board() {
   const upcomingPageCount = getPageCount(upcomingQuests);
   const activePage = view === "current" ? currentPage : upcomingPage;
   const activePageCount = view === "current" ? currentPageCount : upcomingPageCount;
-  const activeBountyQuest = dailyBounty?.status === "assigned" ? dailyBounty.quest : null;
+  const activeBountyQuest =
+    dailyBounty?.status === "assigned" && dailyBounty.quest && !dailyBounty.quest.completed
+      ? dailyBounty.quest
+      : null;
   const fullUpcomingQuests = useMemo(() => upcomingQuests.map(toUpcomingQuest), [upcomingQuests]);
 
   const selectedQuestSequence = useMemo(() => {
@@ -422,11 +434,12 @@ export default function Board() {
 
     try {
       const updatedQuests = await api.quests.getAll(token);
-      setQuests(updatedQuests);
+      const currentBoardQuests = getCurrentBoardQuests(updatedQuests);
+      setQuests(currentBoardQuests);
 
       if (updatedQuest) {
         const refreshedQuest =
-          updatedQuests.find((quest) => quest.id === updatedQuest.id) ?? updatedQuest;
+          currentBoardQuests.find((quest) => quest.id === updatedQuest.id) ?? updatedQuest;
         setSelectedQuest(refreshedQuest);
         setSelectedIsDailyBounty(activeBountyQuest?.id === refreshedQuest.id);
       }
