@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import { COLORS } from "../constants/colors";
 import type { Quest } from "../types/api";
 import { formatScheduleLabel } from "../utils/schedule";
@@ -60,6 +62,17 @@ export default function QuestCard({
 }: QuestCardProps) {
   const typeStyles = getQuestTypeStyles(quest.quest_type);
   const isCorrupted = quest.quest_type === "corrupted";
+  const displayTitle = quest.display_name?.trim() || quest.title || "Unknown Quest";
+  const originalTitle = quest.title?.trim() || "";
+  const hasOriginalTitle = Boolean(
+    quest.display_name?.trim() && originalTitle && originalTitle !== quest.display_name.trim()
+  );
+  const [showOriginalTitle, setShowOriginalTitle] = useState(false);
+  const originalTitlePanelId = `quest-original-title-${quest.id}`;
+
+  useEffect(() => {
+    setShowOriginalTitle(false);
+  }, [quest.id]);
 
   // Format upcoming spawn time
   const formatUpcomingTime = (spawnTime: string | undefined) => {
@@ -173,16 +186,63 @@ export default function QuestCard({
       </div>
 
       {/* Title */}
-      <h2
-        className="text-2xl md:text-3xl font-serif font-bold pb-3 md:pb-4 mb-4 uppercase tracking-wider"
+      <div
+        className="pb-3 md:pb-4 mb-4"
         style={{
-          color: typeStyles.titleColor,
           borderBottomColor: typeStyles.titleColor,
           borderBottomWidth: "2px",
         }}
       >
-        {quest.display_name || quest.title || "Unknown Quest"}
-      </h2>
+        <div className="flex items-start gap-3">
+          <h2
+            className="flex-1 text-2xl md:text-3xl font-serif font-bold uppercase tracking-wider"
+            style={{
+              color: typeStyles.titleColor,
+            }}
+          >
+            {displayTitle}
+          </h2>
+          {hasOriginalTitle && (
+            <button
+              type="button"
+              aria-label={showOriginalTitle ? "Hide original title" : "Show original title"}
+              aria-controls={originalTitlePanelId}
+              aria-expanded={showOriginalTitle}
+              onClick={() => setShowOriginalTitle((current) => !current)}
+              className="w-8 h-8 shrink-0 rounded-full text-sm font-serif font-bold"
+              style={{
+                border: `1px solid ${COLORS.gold}`,
+                backgroundColor: "rgba(24, 17, 14, 0.88)",
+                color: COLORS.gold,
+              }}
+              title={showOriginalTitle ? "Hide original title" : "Show original title"}
+            >
+              i
+            </button>
+          )}
+        </div>
+
+        {hasOriginalTitle && showOriginalTitle && (
+          <div
+            id={originalTitlePanelId}
+            className="mt-3 rounded px-3 py-2 select-text"
+            style={{
+              backgroundColor: "rgba(24, 17, 14, 0.82)",
+              border: `1px solid ${COLORS.gold}`,
+            }}
+          >
+            <div
+              className="text-[11px] uppercase tracking-widest font-serif mb-1"
+              style={{ color: COLORS.brown }}
+            >
+              Original Title
+            </div>
+            <p className="font-serif italic normal-case" style={{ color: COLORS.parchment }}>
+              {originalTitle}
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Description */}
       <p
