@@ -165,6 +165,24 @@ export const api = {
     getAll: async (token: string): Promise<Quest[]> =>
       requestJSON<Quest[]>("/quests", { headers: buildHeaders(token) }, "Failed to fetch quests"),
 
+    getByUser: async (
+      userId: number,
+      token: string,
+      completed?: boolean
+    ): Promise<Quest[]> => {
+      const params = new URLSearchParams();
+      if (completed !== undefined) {
+        params.set("completed", completed ? "true" : "false");
+      }
+
+      const query = params.toString();
+      return requestJSON<Quest[]>(
+        `/quests/user/${userId}${query ? `?${query}` : ""}`,
+        { headers: buildHeaders(token) },
+        "Failed to fetch user quests"
+      );
+    },
+
     getAllTemplates: async (token: string): Promise<QuestTemplate[]> =>
       requestJSON<QuestTemplate[]>(
         "/quests/templates/all",

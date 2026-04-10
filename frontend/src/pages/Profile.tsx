@@ -9,7 +9,7 @@ import { LAYERS } from "../constants/layers";
 import { copyTextToClipboard } from "../utils/clipboard";
 
 export default function Profile() {
-  const { token } = useAuth();
+  const { token, userId } = useAuth();
   const [userStats, setUserStats] = useState<User | null>(null);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,7 +23,7 @@ export default function Profile() {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!token) {
+      if (!token || userId === null) {
         setError("Not authenticated");
         setLoading(false);
         return;
@@ -34,7 +34,7 @@ export default function Profile() {
       try {
         const [stats, questsData, achievementsData, userAchievementsData] = await Promise.all([
           api.user.getStats(token),
-          api.quests.getAll(token),
+          api.quests.getByUser(userId, token, true),
           api.achievements.getAll(token),
           api.achievements.getMyAchievements(token),
         ]);
@@ -56,7 +56,7 @@ export default function Profile() {
     };
 
     fetchData();
-  }, [token]);
+  }, [token, userId]);
 
   const completedQuests = useMemo(() => quests.filter((q) => q.completed), [quests]);
   const sortedCompletedQuests = useMemo(
