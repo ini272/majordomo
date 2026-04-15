@@ -128,6 +128,22 @@ const toUpcomingQuest = (upcoming: UpcomingSubscription): Quest => ({
 
 const getPageCount = (items: unknown[]) => Math.max(1, Math.ceil(items.length / QUESTS_PER_PAGE));
 const getCurrentBoardQuests = (quests: Quest[]) => quests.filter((quest) => !quest.completed);
+const matchesQuestSearch = (quest: Quest, ownerName: string | undefined, searchTerm: string) => {
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  if (!normalizedSearch) return true;
+
+  const searchableFields = [
+    quest.display_name,
+    quest.title,
+    quest.description,
+    quest.tags,
+    ownerName,
+  ];
+
+  return searchableFields.some((value) =>
+    value ? String(value).toLowerCase().includes(normalizedSearch) : false
+  );
+};
 
 export default function Board() {
   const { token } = useAuth();
@@ -154,6 +170,8 @@ export default function Board() {
   const [abandoningQuestId, setAbandoningQuestId] = useState<number | null>(null);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   const [userLevel, setUserLevel] = useState<number | null>(null);
+  const [currentSearchTerm, setCurrentSearchTerm] = useState("");
+  const [upcomingSearchTerm, setUpcomingSearchTerm] = useState("");
   const userLevelRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -229,12 +247,12 @@ export default function Board() {
   }, [token]);
 
   useEffect(() => {
-    setCurrentPage((prev) => Math.min(prev, getPageCount(quests) - 1));
-  }, [quests]);
+    setCurrentPage(0);
+  }, [currentSearchTerm]);
 
   useEffect(() => {
-    setUpcomingPage((prev) => Math.min(prev, getPageCount(upcomingQuests) - 1));
-  }, [upcomingQuests]);
+    setUpcomingPage(0);
+  }, [upcomingSearchTerm]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
@@ -353,36 +371,70 @@ export default function Board() {
     }
   };
 
-  const currentPageCount = getPageCount(quests);
-  const upcomingPageCount = getPageCount(upcomingQuests);
-  const activePage = view === "current" ? currentPage : upcomingPage;
-  const activePageCount = view === "current" ? currentPageCount : upcomingPageCount;
   const activeBountyQuest =
     dailyBounty?.status === "assigned" && dailyBounty.quest && !dailyBounty.quest.completed
       ? dailyBounty.quest
       : null;
   const fullUpcomingQuests = useMemo(() => upcomingQuests.map(toUpcomingQuest), [upcomingQuests]);
+  const filteredCurrentQuests = useMemo(
+    () =>
+      quests.filter((quest) =>
+        matchesQuestSearch(quest, homeUsers[quest.user_id], currentSearchTerm)
+      ),
+    [quests, homeUsers, currentSearchTerm]
+  );
+  const filteredUpcomingQuests = useMemo(
+    () =>
+      fullUpcomingQuests.filter((quest) =>
+        matchesQuestSearch(quest, homeUsers[quest.user_id], upcomingSearchTerm)
+      ),
+    [fullUpcomingQuests, homeUsers, upcomingSearchTerm]
+  );
+  const currentSearchLabel = `${filteredCurrentQuests.length} of ${quests.length} ${
+    quests.length === 1 ? "quest" : "quests"
+  }`;
+  const upcomingSearchLabel = `${filteredUpcomingQuests.length} of ${fullUpcomingQuests.length} ${
+    fullUpcomingQuests.length === 1 ? "quest" : "quests"
+  }`;
+  const activeSearchTerm = view === "current" ? currentSearchTerm : upcomingSearchTerm;
+  const hasBoardContent =
+    view === "current"
+      ? quests.length > 0 || currentSearchTerm.trim().length > 0
+      : upcomingQuests.length > 0 || upcomingSearchTerm.trim().length > 0;
 
   const selectedQuestSequence = useMemo(() => {
-    if (selectedQuestView === "current") return quests;
-    if (selectedQuestView === "upcoming") return fullUpcomingQuests;
+    if (selectedQuestView === "current") return filteredCurrentQuests;
+    if (selectedQuestView === "upcoming") return filteredUpcomingQuests;
     return [];
-  }, [selectedQuestView, quests, fullUpcomingQuests]);
+  }, [selectedQuestView, filteredCurrentQuests, filteredUpcomingQuests]);
   const selectedQuestIndex = useMemo(() => {
     if (!selectedQuest) return -1;
     return selectedQuestSequence.findIndex((quest) => quest.id === selectedQuest.id);
   }, [selectedQuest, selectedQuestSequence]);
 
   const pagedCurrentQuests = useMemo(
-    () => quests.slice(currentPage * QUESTS_PER_PAGE, (currentPage + 1) * QUESTS_PER_PAGE),
-    [quests, currentPage]
+    () =>
+      filteredCurrentQuests.slice(currentPage * QUESTS_PER_PAGE, (currentPage + 1) * QUESTS_PER_PAGE),
+    [filteredCurrentQuests, currentPage]
   );
 
   const pagedUpcomingQuests = useMemo(
     () =>
-      upcomingQuests.slice(upcomingPage * QUESTS_PER_PAGE, (upcomingPage + 1) * QUESTS_PER_PAGE),
-    [upcomingQuests, upcomingPage]
+      filteredUpcomingQuests.slice(upcomingPage * QUESTS_PER_PAGE, (upcomingPage + 1) * QUESTS_PER_PAGE),
+    [filteredUpcomingQuests, upcomingPage]
   );
+  const currentPageCount = getPageCount(filteredCurrentQuests);
+  const upcomingPageCount = getPageCount(filteredUpcomingQuests);
+  const activePage = view === "current" ? currentPage : upcomingPage;
+  const activePageCount = view === "current" ? currentPageCount : upcomingPageCount;
+
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, currentPageCount - 1));
+  }, [currentPageCount]);
+
+  useEffect(() => {
+    setUpcomingPage((prev) => Math.min(prev, upcomingPageCount - 1));
+  }, [upcomingPageCount]);
 
   const goToPage = (nextPage: number) => {
     const clampedPage = Math.max(0, Math.min(nextPage, activePageCount - 1));
@@ -612,9 +664,7 @@ export default function Board() {
         </div>
       )}
 
-      {!loading &&
-        ((view === "current" && quests.length > 0) ||
-          (view === "upcoming" && upcomingQuests.length > 0)) && (
+      {!loading && hasBoardContent && (
           <div className="mb-6">
             <div
               className="relative rounded-lg overflow-hidden p-4 sm:p-6"
@@ -638,43 +688,97 @@ export default function Board() {
                 </div>
               </div>
 
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={`${view}-${activePage}`}
-                  initial={{ opacity: 0, x: 30 * pageDirection }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -30 * pageDirection }}
-                  transition={{ duration: 0.22, ease: "easeOut" }}
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4"
-                >
-                  {view === "current" &&
-                    pagedCurrentQuests.map((quest) => (
-                      <CompactQuestCard
-                        key={quest.id}
-                        quest={quest}
-                        questOwnerName={homeUsers[quest.user_id]}
-                        isDailyBounty={activeBountyQuest?.id === quest.id}
-                        onClick={() => openQuestDetails(quest, "current")}
-                      />
-                    ))}
+              <div className="mb-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={view === "current" ? currentSearchTerm : upcomingSearchTerm}
+                    onChange={(event) =>
+                      view === "current"
+                        ? setCurrentSearchTerm(event.target.value)
+                        : setUpcomingSearchTerm(event.target.value)
+                    }
+                    placeholder={
+                      view === "current"
+                        ? "Search quests by title, description, tag, or person..."
+                        : "Search upcoming quests by title, description, tag, or person..."
+                    }
+                    aria-label={view === "current" ? "Search current quests" : "Search upcoming quests"}
+                    className="w-full px-3 py-2 pr-10 font-serif focus:outline-none focus:shadow-lg transition-all"
+                    style={{
+                      backgroundColor: COLORS.black,
+                      borderColor: COLORS.gold,
+                      borderWidth: "2px",
+                      color: COLORS.parchment,
+                    }}
+                  />
+                  {activeSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        view === "current" ? setCurrentSearchTerm("") : setUpcomingSearchTerm("")
+                      }
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-sm font-serif"
+                      style={{ color: COLORS.gold }}
+                      aria-label="Clear quest search"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                <div className="mt-2 text-xs font-serif" style={{ color: COLORS.goldDarker }}>
+                  {view === "current" ? currentSearchLabel : upcomingSearchLabel}
+                </div>
+              </div>
 
-                  {view === "upcoming" &&
-                    pagedUpcomingQuests.map((upcoming) => {
-                      const upcomingQuest = toUpcomingQuest(upcoming);
-                      return (
+              {(view === "current" && pagedCurrentQuests.length > 0) ||
+              (view === "upcoming" && pagedUpcomingQuests.length > 0) ? (
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={`${view}-${activePage}-${activeSearchTerm}`}
+                    initial={{ opacity: 0, x: 30 * pageDirection }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -30 * pageDirection }}
+                    transition={{ duration: 0.22, ease: "easeOut" }}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4"
+                  >
+                    {view === "current" &&
+                      pagedCurrentQuests.map((quest) => (
                         <CompactQuestCard
-                          key={upcoming.id}
-                          quest={upcomingQuest}
-                          questOwnerName={homeUsers[upcomingQuest.user_id]}
-                          isUpcoming={true}
-                          onClick={() =>
-                            openQuestDetails(upcomingQuest, "upcoming", upcoming.next_spawn_at)
-                          }
+                          key={quest.id}
+                          quest={quest}
+                          questOwnerName={homeUsers[quest.user_id]}
+                          isDailyBounty={activeBountyQuest?.id === quest.id}
+                          onClick={() => openQuestDetails(quest, "current")}
                         />
-                      );
-                    })}
-                </motion.div>
-              </AnimatePresence>
+                      ))}
+
+                    {view === "upcoming" &&
+                      pagedUpcomingQuests.map((quest) => {
+                        const upcoming = upcomingQuests.find((item) => item.id === quest.id);
+                        return (
+                          <CompactQuestCard
+                            key={quest.id}
+                            quest={quest}
+                            questOwnerName={homeUsers[quest.user_id]}
+                            isUpcoming={true}
+                            onClick={() =>
+                              openQuestDetails(quest, "upcoming", upcoming?.next_spawn_at)
+                            }
+                          />
+                        );
+                      })}
+                  </motion.div>
+                </AnimatePresence>
+              ) : (
+                <div className="py-16 text-center font-serif" style={{ color: COLORS.brown }}>
+                  {activeSearchTerm
+                    ? "No quests match your search"
+                    : view === "current"
+                      ? "No quests found"
+                      : "No upcoming quests found"}
+                </div>
+              )}
 
               {activePageCount > 1 && (
                 <div className="mt-4 flex items-center justify-between gap-3">
@@ -709,15 +813,15 @@ export default function Board() {
               )}
             </div>
           </div>
-        )}
+      )}
 
-      {!loading && view === "current" && quests.length === 0 && (
+      {!loading && view === "current" && quests.length === 0 && !currentSearchTerm && (
         <div className="text-center py-12 md:py-16 font-serif" style={{ color: COLORS.brown }}>
           No quests found
         </div>
       )}
 
-      {!loading && view === "upcoming" && upcomingQuests.length === 0 && (
+      {!loading && view === "upcoming" && upcomingQuests.length === 0 && !upcomingSearchTerm && (
         <div className="text-center py-12 md:py-16 font-serif" style={{ color: COLORS.brown }}>
           No upcoming quests. Create recurring quest templates to see them here!
         </div>
