@@ -735,7 +735,7 @@ export default function Board() {
               (view === "upcoming" && pagedUpcomingQuests.length > 0) ? (
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div
-                    key={`${view}-${activePage}-${activeSearchTerm}`}
+                    key={`${view}-${activePage}`}
                     initial={{ opacity: 0, x: 30 * pageDirection }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -30 * pageDirection }}
