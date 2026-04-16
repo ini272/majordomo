@@ -39,7 +39,7 @@ def trigger_quest(
         db,
         auth["home_id"],
         auth["user_id"],
-        auth["user_id"],
+        [auth["user_id"]],
         quest_in,
         template,
     )
@@ -48,6 +48,14 @@ def trigger_quest(
     base_xp = quest.xp_reward
     base_gold = quest.gold_reward
     quest = crud_quest.complete_quest(db, quest.id, final_xp=base_xp, final_gold=base_gold)
+    participants = crud_quest.ensure_quest_participants(db, quest)
+    for participant in participants:
+        if participant.user_id == auth["user_id"]:
+            participant.xp_awarded = base_xp
+            participant.gold_awarded = base_gold
+            participant.completed_at = quest.completed_at
+            db.add(participant)
+    db.commit()
 
     # Award XP and gold
     user = crud_user.add_xp(db, auth["user_id"], base_xp)

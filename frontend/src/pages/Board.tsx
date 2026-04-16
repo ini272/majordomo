@@ -20,7 +20,7 @@ type QuestCollectionView = "current" | "upcoming";
 
 interface CompactQuestCardProps {
   quest: Quest;
-  questOwnerName?: string;
+  questParticipantNames?: string;
   isUpcoming?: boolean;
   isDailyBounty?: boolean;
   onClick: () => void;
@@ -28,7 +28,7 @@ interface CompactQuestCardProps {
 
 function CompactQuestCard({
   quest,
-  questOwnerName,
+  questParticipantNames,
   isUpcoming = false,
   isDailyBounty = false,
   onClick,
@@ -69,10 +69,10 @@ function CompactQuestCard({
         {quest.description || "No description"}
       </p>
 
-      {questOwnerName && (
+      {questParticipantNames && (
         <div className="mb-3 text-[11px] sm:text-xs font-serif uppercase tracking-wide">
-          <span style={{ color: COLORS.brown }}>For:</span>{" "}
-          <span style={{ color: COLORS.gold }}>{questOwnerName}</span>
+          <span style={{ color: COLORS.brown }}>Party:</span>{" "}
+          <span style={{ color: COLORS.gold }}>{questParticipantNames}</span>
         </div>
       )}
 
@@ -124,11 +124,31 @@ const toUpcomingQuest = (upcoming: UpcomingSubscription): Quest => ({
   due_date: null,
   corrupted_at: null,
   template: upcoming.template,
+  participants: [
+    {
+      id: upcoming.id,
+      quest_id: upcoming.id,
+      user_id: upcoming.user_id,
+      xp_awarded: null,
+      gold_awarded: null,
+      completed_at: null,
+      created_at: upcoming.created_at,
+    },
+  ],
 });
 
 const getPageCount = (items: unknown[]) => Math.max(1, Math.ceil(items.length / QUESTS_PER_PAGE));
 const getCurrentBoardQuests = (quests: Quest[]) => quests.filter((quest) => !quest.completed);
-const matchesQuestSearch = (quest: Quest, ownerName: string | undefined, searchTerm: string) => {
+const getQuestParticipantUserIds = (quest: Quest) =>
+  quest.participants && quest.participants.length > 0
+    ? quest.participants.map((participant) => participant.user_id)
+    : [quest.user_id];
+const getQuestParticipantNames = (quest: Quest, homeUsers: Record<number, string>) =>
+  getQuestParticipantUserIds(quest)
+    .map((participantUserId) => homeUsers[participantUserId])
+    .filter(Boolean)
+    .join(", ");
+const matchesQuestSearch = (quest: Quest, participantNames: string | undefined, searchTerm: string) => {
   const normalizedSearch = searchTerm.trim().toLowerCase();
   if (!normalizedSearch) return true;
 
@@ -137,7 +157,7 @@ const matchesQuestSearch = (quest: Quest, ownerName: string | undefined, searchT
     quest.title,
     quest.description,
     quest.tags,
-    ownerName,
+    participantNames,
   ];
 
   return searchableFields.some((value) =>
@@ -146,7 +166,7 @@ const matchesQuestSearch = (quest: Quest, ownerName: string | undefined, searchT
 };
 
 export default function Board() {
-  const { token } = useAuth();
+  const { token, userId } = useAuth();
   const { playSound } = useSound();
   const [view, setView] = useState<"current" | "upcoming">("current");
   const [quests, setQuests] = useState<Quest[]>([]);
@@ -375,18 +395,41 @@ export default function Board() {
     dailyBounty?.status === "assigned" && dailyBounty.quest && !dailyBounty.quest.completed
       ? dailyBounty.quest
       : null;
+  const splitIntegerReward = (total: number, participantCount: number): number[] => {
+    const baseShare = Math.floor(total / participantCount);
+    const remainder = total % participantCount;
+    return Array.from({ length: participantCount }, (_, index) =>
+      baseShare + (index < remainder ? 1 : 0)
+    );
+  };
+  const getQuestRewardShare = (quest: Quest, participantUserId: number, reward: "xp" | "gold") => {
+    const participantIds = getQuestParticipantUserIds(quest).sort((a, b) => a - b);
+    const participantIndex = participantIds.indexOf(participantUserId);
+    if (participantIndex === -1) return reward === "xp" ? quest.xp_reward : quest.gold_reward;
+
+    const rewardTotal = reward === "xp" ? quest.xp_reward : quest.gold_reward;
+    return splitIntegerReward(rewardTotal, participantIds.length)[participantIndex] ?? rewardTotal;
+  };
+  const activeBountyXpShare =
+    activeBountyQuest && userId !== null
+      ? getQuestRewardShare(activeBountyQuest, userId, "xp")
+      : activeBountyQuest?.xp_reward ?? 0;
+  const activeBountyGoldShare =
+    activeBountyQuest && userId !== null
+      ? getQuestRewardShare(activeBountyQuest, userId, "gold")
+      : activeBountyQuest?.gold_reward ?? 0;
   const fullUpcomingQuests = useMemo(() => upcomingQuests.map(toUpcomingQuest), [upcomingQuests]);
   const filteredCurrentQuests = useMemo(
     () =>
       quests.filter((quest) =>
-        matchesQuestSearch(quest, homeUsers[quest.user_id], currentSearchTerm)
+        matchesQuestSearch(quest, getQuestParticipantNames(quest, homeUsers), currentSearchTerm)
       ),
     [quests, homeUsers, currentSearchTerm]
   );
   const filteredUpcomingQuests = useMemo(
     () =>
       fullUpcomingQuests.filter((quest) =>
-        matchesQuestSearch(quest, homeUsers[quest.user_id], upcomingSearchTerm)
+        matchesQuestSearch(quest, getQuestParticipantNames(quest, homeUsers), upcomingSearchTerm)
       ),
     [fullUpcomingQuests, homeUsers, upcomingSearchTerm]
   );
@@ -643,10 +686,10 @@ export default function Board() {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex gap-6 text-sm font-serif" style={{ color: COLORS.gold }}>
                 <span>
-                  XP: {activeBountyQuest.xp_reward}
+                  Your XP: {activeBountyXpShare}
                 </span>
                 <span>
-                  Gold: {activeBountyQuest.gold_reward} x3 = {activeBountyQuest.gold_reward * 3}
+                  Your Gold: {activeBountyGoldShare} x3 = {activeBountyGoldShare * 3}
                 </span>
               </div>
               <span
@@ -747,7 +790,7 @@ export default function Board() {
                         <CompactQuestCard
                           key={quest.id}
                           quest={quest}
-                          questOwnerName={homeUsers[quest.user_id]}
+                          questParticipantNames={getQuestParticipantNames(quest, homeUsers)}
                           isDailyBounty={activeBountyQuest?.id === quest.id}
                           onClick={() => openQuestDetails(quest, "current")}
                         />
@@ -760,7 +803,7 @@ export default function Board() {
                           <CompactQuestCard
                             key={quest.id}
                             quest={quest}
-                            questOwnerName={homeUsers[quest.user_id]}
+                            questParticipantNames={getQuestParticipantNames(quest, homeUsers)}
                             isUpcoming={true}
                             onClick={() =>
                               openQuestDetails(quest, "upcoming", upcoming?.next_spawn_at)
@@ -932,7 +975,7 @@ export default function Board() {
             >
               <QuestCard
                 quest={selectedQuest}
-                questOwnerName={homeUsers[selectedQuest.user_id]}
+                questParticipantNames={getQuestParticipantNames(selectedQuest, homeUsers)}
                 questCreatorName={homeUsers[selectedQuest.created_by]}
                 onComplete={handleCompleteQuest}
                 onAbandon={selectedQuestView === "current" ? openAbandonConfirm : undefined}

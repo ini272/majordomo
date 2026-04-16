@@ -6,7 +6,7 @@ from sqlmodel import Field, Relationship, SQLModel
 if TYPE_CHECKING:
     from app.models.achievement import UserAchievement
     from app.models.home import Home
-    from app.models.quest import Quest, UserTemplateSubscription
+    from app.models.quest import Quest, QuestParticipant, UserTemplateSubscription
     from app.models.reward import UserRewardClaim
 
 
@@ -33,6 +33,7 @@ class User(SQLModel, table=True):
         back_populates="user",
         sa_relationship_kwargs={"foreign_keys": "Quest.user_id"},
     )
+    quest_participations: list["QuestParticipant"] = Relationship(back_populates="user")
     reward_claims: list["UserRewardClaim"] = Relationship(back_populates="user")
     user_achievements: list["UserAchievement"] = Relationship(back_populates="user")
     template_subscriptions: list["UserTemplateSubscription"] = Relationship(back_populates="user")

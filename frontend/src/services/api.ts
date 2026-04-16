@@ -44,6 +44,9 @@ const buildHeaders = (token?: string, contentType: boolean = false): HeadersInit
   return headers;
 };
 
+const withOptionalUserId = (path: string, userId?: number | null): string =>
+  userId === null || userId === undefined ? path : `${path}${path.includes("?") ? "&" : "?"}user_id=${userId}`;
+
 const extractErrorMessage = (error: unknown, fallback: string): string => {
   if (!error || typeof error !== "object") return fallback;
 
@@ -225,13 +228,14 @@ export const api = {
         tags?: string;
         xp_reward?: number;
         gold_reward?: number;
+        participant_user_ids?: number[];
       },
       token: string,
-      userId: number,
+      userId?: number | null,
       skipAI: boolean = false
     ): Promise<Quest> =>
       requestJSON<Quest>(
-        `/quests/ai-scribe?user_id=${userId}&skip_ai=${skipAI}`,
+        withOptionalUserId(`/quests/ai-scribe?skip_ai=${skipAI}`, userId),
         {
           method: "POST",
           headers: buildHeaders(token, true),
@@ -240,15 +244,26 @@ export const api = {
         "Failed to create AI Scribe quest"
       ),
 
-    createRandom: async (token: string, userId: number): Promise<Quest> =>
-      requestJSON<Quest>(
-        `/quests/random?user_id=${userId}`,
+    createRandom: async (
+      token: string,
+      userId?: number | null,
+      participantUserIds?: number[]
+    ): Promise<Quest> => {
+      const params = new URLSearchParams();
+      if (userId !== null && userId !== undefined) params.set("user_id", String(userId));
+      participantUserIds?.forEach((participantUserId) =>
+        params.append("participant_user_ids", String(participantUserId))
+      );
+      const query = params.toString();
+      return requestJSON<Quest>(
+        `/quests/random${query ? `?${query}` : ""}`,
         {
           method: "POST",
           headers: buildHeaders(token),
         },
         "Failed to create random quest"
-      ),
+      );
+    },
 
     convertToTemplate: async (
       questId: number,
@@ -282,6 +297,7 @@ export const api = {
         gold_reward?: number;
         due_in_hours?: number | null;
         user_id?: number;
+        participant_user_ids?: number[];
       },
       token: string
     ): Promise<Quest> =>
@@ -328,9 +344,9 @@ export const api = {
         "Failed to create quest template"
       ),
 
-    create: async (questData: QuestCreateRequest, token: string, userId: number): Promise<Quest> =>
+    create: async (questData: QuestCreateRequest, token: string, userId?: number | null): Promise<Quest> =>
       requestJSON<Quest>(
-        `/quests?user_id=${userId}`,
+        withOptionalUserId("/quests", userId),
         {
           method: "POST",
           headers: buildHeaders(token, true),

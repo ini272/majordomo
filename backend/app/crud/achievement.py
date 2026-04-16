@@ -3,7 +3,7 @@ from typing import Optional
 from sqlmodel import Session, func, or_, select
 
 from app.models.achievement import Achievement, AchievementCreate, UserAchievement
-from app.models.quest import Quest
+from app.models.quest import Quest, QuestParticipant
 from app.models.user import User
 
 
@@ -88,7 +88,12 @@ def delete_achievement(db: Session, achievement_id: int) -> bool:
 
 def get_user_quests_completed_count(db: Session, user_id: int) -> int:
     """Get total number of quests completed by a user"""
-    result = db.exec(select(func.count(Quest.id)).where(Quest.user_id == user_id).where(Quest.completed)).first()
+    result = db.exec(
+        select(func.count(Quest.id))
+        .join(QuestParticipant, QuestParticipant.quest_id == Quest.id)
+        .where(QuestParticipant.user_id == user_id)
+        .where(Quest.completed)
+    ).first()
     return result or 0
 
 
@@ -97,7 +102,8 @@ def get_user_bounties_completed_count(db: Session, user_id: int) -> int:
     # A bounty quest is identified by quest_type = "bounty" on the quest itself
     result = db.exec(
         select(func.count(Quest.id))
-        .where(Quest.user_id == user_id)
+        .join(QuestParticipant, QuestParticipant.quest_id == Quest.id)
+        .where(QuestParticipant.user_id == user_id)
         .where(Quest.completed)
         .where(Quest.quest_type == "bounty")
     ).first()

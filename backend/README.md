@@ -2,7 +2,7 @@
 
 FastAPI service for Majordomo.
 
-Last verified: 2026-02-12
+Last verified: 2026-04-16
 
 ## Run locally
 
@@ -46,3 +46,5 @@ uv run ruff format .
 
 - Treat OpenAPI + tests as contract source of truth.
 - If route behavior changes, update `docs/current-architecture.md` in the same PR.
+- Quests can have multiple participants via `quest_participant`; keep legacy `quest.user_id`
+  aligned to the primary participant for compatibility.

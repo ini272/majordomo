@@ -124,6 +124,10 @@ flowchart LR
 
 ### Quest creation and edit flow
 
+`CreateQuestForm` owns the quest party selection and sends `participant_user_ids` for AI-scribe,
+random, and template-created quests. `EditQuestModal` can update the party for active existing
+quests; completed quests keep their participant rows so reward history remains stable.
+
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#f9f4e8', 'primaryBorderColor': '#8d6b4f', 'lineColor': '#8d6b4f', 'fontFamily': 'Georgia, serif' }}}%%
 flowchart TD

@@ -7,6 +7,7 @@ from typing import Optional
 
 from sqlmodel import Session, or_, select
 
+from app.crud import quest as crud_quest
 from app.models.quest import Quest, QuestTemplate, UserTemplateSubscription
 from app.models.user import User
 
@@ -269,6 +270,9 @@ def generate_due_quests(home_id: int, session: Session) -> None:
                     due_date=due_date,
                 )
                 session.add(new_quest)
+                session.flush()
+
+                crud_quest.replace_quest_participants(session, new_quest, [subscription.user_id])
 
                 # Update subscription's last_generated_at to prevent duplicate generation
                 subscription.last_generated_at = now

@@ -1,8 +1,9 @@
 from typing import Optional
 
-from sqlmodel import Session, select
+from sqlmodel import Session, delete, select
 
 from app.auth import hash_password
+from app.models.quest import QuestParticipant
 from app.models.user import User, UserCreate, UserUpdate
 
 
@@ -118,6 +119,7 @@ def delete_user(db: Session, user_id: int) -> bool:
     if not db_user:
         return False
 
+    db.exec(delete(QuestParticipant).where(QuestParticipant.user_id == user_id))
     db.delete(db_user)
     db.commit()
     return True

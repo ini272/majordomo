@@ -8,7 +8,7 @@ from app.crud import reward as crud_reward
 from app.models.achievement import Achievement, UserAchievement
 from app.models.daily_bounty import DailyBounty
 from app.models.home import Home, HomeCreate
-from app.models.quest import Quest, QuestTemplate, UserTemplateSubscription
+from app.models.quest import Quest, QuestParticipant, QuestTemplate, UserTemplateSubscription
 from app.models.reward import Reward, UserRewardClaim
 from app.models.user import User
 
@@ -78,6 +78,7 @@ def delete_home(db: Session, home_id: int) -> bool:
     achievement_ids = db.exec(select(Achievement.id).where(Achievement.home_id == home_id)).all()
 
     db.exec(delete(DailyBounty).where(DailyBounty.home_id == home_id))
+    db.exec(delete(QuestParticipant).where(QuestParticipant.quest_id.in_(select(Quest.id).where(Quest.home_id == home_id))))
     db.exec(delete(Quest).where(Quest.home_id == home_id))
 
     if reward_ids:

@@ -31,13 +31,42 @@ def ensure_runtime_schema_compatibility() -> None:
         return
 
     column_names = {column["name"] for column in inspector.get_columns("quest")}
-    if "created_by" in column_names:
-        return
 
     with engine.begin() as connection:
-        connection.execute(text("ALTER TABLE quest ADD COLUMN created_by INTEGER"))
-        connection.execute(text("UPDATE quest SET created_by = user_id WHERE created_by IS NULL"))
-        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_quest_created_by ON quest (created_by)"))
+        if "created_by" not in column_names:
+            connection.execute(text("ALTER TABLE quest ADD COLUMN created_by INTEGER"))
+            connection.execute(text("UPDATE quest SET created_by = user_id WHERE created_by IS NULL"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_quest_created_by ON quest (created_by)"))
+
+        connection.execute(
+            text(
+                """
+                INSERT INTO quest_participant (
+                    quest_id,
+                    user_id,
+                    xp_awarded,
+                    gold_awarded,
+                    completed_at,
+                    created_at
+                )
+                SELECT
+                    q.id,
+                    q.user_id,
+                    CASE WHEN q.completed THEN q.xp_reward ELSE NULL END,
+                    CASE WHEN q.completed THEN q.gold_reward ELSE NULL END,
+                    CASE WHEN q.completed THEN q.completed_at ELSE NULL END,
+                    COALESCE(q.completed_at, q.created_at, CURRENT_TIMESTAMP)
+                FROM quest q
+                WHERE q.user_id IS NOT NULL
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM quest_participant qp
+                    WHERE qp.quest_id = q.id
+                      AND qp.user_id = q.user_id
+                  )
+                """
+            )
+        )
 
 
 def get_session():
