@@ -64,6 +64,24 @@ cd /srv/majordomo
 
 After the new checkout is working, remove `/srv/majordomo.pre-git`.
 
+## Production update workflow
+
+Normal feature work should happen in a dedicated git worktree and feature branch.
+
+1. Create or switch to a feature worktree.
+2. Implement and test locally from that worktree.
+3. Open a pull request against `main`.
+4. Wait for GitHub Actions checks to pass.
+5. Merge the pull request into `main`.
+6. On the production server, deploy only from the `/srv/majordomo` checkout of `main`:
+
+```bash
+cd /srv/majordomo
+./deployment/deploy-safe.sh main
+```
+
+Production deploys should not be run directly from unmerged feature branches unless this is an intentional emergency/manual override.
+
 ## Routine operations
 
 Create a manual database backup:
@@ -73,20 +91,14 @@ cd /srv/majordomo
 ./deployment/backup-db.sh
 ```
 
-Deploy updated code from the checked-out branch:
+Deploy updated production code from `main`:
 
 ```bash
 cd /srv/majordomo
-git pull --ff-only
-./deployment/deploy-safe.sh
+./deployment/deploy-safe.sh main
 ```
 
-Or let the wrapper handle backup plus fast-forward pull:
-
-```bash
-cd /srv/majordomo
-./deployment/deploy-safe.sh
-```
+`deploy-safe.sh` creates a backup, fetches/pulls with fast-forward only, then rebuilds and restarts the Docker Compose stack.
 
 View logs:
 
