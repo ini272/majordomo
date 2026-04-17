@@ -4,7 +4,9 @@ import {
   buildStandaloneQuestUpdateData,
   deriveDifficultySlidersFromXP,
   getEditQuestModalLabels,
+  hasScribeContent,
   toDueInHoursStateValue,
+  waitForScribeContent,
 } from "../src/components/editQuestModalHelpers";
 
 describe("buildStandaloneQuestUpdateData", () => {
@@ -94,5 +96,71 @@ describe("getEditQuestModalLabels", () => {
 
     expect(labels.title).toBe("Edit Quest");
     expect(labels.submitLabel).toBe("Save Quest");
+  });
+});
+
+describe("waitForScribeContent", () => {
+  test("returns immediately when the quest already has generated copy", async () => {
+    let fetchCount = 0;
+    const quest = {
+      id: 1,
+      display_name: "The Kitchen Cleanse",
+      description: "",
+    };
+
+    const result = await waitForScribeContent(
+      async () => {
+        fetchCount += 1;
+        return quest;
+      },
+      { initialQuest: quest, sleep: async () => {} }
+    );
+
+    expect(result).toBe(quest);
+    expect(fetchCount).toBe(0);
+  });
+
+  test("polls until the background Scribe update is visible", async () => {
+    const snapshots = [
+      { id: 1, display_name: "", description: "" },
+      { id: 1, display_name: "The Kitchen Cleanse", description: "Vanquish grime." },
+    ];
+    let fetchCount = 0;
+    const sleeps: number[] = [];
+
+    const result = await waitForScribeContent(
+      async () => snapshots[Math.min(fetchCount++, snapshots.length - 1)],
+      {
+        initialQuest: snapshots[0],
+        maxAttempts: 3,
+        intervalMs: 10,
+        sleep: async (intervalMs) => {
+          sleeps.push(intervalMs);
+        },
+      }
+    );
+
+    expect(result.display_name).toBe("The Kitchen Cleanse");
+    expect(fetchCount).toBe(2);
+    expect(sleeps).toEqual([10, 10]);
+  });
+
+  test("returns the latest quest when generated copy never arrives", async () => {
+    let fetchCount = 0;
+
+    const result = await waitForScribeContent(
+      async () => {
+        fetchCount += 1;
+        return { id: 1, display_name: "", description: "" };
+      },
+      {
+        initialQuest: { id: 1, display_name: "", description: "" },
+        maxAttempts: 2,
+        sleep: async () => {},
+      }
+    );
+
+    expect(hasScribeContent(result)).toBe(false);
+    expect(fetchCount).toBe(2);
   });
 });

@@ -14,6 +14,7 @@ import {
   deriveDifficultySlidersFromXP,
   getEditQuestModalLabels,
   toDueInHoursStateValue,
+  waitForScribeContent,
 } from "./editQuestModalHelpers";
 
 const AVAILABLE_TAGS = ["Chores", "Learning", "Exercise", "Health", "Organization"];
@@ -217,11 +218,12 @@ export default function EditQuestModal({
           }
         } else if (questId) {
           // EDIT QUEST MODE: Fetch quest by ID
+          let response = await api.quests.getQuest(questId, token);
           if (!skipAI) {
-            await new Promise((resolve) => setTimeout(resolve, 1500));
+            response = await waitForScribeContent(() => api.quests.getQuest(questId, token), {
+              initialQuest: response,
+            });
           }
-
-          const response = await api.quests.getQuest(questId, token);
 
           setDisplayName(response.display_name || "");
           setDescription(response.description || "");

@@ -36,8 +36,27 @@ interface EditQuestModalLabels {
   submitLabel: string;
 }
 
+interface ScribeQuestSnapshot {
+  display_name?: string | null;
+  description?: string | null;
+}
+
+interface WaitForScribeContentOptions<T extends ScribeQuestSnapshot> {
+  initialQuest?: T;
+  maxAttempts?: number;
+  intervalMs?: number;
+  sleep?: (intervalMs: number) => Promise<void>;
+}
+
+const DEFAULT_SCRIBE_POLL_ATTEMPTS = 12;
+const DEFAULT_SCRIBE_POLL_INTERVAL_MS = 750;
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function delay(intervalMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, intervalMs));
 }
 
 export function toDueInHoursStateValue(dueInHours?: number | null): string {
@@ -120,4 +139,33 @@ export function getEditQuestModalLabels({
     title: "Quest Details",
     submitLabel: "Save Quest",
   };
+}
+
+export function hasScribeContent(quest: ScribeQuestSnapshot): boolean {
+  return Boolean(quest.display_name?.trim() || quest.description?.trim());
+}
+
+export async function waitForScribeContent<T extends ScribeQuestSnapshot>(
+  fetchQuest: () => Promise<T>,
+  options: WaitForScribeContentOptions<T> = {}
+): Promise<T> {
+  const maxAttempts = options.maxAttempts ?? DEFAULT_SCRIBE_POLL_ATTEMPTS;
+  const intervalMs = options.intervalMs ?? DEFAULT_SCRIBE_POLL_INTERVAL_MS;
+  const sleep = options.sleep ?? delay;
+  let latestQuest = options.initialQuest ?? (await fetchQuest());
+
+  if (hasScribeContent(latestQuest)) {
+    return latestQuest;
+  }
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    await sleep(intervalMs);
+    latestQuest = await fetchQuest();
+
+    if (hasScribeContent(latestQuest)) {
+      return latestQuest;
+    }
+  }
+
+  return latestQuest;
 }

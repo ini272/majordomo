@@ -29,6 +29,8 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run tests
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: uv run pytest -v
 
   frontend-build:
@@ -54,6 +56,9 @@ jobs:
 
       - name: Check code formatting
         run: bun run format:check
+
+      - name: Run frontend unit tests
+        run: bun test scripts
 
       - name: Build
         run: bun run build

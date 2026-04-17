@@ -1,5 +1,7 @@
 """Tests for AI Scribe service"""
 
+from types import SimpleNamespace
+
 import pytest
 
 from app.services.scribe import ScribeResponse, generate_quest_content
@@ -54,6 +56,39 @@ def test_scribe_response_clamps_out_of_range():
     assert response.time == 5
     assert response.effort == 1
     assert response.dread == 3
+
+
+def test_generate_quest_content_parses_mocked_groq_response(monkeypatch):
+    """Exercise the Groq client path in CI without calling the live API."""
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            assert kwargs["messages"][0]["role"] == "user"
+            content = (
+                '{"display_name": "The Kitchen Cleanse", '
+                '"description": "Vanquish grime from the counters.", '
+                '"tags": "chores,cleaning", '
+                '"time": 3, "effort": 2, "dread": 4}'
+            )
+            return SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
+            )
+
+    class FakeGroq:
+        def __init__(self, api_key: str):
+            assert api_key == "test-groq-key"
+            self.chat = SimpleNamespace(completions=FakeCompletions())
+
+    monkeypatch.setenv("GROQ_API_KEY", "test-groq-key")
+    monkeypatch.setattr("app.services.scribe.Groq", FakeGroq)
+
+    response = generate_quest_content("Clean Kitchen")
+
+    assert response is not None
+    assert response.display_name == "The Kitchen Cleanse"
+    assert response.description == "Vanquish grime from the counters."
+    assert response.tags == "chores,cleaning"
+    assert response.calculate_xp() == 18
 
 
 @pytest.mark.integration

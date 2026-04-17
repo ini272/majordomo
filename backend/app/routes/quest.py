@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -25,7 +25,7 @@ from app.models.quest import (
 )
 from app.models.user import User
 from app.services.recurring_quests import generate_due_quests
-from app.services.scribe import generate_quest_content
+from app.services.scribe import ScribeResponse, generate_quest_content
 
 router = APIRouter(prefix="/api/quests", tags=["quests"])
 
@@ -215,12 +215,12 @@ def create_standalone_quest(
 
 @router.post("/ai-scribe", response_model=QuestRead)
 def create_ai_scribe_quest(
+    background_tasks: BackgroundTasks,
     user_id: Optional[int] = Query(None),
     skip_ai: bool = Query(False),
     quest_data: QuestCreateStandalone = None,
     db: Session = Depends(get_db),
     auth: dict = Depends(get_current_user),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     """
     Create a standalone quest with optional AI-generated content.
@@ -630,6 +630,29 @@ def _validate_quest_schedule(recurrence: str, schedule: Optional[str]) -> None:
             )
 
 
+def _apply_scribe_response_to_quest(db: Session, quest_id: int, scribe_response: ScribeResponse) -> bool:
+    """Apply generated Scribe content to an existing quest."""
+    quest = crud_quest.get_quest(db, quest_id)
+    if not quest:
+        return False
+
+    # Only update empty descriptive fields so explicit user input wins.
+    if not quest.display_name:
+        quest.display_name = scribe_response.display_name
+    if not quest.description:
+        quest.description = scribe_response.description
+    if not quest.tags:
+        quest.tags = scribe_response.tags
+
+    # Rewards are derived from the generated difficulty sliders.
+    quest.xp_reward = scribe_response.calculate_xp()
+    quest.gold_reward = scribe_response.calculate_gold()
+
+    db.add(quest)
+    db.commit()
+    return True
+
+
 def _generate_and_update_quest(quest_id: int, quest_title: str):
     """Background task to generate quest content and update quest"""
     import time
@@ -640,8 +663,6 @@ def _generate_and_update_quest(quest_id: int, quest_title: str):
         from sqlmodel import Session
 
         from app.database import engine
-        from app.crud import quest as crud_quest
-
         # Generate content using Groq
         scribe_response = generate_quest_content(quest_title)
         if not scribe_response:
@@ -649,24 +670,7 @@ def _generate_and_update_quest(quest_id: int, quest_title: str):
 
         # Update quest with generated content
         with Session(engine) as db:
-            quest = crud_quest.get_quest(db, quest_id)
-            if not quest:
-                return
-
-            # Only update if fields are empty (don't override user input)
-            if not quest.display_name:
-                quest.display_name = scribe_response.display_name
-            if not quest.description:
-                quest.description = scribe_response.description
-            if not quest.tags:
-                quest.tags = scribe_response.tags
-
-            # Always update rewards based on calculated values
-            quest.xp_reward = scribe_response.calculate_xp()
-            quest.gold_reward = scribe_response.calculate_gold()
-
-            db.add(quest)
-            db.commit()
+            _apply_scribe_response_to_quest(db, quest_id, scribe_response)
     except Exception as e:
         import logging
 
@@ -717,12 +721,12 @@ def _generate_and_update_quest_template_legacy(template_id: int, quest_title: st
 
 @router.post("/templates", response_model=QuestTemplateRead)
 def create_quest_template(
+    background_tasks: BackgroundTasks,
     created_by: int = Query(...),
     skip_ai: bool = Query(False),
     template: QuestTemplateCreate = None,
     db: Session = Depends(get_db),
     auth: dict = Depends(get_current_user),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     """
     Create a new quest template (reusable quest definition).
