@@ -125,8 +125,10 @@ flowchart LR
 ### Quest creation and edit flow
 
 `CreateQuestForm` owns the quest participant selection and sends `participant_user_ids` for
-AI-scribe, random, and template-created quests. The UI labels a single participant as "Quest For"
-and multiple participants as "Quest Party". `EditQuestModal` can update the party for active
+AI-scribe and random quests. The UI labels a single participant as "Quest For" and multiple
+participants as "Quest Party". Template default editing exposes "New Quest For/Party" inside
+`EditQuestModal` so that selection is tied to the quest instance created by "Save Defaults &
+Create Quest", not to the template itself. `EditQuestModal` can update the party for active
 existing quests; completed quests keep their participant rows so reward history remains stable.
 
 ```mermaid

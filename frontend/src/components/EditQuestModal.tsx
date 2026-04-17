@@ -96,7 +96,14 @@ export default function EditQuestModal({
     return fallbackUserId !== null ? [fallbackUserId] : [];
   };
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<number[]>(getInitialParticipantIds);
-  const participantLabel = selectedParticipantIds.length > 1 ? "Quest Party" : "Quest For";
+  const showParticipantSelector = Boolean(quest || isTemplateDefaultsMode);
+  const participantLabel = isTemplateDefaultsMode
+    ? selectedParticipantIds.length > 1
+      ? "New Quest Party"
+      : "New Quest For"
+    : selectedParticipantIds.length > 1
+      ? "Quest Party"
+      : "Quest For";
 
   // Recurring quest fields
   const [recurrence, setRecurrence] = useState<QuestRecurrence>("one-off");
@@ -590,7 +597,7 @@ export default function EditQuestModal({
                 </div>
               )}
 
-              {quest && (
+              {showParticipantSelector && (
                 <div className="mb-6">
                   <label
                     className="block text-sm uppercase tracking-wider mb-2 font-serif"
@@ -621,14 +628,14 @@ export default function EditQuestModal({
                             backgroundColor: selected ? "rgba(212, 175, 55, 0.25)" : "rgba(212, 175, 55, 0.08)",
                             border: `1px solid ${selected ? COLORS.gold : COLORS.brown}`,
                             color: selected ? COLORS.gold : COLORS.parchment,
-                            cursor: saving || quest.completed ? "not-allowed" : "pointer",
+                            cursor: saving || quest?.completed ? "not-allowed" : "pointer",
                           }}
                         >
                           <input
                             type="checkbox"
                             checked={selected}
                             onChange={() => toggleParticipant(member.id)}
-                            disabled={saving || quest.completed}
+                            disabled={saving || quest?.completed}
                             style={{ accentColor: COLORS.gold }}
                           />
                           <span>
@@ -639,7 +646,7 @@ export default function EditQuestModal({
                       );
                     })}
                   </div>
-                  {quest.completed && (
+                  {quest?.completed && (
                     <p className="mt-2 text-xs font-serif italic" style={{ color: COLORS.parchment }}>
                       Completed quests keep their current party so rewards and history stay consistent.
                     </p>
