@@ -34,7 +34,7 @@ export interface Quest {
   display_name: string | null;
   description: string | null;
   tags: string | null;
-  xp_reward: number; // Base at creation, actual earned after completion
+  xp_reward: number; // Base total quest reward; participant shares are in participants
   gold_reward: number;
   recurrence: string; // Snapshot of recurrence when quest was created
   schedule: string | null; // Snapshot of schedule when quest was created
@@ -44,6 +44,17 @@ export interface Quest {
   due_date: string | null; // DEPRECATED: use due_in_hours instead
   corrupted_at: string | null;
   template: QuestTemplate | null; // Null for standalone quests
+  participants: QuestParticipant[];
+}
+
+export interface QuestParticipant {
+  id: number;
+  quest_id: number;
+  user_id: number;
+  xp_awarded: number | null;
+  gold_awarded: number | null;
+  completed_at: string | null;
+  created_at: string;
 }
 
 export interface User {
@@ -76,12 +87,34 @@ export interface QuestCompleteResponse {
   rewards: {
     xp: number;
     gold: number;
+    base_xp?: number;
+    base_gold?: number;
     is_daily_bounty: boolean;
     is_corrupted: boolean;
+    corruption_debuff?: number;
     bounty_multiplier: number;
     bounty_gold_multiplier?: number;
     bounty_xp_multiplier?: number;
+    xp_boost_active?: boolean;
+    xp_boost_remaining?: number;
+    participants?: QuestParticipantReward[];
   };
+}
+
+export interface QuestParticipantReward {
+  user_id: number;
+  xp: number;
+  gold: number;
+  base_xp: number;
+  base_gold: number;
+  is_daily_bounty: boolean;
+  is_corrupted: boolean;
+  corruption_debuff: number;
+  bounty_multiplier: number;
+  bounty_gold_multiplier: number;
+  bounty_xp_multiplier: number;
+  xp_boost_active: boolean;
+  xp_boost_remaining: number;
 }
 
 export interface BountyCheckResponse {
@@ -118,6 +151,7 @@ export interface QuestTemplateUpdateRequest {
 export interface QuestCreateRequest {
   quest_template_id: number;
   due_date?: string | null;
+  participant_user_ids?: number[];
 }
 
 export interface Achievement {

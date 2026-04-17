@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 
 from app.models.daily_bounty import DailyBounty
 from app.models.home import Home
-from app.models.quest import Quest
+from app.models.quest import Quest, QuestParticipant
 
 
 MIN_BOUNTY_AGE_HOURS = 48
@@ -50,8 +50,9 @@ def _get_eligible_active_quests(db: Session, home_id: int, user_id: int) -> list
     age_cutoff = datetime.now(timezone.utc) - timedelta(hours=MIN_BOUNTY_AGE_HOURS)
     candidates = db.exec(
         select(Quest)
+        .join(QuestParticipant, QuestParticipant.quest_id == Quest.id)
         .where(Quest.home_id == home_id)
-        .where(Quest.user_id == user_id)
+        .where(QuestParticipant.user_id == user_id)
         .where(Quest.completed == False)  # noqa: E712
         .where(Quest.created_at <= age_cutoff)
     ).all()

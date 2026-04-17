@@ -41,7 +41,10 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   const [selectedTemplate, setSelectedTemplate] = useState<QuestTemplate | null>(null);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(userId);
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<number[]>(
+    userId !== null ? [userId] : []
+  );
+  const participantLabel = selectedParticipantIds.length > 1 ? "Quest Party" : "Quest For";
 
   const fetchTemplates = async (): Promise<QuestTemplate[] | null> => {
     setLoadingTemplates(true);
@@ -63,7 +66,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   }, [token]);
 
   useEffect(() => {
-    setSelectedUserId(userId);
+    setSelectedParticipantIds(userId !== null ? [userId] : []);
   }, [userId]);
 
   useEffect(() => {
@@ -75,9 +78,9 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
         if (users.length > 0) {
           const defaultUser =
             userId !== null && users.some((user) => user.id === userId) ? userId : users[0].id;
-          setSelectedUserId((current) => current ?? defaultUser);
+          setSelectedParticipantIds((current) => (current.length > 0 ? current : [defaultUser]));
         } else {
-          setSelectedUserId(null);
+          setSelectedParticipantIds([]);
         }
       } catch (err) {
         console.error("Failed to fetch home users:", err);
@@ -96,8 +99,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       return;
     }
 
-    if (selectedUserId === null) {
-      setError("Select who this quest is for");
+    if (selectedParticipantIds.length === 0) {
+      setError("Select at least one participant");
       return;
     }
 
@@ -112,9 +115,10 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
           ...(selectedTags.length > 0 && { tags: selectedTags.join(",") }),
           xp_reward: 25,
           gold_reward: 15,
+          participant_user_ids: selectedParticipantIds,
         },
         token,
-        selectedUserId,
+        selectedParticipantIds[0],
         skipAI
       );
 
@@ -135,8 +139,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   };
 
   const handleRandomQuest = async () => {
-    if (selectedUserId === null) {
-      setError("Select who this quest is for");
+    if (selectedParticipantIds.length === 0) {
+      setError("Select at least one participant");
       return;
     }
 
@@ -171,8 +175,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   const handleCreateFromTemplate = async (action: TemplateAction) => {
     if (!selectedTemplate) return;
 
-    if (selectedUserId === null) {
-      setError("Select who this quest is for");
+    if (selectedParticipantIds.length === 0) {
+      setError("Select at least one participant");
       return;
     }
 
@@ -187,7 +191,14 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       setError(null);
 
       try {
-        await api.quests.create({ quest_template_id: selectedTemplate.id }, token, selectedUserId);
+        await api.quests.create(
+          {
+            quest_template_id: selectedTemplate.id,
+            participant_user_ids: selectedParticipantIds,
+          },
+          token,
+          selectedParticipantIds[0]
+        );
         playSound("questActivate");
         onQuestCreated();
         onClose();
@@ -197,6 +208,14 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
         setLoading(false);
       }
     }
+  };
+
+  const toggleParticipant = (participantId: number) => {
+    setSelectedParticipantIds((current) =>
+      current.includes(participantId)
+        ? current.filter((id) => id !== participantId)
+        : [...current, participantId]
+    );
   };
 
   return (
@@ -258,6 +277,9 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
                   setMode("from-template");
                   setTitle("");
                   setSelectedTags([]);
+                  setSelectedParticipantIds(
+                    userId !== null ? [userId] : homeUsers[0] ? [homeUsers[0].id] : []
+                  );
                   setError(null);
                 }}
                 className="flex-1 py-2 px-3 font-serif font-semibold text-xs uppercase tracking-wider transition-all"
@@ -290,43 +312,60 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
               </div>
             )}
 
-            <div className="mb-6">
-              <label
-                className="block text-sm uppercase tracking-wider mb-2 font-serif"
-                style={{ color: COLORS.gold }}
-              >
-                Quest For
-              </label>
-              <div
-                className="rounded"
-                style={{
-                  backgroundColor: COLORS.black,
-                  borderColor: COLORS.gold,
-                  borderWidth: "2px",
-                }}
-              >
-                <select
-                  value={selectedUserId ?? ""}
-                  onChange={(e) => setSelectedUserId(e.target.value ? parseInt(e.target.value, 10) : null)}
-                  className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
-                  style={{
-                    backgroundColor: "transparent",
-                    color: COLORS.parchment,
-                  }}
-                  disabled={loading || loadingUsers}
+            {mode !== "from-template" && (
+              <div className="mb-6">
+                <label
+                  className="block text-sm uppercase tracking-wider mb-2 font-serif"
+                  style={{ color: COLORS.gold }}
                 >
-                  <option value="" disabled>
-                    {loadingUsers ? "Loading household members..." : "Select a household member"}
-                  </option>
-                  {homeUsers.map((member) => (
-                    <option key={member.id} value={member.id} style={{ color: COLORS.darkPanel }}>
-                      {member.username}
-                      {member.id === userId ? " (You)" : ""}
-                    </option>
-                  ))}
-                </select>
+                  {participantLabel}
+                </label>
+                <div
+                  className="rounded p-3 flex flex-wrap gap-2"
+                  style={{
+                    backgroundColor: COLORS.black,
+                    borderColor: COLORS.gold,
+                    borderWidth: "2px",
+                  }}
+                >
+                  {loadingUsers && (
+                    <span className="font-serif text-sm" style={{ color: COLORS.parchment }}>
+                      Loading household members...
+                    </span>
+                  )}
+                  {!loadingUsers &&
+                    homeUsers.map((member) => {
+                      const selected = selectedParticipantIds.includes(member.id);
+                      return (
+                        <label
+                          key={member.id}
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-sm font-serif text-sm"
+                          style={{
+                            backgroundColor: selected
+                              ? "rgba(212, 175, 55, 0.25)"
+                              : "rgba(212, 175, 55, 0.08)",
+                            border: `1px solid ${selected ? COLORS.gold : COLORS.brown}`,
+                            color: selected ? COLORS.gold : COLORS.parchment,
+                            cursor: loading ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => toggleParticipant(member.id)}
+                            disabled={loading}
+                            style={{ accentColor: COLORS.gold }}
+                          />
+                          <span>
+                            {member.username}
+                            {member.id === userId ? " (You)" : ""}
+                          </span>
+                        </label>
+                      );
+                    })}
+                </div>
               </div>
-            </div>
+            )}
 
             {mode === "ai-scribe" && (
               <form onSubmit={handleSubmit}>
@@ -581,7 +620,8 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
           initialData={templateInitialData || undefined}
           token={token}
           skipAI={skipAI}
-          targetUserId={selectedUserId}
+          targetUserId={selectedParticipantIds[0] ?? null}
+          targetParticipantUserIds={selectedParticipantIds}
           createQuestOnSave={createQuestOnSave}
           onSave={async (result) => {
             const isTemplateDefaultsFlow =

@@ -13,6 +13,8 @@
     "dev": "vite",
     "dev:cloudflare": "bun run scripts/cloudflareDev.ts",
     "build": "tsc && vite build",
+    "check": "bun run typecheck && bun run format:check && bun run build",
+    "fix": "bun run format",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test:cloudflare": "bun test scripts/cloudflareTunnel.test.ts",

@@ -60,6 +60,60 @@ def _calculate_corruption_debuff(db: Session, home_id: int, user: User) -> float
     return multiplier
 
 
+def _dedupe_user_ids(user_ids: list[int]) -> list[int]:
+    """
+    Preserve the caller's first-choice order while removing duplicates.
+
+    The public API accepts raw arrays, so this guards direct clients from
+    creating duplicate participant rows or duplicate reward shares.
+    """
+    seen: set[int] = set()
+    deduped: list[int] = []
+    for user_id in user_ids:
+        if user_id in seen:
+            continue
+        seen.add(user_id)
+        deduped.append(user_id)
+    return deduped
+
+
+def _resolve_participant_user_ids(
+    db: Session,
+    home_id: int,
+    legacy_user_id: Optional[int],
+    participant_user_ids: Optional[list[int]],
+) -> list[int]:
+    """
+    Resolve participant IDs from the new request body field or legacy user_id query param.
+
+    `participant_user_ids` is preferred. `user_id` remains accepted so older
+    clients can still create single-participant quests during the transition.
+    """
+    resolved_user_ids = (
+        participant_user_ids
+        if participant_user_ids is not None
+        else ([legacy_user_id] if legacy_user_id is not None else [])
+    )
+    resolved_user_ids = _dedupe_user_ids([user_id for user_id in resolved_user_ids if user_id is not None])
+
+    if not resolved_user_ids:
+        raise HTTPException(status_code=400, detail="Quest requires at least one participant")
+
+    for participant_user_id in resolved_user_ids:
+        user = crud_user.get_user(db, participant_user_id)
+        if not user or user.home_id != home_id:
+            raise HTTPException(status_code=404, detail="User not found in home")
+
+    return resolved_user_ids
+
+
+def _split_reward(total: int, participant_count: int) -> list[int]:
+    """Split an integer reward across participants while preserving the total."""
+    base_share = total // participant_count
+    remainder = total % participant_count
+    return [base_share + (1 if index < remainder else 0) for index in range(participant_count)]
+
+
 # GET endpoints
 @router.get("/templates/all", response_model=list[QuestTemplateRead])
 def get_all_quest_templates(db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
@@ -135,42 +189,40 @@ def get_quest_template(template_id: int, db: Session = Depends(get_db), auth: di
 # POST endpoints
 @router.post("", response_model=QuestRead)
 def create_quest(
-    quest: QuestCreate, user_id: int = Query(...), db: Session = Depends(get_db), auth: dict = Depends(get_current_user)
+    quest: QuestCreate,
+    user_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    auth: dict = Depends(get_current_user),
 ):
-    """Create a new quest instance for a user"""
+    """Create a new quest instance for one or more participants"""
     home_id = auth["home_id"]
-
-    # Verify user exists in home and belongs to authenticated home
-    user = crud_user.get_user(db, user_id)
-    if not user or user.home_id != home_id:
-        raise HTTPException(status_code=404, detail="User not found in home")
+    participant_user_ids = _resolve_participant_user_ids(db, home_id, user_id, quest.participant_user_ids)
 
     # Verify template exists in home
     template = crud_quest_template.get_quest_template(db, quest.quest_template_id)
     if not template or template.home_id != home_id:
         raise HTTPException(status_code=404, detail="Quest template not found in home")
 
-    return crud_quest.create_quest(db, home_id, auth["user_id"], user_id, quest, template)
+    return crud_quest.create_quest(db, home_id, auth["user_id"], participant_user_ids, quest, template)
 
 
 @router.post("/standalone", response_model=QuestRead)
 def create_standalone_quest(
-    quest: QuestCreateStandalone, user_id: int = Query(...), db: Session = Depends(get_db), auth: dict = Depends(get_current_user)
+    quest: QuestCreateStandalone,
+    user_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    auth: dict = Depends(get_current_user),
 ):
     """Create a standalone quest without a template"""
     home_id = auth["home_id"]
+    participant_user_ids = _resolve_participant_user_ids(db, home_id, user_id, quest.participant_user_ids)
 
-    # Verify user exists in home and belongs to authenticated home
-    user = crud_user.get_user(db, user_id)
-    if not user or user.home_id != home_id:
-        raise HTTPException(status_code=404, detail="User not found in home")
-
-    return crud_quest.create_standalone_quest(db, home_id, auth["user_id"], user_id, quest)
+    return crud_quest.create_standalone_quest(db, home_id, auth["user_id"], participant_user_ids, quest)
 
 
 @router.post("/ai-scribe", response_model=QuestRead)
 def create_ai_scribe_quest(
-    user_id: int = Query(...),
+    user_id: Optional[int] = Query(None),
     skip_ai: bool = Query(False),
     quest_data: QuestCreateStandalone = None,
     db: Session = Depends(get_db),
@@ -180,7 +232,7 @@ def create_ai_scribe_quest(
     """
     Create a standalone quest with optional AI-generated content.
 
-    - **user_id**: User ID to assign quest to
+    - **user_id**: Legacy single user ID to assign quest to
     - **skip_ai**: Set to true to skip AI generation (default: false)
     - **quest_data**: Quest data (title required, other fields optional)
 
@@ -188,14 +240,13 @@ def create_ai_scribe_quest(
     display_name, description, and tags in the background.
     """
     home_id = auth["home_id"]
+    if quest_data is None:
+        raise HTTPException(status_code=400, detail="Quest data is required")
 
-    # Verify user exists in home
-    user = crud_user.get_user(db, user_id)
-    if not user or user.home_id != home_id:
-        raise HTTPException(status_code=404, detail="User not found in home")
+    participant_user_ids = _resolve_participant_user_ids(db, home_id, user_id, quest_data.participant_user_ids)
 
     # Create standalone quest
-    quest = crud_quest.create_standalone_quest(db, home_id, auth["user_id"], user_id, quest_data)
+    quest = crud_quest.create_standalone_quest(db, home_id, auth["user_id"], participant_user_ids, quest_data)
 
     # Trigger AI generation in background (unless skipping)
     if not skip_ai:
@@ -210,7 +261,8 @@ def create_ai_scribe_quest(
 
 @router.post("/random", response_model=QuestRead)
 def create_random_quest(
-    user_id: int = Query(...),
+    user_id: Optional[int] = Query(None),
+    participant_user_ids: Optional[list[int]] = Query(None),
     db: Session = Depends(get_db),
     auth: dict = Depends(get_current_user),
 ):
@@ -222,11 +274,7 @@ def create_random_quest(
     import random
 
     home_id = auth["home_id"]
-
-    # Verify user exists in home
-    user = crud_user.get_user(db, user_id)
-    if not user or user.home_id != home_id:
-        raise HTTPException(status_code=404, detail="User not found in home")
+    resolved_participant_user_ids = _resolve_participant_user_ids(db, home_id, user_id, participant_user_ids)
 
     # Sample quest data
     samples = [
@@ -272,7 +320,9 @@ def create_random_quest(
         gold_reward=gold_reward,
     )
 
-    quest = crud_quest.create_standalone_quest(db, home_id, auth["user_id"], user_id, quest_data)
+    quest = crud_quest.create_standalone_quest(
+        db, home_id, auth["user_id"], resolved_participant_user_ids, quest_data
+    )
     return quest
 
 
@@ -325,6 +375,8 @@ def generate_quest_instance(
         schedule=template.schedule,
     )
     db.add(new_quest)
+    db.flush()
+    crud_quest.replace_quest_participants(db, new_quest, [auth["user_id"]])
 
     # Update last_generated_at
     template.last_generated_at = now
@@ -379,102 +431,143 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
             ),
         )
 
-    # Get user for consumable checks and debuff calculation
-    user = crud_user.get_user(db, quest.user_id)
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail=create_error_detail(ErrorCode.USER_NOT_FOUND, details={"user_id": quest.user_id}),
-        )
+    participants = crud_quest.ensure_quest_participants(db, quest)
+    if not participants:
+        raise HTTPException(status_code=400, detail="Quest has no participants")
 
-    # Resolve today's bounty decision for the quest owner.
-    today_bounty = crud_daily_bounty.get_or_create_today_bounty(db, auth["home_id"], quest.user_id)
-    is_daily_bounty = bool(
-        today_bounty.status == "assigned" and today_bounty.quest_id == quest.id
-    )
+    participants = sorted(participants, key=lambda participant: participant.user_id)
+    participant_users: dict[int, User] = {}
+    for participant in participants:
+        participant_user = crud_user.get_user(db, participant.user_id)
+        if not participant_user or participant_user.home_id != auth["home_id"]:
+            raise HTTPException(
+                status_code=404,
+                detail=create_error_detail(ErrorCode.USER_NOT_FOUND, details={"user_id": participant.user_id}),
+            )
+        participant_users[participant.user_id] = participant_user
 
     # Check if quest is corrupted (overdue) - for display purposes only (not bonus rewards)
     is_corrupted = quest.quest_type == "corrupted"
 
-    # Calculate corruption debuff (house-wide penalty)
-    corruption_debuff_multiplier = _calculate_corruption_debuff(db, auth["home_id"], user)
-
-    # Check for active XP boost (Heroic Elixir)
-    has_xp_boost = user.active_xp_boost_count > 0
-
-    # Award XP and gold to user from template
-    # Apply order: base → corruption_debuff → bounty_bonus → xp_boost
-    xp_awarded = 0
-    gold_awarded = 0
-    base_xp = 0
-    base_gold = 0
-    bounty_gold_multiplier = 3 if is_daily_bounty else 1
-    bounty_xp_multiplier = 1
-    xp_boost_multiplier = 2 if has_xp_boost else 1
-
-    # Use quest's snapshot fields as base values
+    participant_count = len(participants)
     base_xp = quest.xp_reward
     base_gold = quest.gold_reward
+    base_xp_shares = _split_reward(base_xp, participant_count)
+    base_gold_shares = _split_reward(base_gold, participant_count)
+    completed_at = datetime.now(timezone.utc)
+    bounty_decisions = {
+        participant.user_id: crud_daily_bounty.get_or_create_today_bounty(db, auth["home_id"], participant.user_id)
+        for participant in participants
+    }
 
-    # Apply corruption debuff to both XP and gold
-    xp_after_debuff = base_xp * corruption_debuff_multiplier
-    gold_after_debuff = base_gold * corruption_debuff_multiplier
+    participant_reward_breakdowns = []
+    total_xp_awarded = 0
+    total_gold_awarded = 0
+    any_daily_bounty = False
+    any_xp_boost = False
+    first_participant_xp_boost_remaining = 0
 
-    # Apply bounty bonus: daily bounty triples gold only (XP unchanged)
-    xp_after_bounty = xp_after_debuff * bounty_xp_multiplier
-    gold_after_bounty = gold_after_debuff * bounty_gold_multiplier
+    for index, participant in enumerate(participants):
+        user = participant_users[participant.user_id]
 
-    # Apply XP boost only to XP (not gold)
-    xp_awarded = int(xp_after_bounty * xp_boost_multiplier)
-    gold_awarded = int(gold_after_bounty)
+        today_bounty = bounty_decisions[user.id]
+        is_daily_bounty = bool(today_bounty.status == "assigned" and today_bounty.quest_id == quest.id)
+        any_daily_bounty = any_daily_bounty or is_daily_bounty
 
-    # Mark quest as completed and store actual earned rewards
-    quest = crud_quest.complete_quest(db, quest_id, final_xp=xp_awarded, final_gold=gold_awarded)
+        corruption_debuff_multiplier = _calculate_corruption_debuff(db, auth["home_id"], user)
+        has_xp_boost = user.active_xp_boost_count > 0
+        any_xp_boost = any_xp_boost or has_xp_boost
 
-    try:
-        crud_user.add_xp(db, quest.user_id, xp_awarded)
-        crud_user.add_gold(db, quest.user_id, gold_awarded)
-    except ValueError as e:
-        error_msg = str(e)
-        # Determine error code based on error message
-        if "XP amount" in error_msg:
-            error_code = ErrorCode.NEGATIVE_XP
-        elif "Insufficient gold" in error_msg:
-            error_code = ErrorCode.INSUFFICIENT_GOLD
-        else:
-            error_code = ErrorCode.INVALID_INPUT
+        participant_base_xp = base_xp_shares[index]
+        participant_base_gold = base_gold_shares[index]
+        bounty_gold_multiplier = 3 if is_daily_bounty else 1
+        bounty_xp_multiplier = 1
+        xp_boost_multiplier = 2 if has_xp_boost else 1
 
-        raise HTTPException(
-            status_code=400,
-            detail=create_error_detail(error_code, message=error_msg, details={"quest_id": quest_id}),
+        xp_after_debuff = participant_base_xp * corruption_debuff_multiplier
+        gold_after_debuff = participant_base_gold * corruption_debuff_multiplier
+        xp_after_bounty = xp_after_debuff * bounty_xp_multiplier
+        gold_after_bounty = gold_after_debuff * bounty_gold_multiplier
+        xp_awarded = int(xp_after_bounty * xp_boost_multiplier)
+        gold_awarded = int(gold_after_bounty)
+
+        participant.xp_awarded = xp_awarded
+        participant.gold_awarded = gold_awarded
+        participant.completed_at = completed_at
+        db.add(participant)
+
+        user.xp += xp_awarded
+        user.level = crud_user.calculate_level(user.xp)
+        user.gold_balance += gold_awarded
+
+        if has_xp_boost:
+            user.active_xp_boost_count -= 1
+
+        db.add(user)
+
+        if index == 0:
+            first_participant_xp_boost_remaining = user.active_xp_boost_count
+
+        total_xp_awarded += xp_awarded
+        total_gold_awarded += gold_awarded
+        participant_reward_breakdowns.append(
+            {
+                "user_id": user.id,
+                "xp": xp_awarded,
+                "gold": gold_awarded,
+                "base_xp": participant_base_xp,
+                "base_gold": participant_base_gold,
+                "is_daily_bounty": is_daily_bounty,
+                "is_corrupted": is_corrupted,
+                "corruption_debuff": corruption_debuff_multiplier,
+                "bounty_multiplier": bounty_gold_multiplier,
+                "bounty_gold_multiplier": bounty_gold_multiplier,
+                "bounty_xp_multiplier": bounty_xp_multiplier,
+                "xp_boost_active": has_xp_boost,
+                "xp_boost_remaining": user.active_xp_boost_count,
+            }
         )
 
-    # Decrement XP boost counter if active
-    if has_xp_boost:
-        user.active_xp_boost_count -= 1
-        db.add(user)
-        db.commit()
+    quest.completed = True
+    quest.completed_at = completed_at
+    db.add(quest)
+
+    db.commit()
+    db.refresh(quest)
 
     # Check and award any newly earned achievements
-    newly_awarded_achievements = crud_achievement.check_and_award_achievements(db, quest.user_id)
+    newly_awarded_achievements = []
+    for participant in participants:
+        for user_achievement in crud_achievement.check_and_award_achievements(db, participant.user_id):
+            newly_awarded_achievements.append(
+                {
+                    "user_id": participant.user_id,
+                    "id": user_achievement.achievement_id,
+                    "unlocked_at": user_achievement.unlocked_at,
+                }
+            )
 
     return {
         "quest": QuestRead.model_validate(quest),
         "rewards": {
-            "xp": xp_awarded,
-            "gold": gold_awarded,
+            "xp": total_xp_awarded,
+            "gold": total_gold_awarded,
             "base_xp": base_xp,
             "base_gold": base_gold,
-            "is_daily_bounty": is_daily_bounty,
+            "is_daily_bounty": any_daily_bounty,
             "is_corrupted": is_corrupted,
-            "corruption_debuff": corruption_debuff_multiplier,
-            "bounty_multiplier": bounty_gold_multiplier,
-            "bounty_gold_multiplier": bounty_gold_multiplier,
-            "bounty_xp_multiplier": bounty_xp_multiplier,
-            "xp_boost_active": has_xp_boost,
-            "xp_boost_remaining": user.active_xp_boost_count,  # After decrement
+            "corruption_debuff": min(
+                (reward["corruption_debuff"] for reward in participant_reward_breakdowns),
+                default=1.0,
+            ),
+            "bounty_multiplier": 3 if any_daily_bounty else 1,
+            "bounty_gold_multiplier": 3 if any_daily_bounty else 1,
+            "bounty_xp_multiplier": 1,
+            "xp_boost_active": any_xp_boost,
+            "xp_boost_remaining": first_participant_xp_boost_remaining,
+            "participants": participant_reward_breakdowns,
         },
-        "achievements": [{"id": ua.achievement_id, "unlocked_at": ua.unlocked_at} for ua in newly_awarded_achievements],
+        "achievements": newly_awarded_achievements,
     }
 
 
@@ -807,13 +900,27 @@ def update_quest(
     if not quest or quest.home_id != auth["home_id"]:
         raise HTTPException(status_code=404, detail="Quest not found")
 
-    if quest.completed and quest_update and quest_update.user_id is not None:
+    is_reassigning = bool(
+        quest_update
+        and (quest_update.user_id is not None or quest_update.participant_user_ids is not None)
+    )
+    if quest.completed and is_reassigning:
         raise HTTPException(status_code=400, detail="Completed quests cannot be reassigned")
 
-    if quest_update and quest_update.user_id is not None:
+    if quest_update and quest_update.participant_user_ids is not None:
+        participant_user_ids = _resolve_participant_user_ids(
+            db,
+            auth["home_id"],
+            None,
+            quest_update.participant_user_ids,
+        )
+        quest_update.participant_user_ids = participant_user_ids
+        quest_update.user_id = participant_user_ids[0]
+    elif quest_update and quest_update.user_id is not None:
         target_user = crud_user.get_user(db, quest_update.user_id)
         if not target_user or target_user.home_id != auth["home_id"]:
             raise HTTPException(status_code=400, detail="Quest owner must belong to your home")
+        quest_update.participant_user_ids = [quest_update.user_id]
 
     quest = crud_quest.update_quest(db, quest_id, quest_update)
     return quest

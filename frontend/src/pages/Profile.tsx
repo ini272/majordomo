@@ -69,6 +69,15 @@ export default function Profile() {
     [completedQuests]
   );
   const completedCount = completedQuests.length;
+  const getCurrentUserQuestAward = (quest: Quest) => {
+    const participantAward = quest.participants?.find(
+      (participant) => participant.user_id === userId
+    );
+    return {
+      xp: participantAward?.xp_awarded ?? quest.xp_reward,
+      gold: participantAward?.gold_awarded ?? quest.gold_reward,
+    };
+  };
 
   const handleCopyInviteCode = async () => {
     if (!homeInfo) return;
@@ -480,32 +489,35 @@ export default function Profile() {
           <div className="space-y-3">
             {sortedCompletedQuests
               .slice(0, showAllQuests ? sortedCompletedQuests.length : 5)
-              .map((quest) => (
-                <button
-                  type="button"
-                  onClick={() => setSelectedCompletedQuest(quest)}
-                  key={quest.id}
-                  className="w-full p-4 rounded text-left transition-all hover:brightness-110"
-                  style={{
-                    backgroundColor: COLORS.dark,
-                    borderLeftColor: COLORS.greenSuccess,
-                    borderLeftWidth: "4px",
-                  }}
-                >
-                  <p className="font-serif font-bold mb-1" style={{ color: COLORS.parchment }}>
-                    {quest.display_name || quest.title}
-                  </p>
-                  <div className="flex justify-between items-center text-xs">
-                    <p style={{ color: COLORS.brown }}>
-                      Completed {new Date(quest.completed_at!).toLocaleDateString()}
+              .map((quest) => {
+                const award = getCurrentUserQuestAward(quest);
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCompletedQuest(quest)}
+                    key={quest.id}
+                    className="w-full p-4 rounded text-left transition-all hover:brightness-110"
+                    style={{
+                      backgroundColor: COLORS.dark,
+                      borderLeftColor: COLORS.greenSuccess,
+                      borderLeftWidth: "4px",
+                    }}
+                  >
+                    <p className="font-serif font-bold mb-1" style={{ color: COLORS.parchment }}>
+                      {quest.display_name || quest.title}
                     </p>
-                    <div className="flex gap-3 items-center">
-                      <span style={{ color: COLORS.gold }}>+{quest.xp_reward} XP</span>
-                      <span style={{ color: COLORS.gold }}>+{quest.gold_reward} Gold</span>
+                    <div className="flex justify-between items-center text-xs">
+                      <p style={{ color: COLORS.brown }}>
+                        Completed {new Date(quest.completed_at!).toLocaleDateString()}
+                      </p>
+                      <div className="flex gap-3 items-center">
+                        <span style={{ color: COLORS.gold }}>+{award.xp} XP</span>
+                        <span style={{ color: COLORS.gold }}>+{award.gold} Gold</span>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             {!showAllQuests && completedQuests.length > 5 && (
               <p className="text-center text-sm pt-2" style={{ color: COLORS.brown }}>
                 Showing 5 most recent of {completedCount} total completed quests

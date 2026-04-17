@@ -39,7 +39,7 @@ const getQuestTypeStyles = (questType: string): QuestTypeStyles => {
 
 interface QuestCardProps {
   quest: Quest;
-  questOwnerName?: string;
+  questParticipantNames?: string;
   questCreatorName?: string;
   onComplete: (questId: number) => void;
   onAbandon?: (questId: number) => void;
@@ -51,7 +51,7 @@ interface QuestCardProps {
 
 export default function QuestCard({
   quest,
-  questOwnerName,
+  questParticipantNames,
   questCreatorName,
   onComplete,
   onAbandon,
@@ -69,6 +69,26 @@ export default function QuestCard({
   );
   const [showOriginalTitle, setShowOriginalTitle] = useState(false);
   const originalTitlePanelId = `quest-original-title-${quest.id}`;
+  const participantCount = quest.participants?.length || 1;
+  const participantLabel = participantCount > 1 ? "Party" : "For";
+  const completedXpTotal =
+    quest.completed && quest.participants?.some((participant) => participant.xp_awarded !== null)
+      ? quest.participants.reduce((total, participant) => total + (participant.xp_awarded ?? 0), 0)
+      : quest.xp_reward || 0;
+  const completedGoldTotal =
+    quest.completed && quest.participants?.some((participant) => participant.gold_awarded !== null)
+      ? quest.participants.reduce(
+          (total, participant) => total + (participant.gold_awarded ?? 0),
+          0
+        )
+      : quest.gold_reward || 0;
+  const displayXpReward = quest.completed ? completedXpTotal : quest.xp_reward || 0;
+  const displayGoldReward =
+    isDailyBounty && !quest.completed && participantCount === 1
+      ? (quest.gold_reward || 0) * 3
+      : quest.completed
+        ? completedGoldTotal
+        : quest.gold_reward || 0;
 
   useEffect(() => {
     setShowOriginalTitle(false);
@@ -252,14 +272,15 @@ export default function QuestCard({
         {quest.description || "No description"}
       </p>
 
-      {(questOwnerName || questCreatorName) && (
+      {(questParticipantNames || questCreatorName) && (
         <div className="mb-6 md:mb-8 flex flex-wrap gap-3 text-xs font-serif uppercase tracking-wide">
-          {questOwnerName && (
+          {questParticipantNames && (
             <span style={{ color: COLORS.brown }}>
-              For: <span style={{ color: COLORS.gold }}>{questOwnerName}</span>
+              {participantLabel}:{" "}
+              <span style={{ color: COLORS.gold }}>{questParticipantNames}</span>
             </span>
           )}
-          {questCreatorName && questCreatorName !== questOwnerName && (
+          {questCreatorName && !questParticipantNames?.split(", ").includes(questCreatorName) && (
             <span style={{ color: COLORS.brown }}>
               Created by: <span style={{ color: COLORS.parchment }}>{questCreatorName}</span>
             </span>
@@ -296,29 +317,41 @@ export default function QuestCard({
             className="text-xs uppercase tracking-widest mb-2 font-serif"
             style={{ color: COLORS.brown }}
           >
-            XP Reward
+            {quest.completed ? "XP Awarded" : "XP Reward"}
           </div>
           <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
-            {quest.xp_reward || 0}
+            {displayXpReward}
           </div>
+          {participantCount > 1 && (
+            <div className="mt-1 text-xs font-serif" style={{ color: COLORS.brown }}>
+              {quest.completed ? "Awarded across party" : `Split ${participantCount} ways`}
+            </div>
+          )}
         </div>
         <div className="text-center flex-1">
           <div
             className="text-xs uppercase tracking-widest mb-2 font-serif"
             style={{ color: COLORS.brown }}
           >
-            Gold Reward
+            {quest.completed ? "Gold Awarded" : "Gold Reward"}
           </div>
           <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
-            {isDailyBounty && !quest.completed
-              ? (quest.gold_reward || 0) * 3
-              : quest.gold_reward || 0}
-            {isDailyBounty && !quest.completed && (
+            {displayGoldReward}
+            {isDailyBounty && !quest.completed && participantCount === 1 && (
               <span className="text-sm ml-2" style={{ color: "#9d84ff" }}>
                 (3x)
               </span>
             )}
           </div>
+          {participantCount > 1 && (
+            <div className="mt-1 text-xs font-serif" style={{ color: COLORS.brown }}>
+              {quest.completed
+                ? "Awarded across party"
+                : isDailyBounty
+                  ? "Split; bounty multiplies your share"
+                  : `Split ${participantCount} ways`}
+            </div>
+          )}
         </div>
         <div className="text-center flex-1">
           <div

@@ -33,6 +33,21 @@ describe("buildStandaloneQuestUpdateData", () => {
 
     expect(payload.due_in_hours).toBeNull();
   });
+
+  test("includes participant IDs when quest party is selected", () => {
+    const payload = buildStandaloneQuestUpdateData({
+      displayName: "The Kitchen Cleanse",
+      description: "Defeat the sink dragon",
+      selectedTags: ["Chores"],
+      baseXP: 30,
+      baseGold: 15,
+      dueInHours: "",
+      selectedParticipantIds: [2, 4],
+    });
+
+    expect(payload.user_id).toBe(2);
+    expect(payload.participant_user_ids).toEqual([2, 4]);
+  });
 });
 
 describe("toDueInHoursStateValue", () => {

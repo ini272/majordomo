@@ -121,7 +121,7 @@ class QuestTemplateUpdate(SQLModel):
 
 
 class Quest(SQLModel, table=True):
-    """Quest model representing a task instance for a user"""
+    """Quest model representing a task instance for one or more users"""
 
     id: Optional[int] = Field(default=None, primary_key=True)
     home_id: int = Field(foreign_key="home.id", index=True)
@@ -138,7 +138,7 @@ class Quest(SQLModel, table=True):
     description: Optional[str] = Field(default=None, max_length=1000)
     tags: Optional[str] = Field(default=None, max_length=500)
 
-    # Rewards: base value at creation, updated to actual earned at completion
+    # Rewards: base total value for the quest. Actual earned shares live on QuestParticipant.
     xp_reward: int = Field(default=0, ge=0)
     gold_reward: int = Field(default=0, ge=0)
 
@@ -159,6 +159,39 @@ class Quest(SQLModel, table=True):
         sa_relationship_kwargs={"foreign_keys": "Quest.user_id"},
     )
     template: Optional[QuestTemplate] = Relationship(back_populates="quests")
+    participants: list["QuestParticipant"] = Relationship(back_populates="quest")
+
+
+class QuestParticipant(SQLModel, table=True):
+    """Links a quest instance to each user participating in it."""
+
+    __tablename__ = "quest_participant"
+    __table_args__ = (
+        UniqueConstraint("quest_id", "user_id", name="unique_quest_participant"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    quest_id: int = Field(foreign_key="quest.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    xp_awarded: Optional[int] = Field(default=None, ge=0)
+    gold_awarded: Optional[int] = Field(default=None, ge=0)
+    completed_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    quest: Quest = Relationship(back_populates="participants")
+    user: "User" = Relationship(back_populates="quest_participations")
+
+
+class QuestParticipantRead(SQLModel):
+    """Schema for reading quest participant data."""
+
+    id: int
+    quest_id: int
+    user_id: int
+    xp_awarded: Optional[int]
+    gold_awarded: Optional[int]
+    completed_at: Optional[datetime]
+    created_at: datetime
 
 
 class QuestRead(SQLModel):
@@ -189,6 +222,7 @@ class QuestRead(SQLModel):
     corrupted_at: Optional[datetime]
     # Include template data for convenience (may be null for standalone quests)
     template: Optional[QuestTemplateRead]
+    participants: list[QuestParticipantRead] = Field(default_factory=list)
 
 
 class QuestCreate(SQLModel):
@@ -196,6 +230,7 @@ class QuestCreate(SQLModel):
 
     quest_template_id: int
     due_date: Optional[datetime] = None  # optional user-set deadline
+    participant_user_ids: Optional[list[int]] = None
 
 
 class QuestCreateStandalone(SQLModel):
@@ -208,6 +243,7 @@ class QuestCreateStandalone(SQLModel):
     xp_reward: int = Field(default=10, ge=0, le=10000)
     gold_reward: int = Field(default=5, ge=0, le=10000)
     due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)
+    participant_user_ids: Optional[list[int]] = None
 
 
 class QuestUpdate(SQLModel):
@@ -219,6 +255,7 @@ class QuestUpdate(SQLModel):
     xp_reward: Optional[int] = None
     gold_reward: Optional[int] = None
     user_id: Optional[int] = None
+    participant_user_ids: Optional[list[int]] = None
     completed: Optional[bool] = None
     quest_type: Optional[str] = None
     due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)

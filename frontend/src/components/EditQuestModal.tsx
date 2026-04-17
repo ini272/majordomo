@@ -41,6 +41,7 @@ interface EditQuestModalProps {
   token: string;
   skipAI: boolean;
   targetUserId?: number | null;
+  targetParticipantUserIds?: number[];
   createQuestOnSave?: boolean; // If true, creates quest on save (for template/initialData modes)
   onSave?: (result: {
     createdQuest: boolean;
@@ -57,6 +58,7 @@ export default function EditQuestModal({
   token,
   skipAI,
   targetUserId,
+  targetParticipantUserIds,
   createQuestOnSave = false,
   onSave,
   onClose,
@@ -85,7 +87,24 @@ export default function EditQuestModal({
   const [originalRecurrence, setOriginalRecurrence] = useState<QuestRecurrence>("one-off");
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [homeUsers, setHomeUsers] = useState<User[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(targetUserId ?? userId);
+  const getInitialParticipantIds = () => {
+    if (targetParticipantUserIds && targetParticipantUserIds.length > 0) {
+      return targetParticipantUserIds;
+    }
+
+    const fallbackUserId = targetUserId ?? userId;
+    return fallbackUserId !== null ? [fallbackUserId] : [];
+  };
+  const [selectedParticipantIds, setSelectedParticipantIds] =
+    useState<number[]>(getInitialParticipantIds);
+  const showParticipantSelector = Boolean(quest || isTemplateDefaultsMode);
+  const participantLabel = isTemplateDefaultsMode
+    ? selectedParticipantIds.length > 1
+      ? "New Quest Party"
+      : "New Quest For"
+    : selectedParticipantIds.length > 1
+      ? "Quest Party"
+      : "Quest For";
 
   // Recurring quest fields
   const [recurrence, setRecurrence] = useState<QuestRecurrence>("one-off");
@@ -109,9 +128,9 @@ export default function EditQuestModal({
 
   useEffect(() => {
     if (!questId) {
-      setSelectedUserId(targetUserId ?? userId);
+      setSelectedParticipantIds(getInitialParticipantIds());
     }
-  }, [questId, targetUserId, userId]);
+  }, [questId, targetParticipantUserIds, targetUserId, userId]);
 
   // Load data based on mode
   useEffect(() => {
@@ -235,7 +254,11 @@ export default function EditQuestModal({
           setDueInHours(toDueInHoursStateValue(response.due_in_hours));
 
           setQuest(response);
-          setSelectedUserId(response.user_id);
+          setSelectedParticipantIds(
+            response.participants && response.participants.length > 0
+              ? response.participants.map((participant) => participant.user_id)
+              : [response.user_id]
+          );
           setLoading(false);
 
           if (response.display_name || response.description) {
@@ -281,12 +304,13 @@ export default function EditQuestModal({
               xp_reward: baseXP,
               gold_reward: baseGold,
               ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
+              participant_user_ids: selectedParticipantIds,
             };
 
             const createdQuest = await api.quests.createAIScribe(
               questData,
               token,
-              targetUserId ?? userId,
+              selectedParticipantIds[0] ?? targetUserId ?? userId,
               true
             ); // skip_ai=true
 
@@ -306,9 +330,12 @@ export default function EditQuestModal({
           } else if (templateId) {
             // From template create mode - create quest from current template defaults
             const createdQuest = await api.quests.create(
-              { quest_template_id: templateId },
+              {
+                quest_template_id: templateId,
+                participant_user_ids: selectedParticipantIds,
+              },
               token,
-              targetUserId ?? userId
+              selectedParticipantIds[0] ?? targetUserId ?? userId
             );
             onSave?.({ createdQuest: true, updatedTemplateDefaults: false, quest: createdQuest });
           }
@@ -362,7 +389,14 @@ export default function EditQuestModal({
             if (userId === null) {
               throw new Error("User ID not found in session");
             }
-            await api.quests.create({ quest_template_id: templateId }, token, targetUserId ?? userId);
+            await api.quests.create(
+              {
+                quest_template_id: templateId,
+                participant_user_ids: selectedParticipantIds,
+              },
+              token,
+              selectedParticipantIds[0] ?? targetUserId ?? userId
+            );
           }
 
           onSave?.({
@@ -372,8 +406,8 @@ export default function EditQuestModal({
           // Don't call onClose - parent's onSave callback handles closing
         } else if (quest) {
           // EDIT QUEST MODE: Update existing quest
-          if (selectedUserId === null) {
-            throw new Error("Select who this quest is for");
+          if (selectedParticipantIds.length === 0) {
+            throw new Error("Select at least one participant");
           }
 
           const updateData = buildStandaloneQuestUpdateData({
@@ -383,7 +417,7 @@ export default function EditQuestModal({
             baseXP,
             baseGold,
             dueInHours,
-            selectedUserId,
+            selectedParticipantIds,
           });
 
           const updatedQuest = await api.quests.update(quest.id, updateData, token);
@@ -429,10 +463,11 @@ export default function EditQuestModal({
       scheduleDay,
       scheduleDayOfMonth,
       dueInHours,
-      selectedUserId,
+      selectedParticipantIds,
       token,
       userId,
       targetUserId,
+      targetParticipantUserIds,
       onSave,
       onClose,
     ]
@@ -446,6 +481,14 @@ export default function EditQuestModal({
     if (!saving && !loading) {
       handleSave();
     }
+  };
+
+  const toggleParticipant = (participantId: number) => {
+    setSelectedParticipantIds((current) =>
+      current.includes(participantId)
+        ? current.filter((id) => id !== participantId)
+        : [...current, participantId]
+    );
   };
 
   return (
@@ -555,48 +598,64 @@ export default function EditQuestModal({
                 </div>
               )}
 
-              {quest && (
+              {showParticipantSelector && (
                 <div className="mb-6">
                   <label
                     className="block text-sm uppercase tracking-wider mb-2 font-serif"
                     style={{ color: COLORS.gold }}
                   >
-                    Quest For
+                    {participantLabel}
                   </label>
                   <div
-                    className="rounded"
+                    className="rounded p-3 flex flex-wrap gap-2"
                     style={{
                       backgroundColor: COLORS.black,
                       borderColor: COLORS.gold,
                       borderWidth: "2px",
                     }}
                   >
-                    <select
-                      value={selectedUserId ?? ""}
-                      onChange={(e) =>
-                        setSelectedUserId(e.target.value ? parseInt(e.target.value, 10) : null)
-                      }
-                      className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
-                      style={{
-                        backgroundColor: "transparent",
-                        color: COLORS.parchment,
-                      }}
-                      disabled={saving || quest.completed}
-                    >
-                      <option value="" disabled>
-                        {homeUsers.length > 0 ? "Select a household member" : "Loading household members..."}
-                      </option>
-                      {homeUsers.map((member) => (
-                        <option key={member.id} value={member.id} style={{ color: COLORS.darkPanel }}>
-                          {member.username}
-                          {member.id === userId ? " (You)" : ""}
-                        </option>
-                      ))}
-                    </select>
+                    {homeUsers.length === 0 && (
+                      <span className="font-serif text-sm" style={{ color: COLORS.parchment }}>
+                        Loading household members...
+                      </span>
+                    )}
+                    {homeUsers.map((member) => {
+                      const selected = selectedParticipantIds.includes(member.id);
+                      return (
+                        <label
+                          key={member.id}
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-sm font-serif text-sm"
+                          style={{
+                            backgroundColor: selected
+                              ? "rgba(212, 175, 55, 0.25)"
+                              : "rgba(212, 175, 55, 0.08)",
+                            border: `1px solid ${selected ? COLORS.gold : COLORS.brown}`,
+                            color: selected ? COLORS.gold : COLORS.parchment,
+                            cursor: saving || quest?.completed ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => toggleParticipant(member.id)}
+                            disabled={saving || quest?.completed}
+                            style={{ accentColor: COLORS.gold }}
+                          />
+                          <span>
+                            {member.username}
+                            {member.id === userId ? " (You)" : ""}
+                          </span>
+                        </label>
+                      );
+                    })}
                   </div>
-                  {quest.completed && (
-                    <p className="mt-2 text-xs font-serif italic" style={{ color: COLORS.parchment }}>
-                      Completed quests keep their current owner so rewards and history stay consistent.
+                  {quest?.completed && (
+                    <p
+                      className="mt-2 text-xs font-serif italic"
+                      style={{ color: COLORS.parchment }}
+                    >
+                      Completed quests keep their current party so rewards and history stay
+                      consistent.
                     </p>
                   )}
                 </div>

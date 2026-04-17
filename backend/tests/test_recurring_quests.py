@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app.models.quest import Quest, QuestTemplate, UserTemplateSubscription
+from app.models.quest import Quest, QuestParticipant, QuestTemplate, UserTemplateSubscription
 from app.services.recurring_quests import (
     calculate_next_generation_time,
     generate_due_quests,
@@ -390,6 +390,8 @@ def test_generate_skips_when_incomplete_exists(db: Session, db_home_with_users):
         completed=False,
     )
     db.add(existing_quest)
+    db.flush()
+    db.add(QuestParticipant(quest_id=existing_quest.id, user_id=user.id))
     db.commit()
 
     # Mock time as 9:00 AM (after scheduled time)
@@ -403,6 +405,59 @@ def test_generate_skips_when_incomplete_exists(db: Session, db_home_with_users):
     # Should NOT create new quest (already have incomplete one)
     quests = db.exec(select(Quest).where(Quest.quest_template_id == template.id)).all()
     assert len(quests) == 1  # Only the existing one
+
+
+def test_generate_skips_existing_shared_instance_for_participant(db: Session, db_home_with_users):
+    """Test generation skips shared quests where the user is a non-primary participant."""
+    home, user1, user2 = db_home_with_users
+
+    template = QuestTemplate(
+        home_id=home.id,
+        title="Shared morning routine",
+        xp_reward=10,
+        gold_reward=5,
+        created_by=user1.id,
+    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+
+    subscription = UserTemplateSubscription(
+        user_id=user2.id,
+        quest_template_id=template.id,
+        recurrence="daily",
+        schedule=json.dumps({"type": "daily", "time": "08:00"}),
+        is_active=True,
+    )
+    db.add(subscription)
+
+    existing_quest = Quest(
+        home_id=home.id,
+        created_by=user1.id,
+        user_id=user1.id,
+        quest_template_id=template.id,
+        title=template.title,
+        xp_reward=template.xp_reward,
+        gold_reward=template.gold_reward,
+        recurrence="daily",
+        schedule=json.dumps({"type": "daily", "time": "08:00"}),
+        completed=False,
+    )
+    db.add(existing_quest)
+    db.flush()
+    db.add(QuestParticipant(quest_id=existing_quest.id, user_id=user1.id))
+    db.add(QuestParticipant(quest_id=existing_quest.id, user_id=user2.id))
+    db.commit()
+
+    mock_now = datetime(2026, 1, 27, 9, 0, tzinfo=timezone.utc)
+    with patch("app.services.recurring_quests.datetime") as mock_datetime:
+        mock_datetime.now.return_value = mock_now
+        mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
+
+        generate_due_quests(home.id, db)
+
+    quests = db.exec(select(Quest).where(Quest.quest_template_id == template.id)).all()
+    assert [quest.id for quest in quests] == [existing_quest.id]
 
 
 def test_generate_sets_due_date_from_template(db: Session, db_home_with_users):
