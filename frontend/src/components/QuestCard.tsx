@@ -77,7 +77,10 @@ export default function QuestCard({
       : quest.xp_reward || 0;
   const completedGoldTotal =
     quest.completed && quest.participants?.some((participant) => participant.gold_awarded !== null)
-      ? quest.participants.reduce((total, participant) => total + (participant.gold_awarded ?? 0), 0)
+      ? quest.participants.reduce(
+          (total, participant) => total + (participant.gold_awarded ?? 0),
+          0
+        )
       : quest.gold_reward || 0;
   const displayXpReward = quest.completed ? completedXpTotal : quest.xp_reward || 0;
   const displayGoldReward =
@@ -273,7 +276,8 @@ export default function QuestCard({
         <div className="mb-6 md:mb-8 flex flex-wrap gap-3 text-xs font-serif uppercase tracking-wide">
           {questParticipantNames && (
             <span style={{ color: COLORS.brown }}>
-              {participantLabel}: <span style={{ color: COLORS.gold }}>{questParticipantNames}</span>
+              {participantLabel}:{" "}
+              <span style={{ color: COLORS.gold }}>{questParticipantNames}</span>
             </span>
           )}
           {questCreatorName && !questParticipantNames?.split(", ").includes(questCreatorName) && (

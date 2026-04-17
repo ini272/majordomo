@@ -71,6 +71,58 @@ def test_delete_user(client: TestClient, home_with_user):
     assert response.status_code == 404
 
 
+def test_delete_user_reassigns_shared_quest_primary(client: TestClient, db_home_with_users, auth_context):
+    """Deleting the legacy primary participant keeps shared quests assigned."""
+    home, user1, user2 = db_home_with_users
+    auth_context.set_user(user1.id, home.id)
+
+    create_response = client.post(
+        "/api/quests/standalone",
+        json={
+            "title": "Shared cleanup",
+            "participant_user_ids": [user1.id, user2.id],
+        },
+    )
+    quest_id = create_response.json()["id"]
+
+    response = client.delete(f"/api/users/{user1.id}")
+
+    assert response.status_code == 200
+
+    auth_context.set_user(user2.id, home.id)
+    quest_response = client.get(f"/api/quests/{quest_id}")
+
+    assert quest_response.status_code == 200
+    quest = quest_response.json()
+    assert quest["user_id"] == user2.id
+    assert quest["created_by"] == user2.id
+    assert [participant["user_id"] for participant in quest["participants"]] == [user2.id]
+
+
+def test_delete_user_removes_solo_participant_quest(client: TestClient, db_home_with_users, auth_context):
+    """Deleting the only participant removes the quest instead of leaving an orphan."""
+    home, user1, user2 = db_home_with_users
+    auth_context.set_user(user1.id, home.id)
+
+    create_response = client.post(
+        "/api/quests/standalone",
+        json={
+            "title": "Solo cleanup",
+            "participant_user_ids": [user1.id],
+        },
+    )
+    quest_id = create_response.json()["id"]
+
+    response = client.delete(f"/api/users/{user1.id}")
+
+    assert response.status_code == 200
+
+    auth_context.set_user(user2.id, home.id)
+    quest_response = client.get(f"/api/quests/{quest_id}")
+
+    assert quest_response.status_code == 404
+
+
 def test_get_home_users(client: TestClient):
     """Test retrieving all users in a home"""
     # Create home with first user

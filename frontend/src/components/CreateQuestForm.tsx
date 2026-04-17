@@ -277,7 +277,9 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
                   setMode("from-template");
                   setTitle("");
                   setSelectedTags([]);
-                  setSelectedParticipantIds(userId !== null ? [userId] : homeUsers[0] ? [homeUsers[0].id] : []);
+                  setSelectedParticipantIds(
+                    userId !== null ? [userId] : homeUsers[0] ? [homeUsers[0].id] : []
+                  );
                   setError(null);
                 }}
                 className="flex-1 py-2 px-3 font-serif font-semibold text-xs uppercase tracking-wider transition-all"
@@ -339,7 +341,9 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
                           key={member.id}
                           className="inline-flex items-center gap-2 px-3 py-2 rounded-sm font-serif text-sm"
                           style={{
-                            backgroundColor: selected ? "rgba(212, 175, 55, 0.25)" : "rgba(212, 175, 55, 0.08)",
+                            backgroundColor: selected
+                              ? "rgba(212, 175, 55, 0.25)"
+                              : "rgba(212, 175, 55, 0.08)",
                             border: `1px solid ${selected ? COLORS.gold : COLORS.brown}`,
                             color: selected ? COLORS.gold : COLORS.parchment,
                             cursor: loading ? "not-allowed" : "pointer",

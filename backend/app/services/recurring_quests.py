@@ -8,7 +8,7 @@ from typing import Optional
 from sqlmodel import Session, or_, select
 
 from app.crud import quest as crud_quest
-from app.models.quest import Quest, QuestTemplate, UserTemplateSubscription
+from app.models.quest import Quest, QuestParticipant, QuestTemplate, UserTemplateSubscription
 from app.models.user import User
 
 
@@ -232,8 +232,9 @@ def generate_due_quests(home_id: int, session: Session) -> None:
                 # Check if incomplete instance already exists for THIS USER (skip if so)
                 existing = session.exec(
                     select(Quest)
+                    .join(QuestParticipant, QuestParticipant.quest_id == Quest.id)
                     .where(Quest.quest_template_id == subscription.quest_template_id)
-                    .where(Quest.user_id == subscription.user_id)
+                    .where(QuestParticipant.user_id == subscription.user_id)
                     .where(Quest.completed == False)  # noqa: E712
                 ).first()
 

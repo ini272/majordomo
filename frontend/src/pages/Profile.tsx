@@ -70,7 +70,9 @@ export default function Profile() {
   );
   const completedCount = completedQuests.length;
   const getCurrentUserQuestAward = (quest: Quest) => {
-    const participantAward = quest.participants?.find((participant) => participant.user_id === userId);
+    const participantAward = quest.participants?.find(
+      (participant) => participant.user_id === userId
+    );
     return {
       xp: participantAward?.xp_awarded ?? quest.xp_reward,
       gold: participantAward?.gold_awarded ?? quest.gold_reward,

@@ -95,7 +95,8 @@ export default function EditQuestModal({
     const fallbackUserId = targetUserId ?? userId;
     return fallbackUserId !== null ? [fallbackUserId] : [];
   };
-  const [selectedParticipantIds, setSelectedParticipantIds] = useState<number[]>(getInitialParticipantIds);
+  const [selectedParticipantIds, setSelectedParticipantIds] =
+    useState<number[]>(getInitialParticipantIds);
   const showParticipantSelector = Boolean(quest || isTemplateDefaultsMode);
   const participantLabel = isTemplateDefaultsMode
     ? selectedParticipantIds.length > 1
@@ -625,7 +626,9 @@ export default function EditQuestModal({
                           key={member.id}
                           className="inline-flex items-center gap-2 px-3 py-2 rounded-sm font-serif text-sm"
                           style={{
-                            backgroundColor: selected ? "rgba(212, 175, 55, 0.25)" : "rgba(212, 175, 55, 0.08)",
+                            backgroundColor: selected
+                              ? "rgba(212, 175, 55, 0.25)"
+                              : "rgba(212, 175, 55, 0.08)",
                             border: `1px solid ${selected ? COLORS.gold : COLORS.brown}`,
                             color: selected ? COLORS.gold : COLORS.parchment,
                             cursor: saving || quest?.completed ? "not-allowed" : "pointer",
@@ -647,8 +650,12 @@ export default function EditQuestModal({
                     })}
                   </div>
                   {quest?.completed && (
-                    <p className="mt-2 text-xs font-serif italic" style={{ color: COLORS.parchment }}>
-                      Completed quests keep their current party so rewards and history stay consistent.
+                    <p
+                      className="mt-2 text-xs font-serif italic"
+                      style={{ color: COLORS.parchment }}
+                    >
+                      Completed quests keep their current party so rewards and history stay
+                      consistent.
                     </p>
                   )}
                 </div>

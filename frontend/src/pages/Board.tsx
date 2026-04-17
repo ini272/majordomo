@@ -150,7 +150,11 @@ const getQuestParticipantNames = (quest: Quest, homeUsers: Record<number, string
     .map((participantUserId) => homeUsers[participantUserId])
     .filter(Boolean)
     .join(", ");
-const matchesQuestSearch = (quest: Quest, participantNames: string | undefined, searchTerm: string) => {
+const matchesQuestSearch = (
+  quest: Quest,
+  participantNames: string | undefined,
+  searchTerm: string
+) => {
   const normalizedSearch = searchTerm.trim().toLowerCase();
   if (!normalizedSearch) return true;
 
@@ -400,8 +404,9 @@ export default function Board() {
   const splitIntegerReward = (total: number, participantCount: number): number[] => {
     const baseShare = Math.floor(total / participantCount);
     const remainder = total % participantCount;
-    return Array.from({ length: participantCount }, (_, index) =>
-      baseShare + (index < remainder ? 1 : 0)
+    return Array.from(
+      { length: participantCount },
+      (_, index) => baseShare + (index < remainder ? 1 : 0)
     );
   };
   const getQuestRewardShare = (quest: Quest, participantUserId: number, reward: "xp" | "gold") => {
@@ -415,11 +420,11 @@ export default function Board() {
   const activeBountyXpShare =
     activeBountyQuest && userId !== null
       ? getQuestRewardShare(activeBountyQuest, userId, "xp")
-      : activeBountyQuest?.xp_reward ?? 0;
+      : (activeBountyQuest?.xp_reward ?? 0);
   const activeBountyGoldShare =
     activeBountyQuest && userId !== null
       ? getQuestRewardShare(activeBountyQuest, userId, "gold")
-      : activeBountyQuest?.gold_reward ?? 0;
+      : (activeBountyQuest?.gold_reward ?? 0);
   const fullUpcomingQuests = useMemo(() => upcomingQuests.map(toUpcomingQuest), [upcomingQuests]);
   const filteredCurrentQuests = useMemo(
     () =>
@@ -459,13 +464,19 @@ export default function Board() {
 
   const pagedCurrentQuests = useMemo(
     () =>
-      filteredCurrentQuests.slice(currentPage * QUESTS_PER_PAGE, (currentPage + 1) * QUESTS_PER_PAGE),
+      filteredCurrentQuests.slice(
+        currentPage * QUESTS_PER_PAGE,
+        (currentPage + 1) * QUESTS_PER_PAGE
+      ),
     [filteredCurrentQuests, currentPage]
   );
 
   const pagedUpcomingQuests = useMemo(
     () =>
-      filteredUpcomingQuests.slice(upcomingPage * QUESTS_PER_PAGE, (upcomingPage + 1) * QUESTS_PER_PAGE),
+      filteredUpcomingQuests.slice(
+        upcomingPage * QUESTS_PER_PAGE,
+        (upcomingPage + 1) * QUESTS_PER_PAGE
+      ),
     [filteredUpcomingQuests, upcomingPage]
   );
   const currentPageCount = getPageCount(filteredCurrentQuests);
@@ -542,7 +553,9 @@ export default function Board() {
       }
     } catch {
       if (updatedQuest) {
-        setQuests((prev) => prev.map((quest) => (quest.id === updatedQuest.id ? updatedQuest : quest)));
+        setQuests((prev) =>
+          prev.map((quest) => (quest.id === updatedQuest.id ? updatedQuest : quest))
+        );
       }
     }
   };
@@ -687,9 +700,7 @@ export default function Board() {
             </p>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex gap-6 text-sm font-serif" style={{ color: COLORS.gold }}>
-                <span>
-                  Your XP: {activeBountyXpShare}
-                </span>
+                <span>Your XP: {activeBountyXpShare}</span>
                 <span>
                   Your Gold: {activeBountyGoldShare} x3 = {activeBountyGoldShare * 3}
                 </span>
@@ -710,154 +721,156 @@ export default function Board() {
       )}
 
       {!loading && hasBoardContent && (
-          <div className="mb-6">
-            <div
-              className="relative rounded-lg overflow-hidden p-4 sm:p-6"
-              style={{
-                backgroundImage: `linear-gradient(rgba(12, 8, 6, 0.42), rgba(12, 8, 6, 0.42)), url(${boardBackground})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                border: `2px solid ${COLORS.brown}`,
-                minHeight: "520px",
-              }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h3
-                  className="font-serif uppercase text-sm tracking-widest"
-                  style={{ color: COLORS.gold }}
-                >
-                  {view === "current" ? "Quest Board" : "Upcoming Board"}
-                </h3>
-                <div className="font-serif text-xs" style={{ color: COLORS.parchment }}>
-                  Page {activePage + 1} / {activePageCount}
-                </div>
+        <div className="mb-6">
+          <div
+            className="relative rounded-lg overflow-hidden p-4 sm:p-6"
+            style={{
+              backgroundImage: `linear-gradient(rgba(12, 8, 6, 0.42), rgba(12, 8, 6, 0.42)), url(${boardBackground})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              border: `2px solid ${COLORS.brown}`,
+              minHeight: "520px",
+            }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3
+                className="font-serif uppercase text-sm tracking-widest"
+                style={{ color: COLORS.gold }}
+              >
+                {view === "current" ? "Quest Board" : "Upcoming Board"}
+              </h3>
+              <div className="font-serif text-xs" style={{ color: COLORS.parchment }}>
+                Page {activePage + 1} / {activePageCount}
               </div>
+            </div>
 
-              <div className="mb-4">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={view === "current" ? currentSearchTerm : upcomingSearchTerm}
-                    onChange={(event) =>
-                      view === "current"
-                        ? setCurrentSearchTerm(event.target.value)
-                        : setUpcomingSearchTerm(event.target.value)
+            <div className="mb-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={view === "current" ? currentSearchTerm : upcomingSearchTerm}
+                  onChange={(event) =>
+                    view === "current"
+                      ? setCurrentSearchTerm(event.target.value)
+                      : setUpcomingSearchTerm(event.target.value)
+                  }
+                  placeholder={
+                    view === "current"
+                      ? "Search quests by title, description, tag, or person..."
+                      : "Search upcoming quests by title, description, tag, or person..."
+                  }
+                  aria-label={
+                    view === "current" ? "Search current quests" : "Search upcoming quests"
+                  }
+                  className="w-full px-3 py-2 pr-10 font-serif focus:outline-none focus:shadow-lg transition-all"
+                  style={{
+                    backgroundColor: COLORS.black,
+                    borderColor: COLORS.gold,
+                    borderWidth: "2px",
+                    color: COLORS.parchment,
+                  }}
+                />
+                {activeSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      view === "current" ? setCurrentSearchTerm("") : setUpcomingSearchTerm("")
                     }
-                    placeholder={
-                      view === "current"
-                        ? "Search quests by title, description, tag, or person..."
-                        : "Search upcoming quests by title, description, tag, or person..."
-                    }
-                    aria-label={view === "current" ? "Search current quests" : "Search upcoming quests"}
-                    className="w-full px-3 py-2 pr-10 font-serif focus:outline-none focus:shadow-lg transition-all"
-                    style={{
-                      backgroundColor: COLORS.black,
-                      borderColor: COLORS.gold,
-                      borderWidth: "2px",
-                      color: COLORS.parchment,
-                    }}
-                  />
-                  {activeSearchTerm && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        view === "current" ? setCurrentSearchTerm("") : setUpcomingSearchTerm("")
-                      }
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-sm font-serif"
-                      style={{ color: COLORS.gold }}
-                      aria-label="Clear quest search"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-                <div className="mt-2 text-xs font-serif" style={{ color: COLORS.goldDarker }}>
-                  {view === "current" ? currentSearchLabel : upcomingSearchLabel}
-                </div>
-              </div>
-
-              {(view === "current" && pagedCurrentQuests.length > 0) ||
-              (view === "upcoming" && pagedUpcomingQuests.length > 0) ? (
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={`${view}-${activePage}`}
-                    initial={{ opacity: 0, x: 30 * pageDirection }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -30 * pageDirection }}
-                    transition={{ duration: 0.22, ease: "easeOut" }}
-                    className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-sm font-serif"
+                    style={{ color: COLORS.gold }}
+                    aria-label="Clear quest search"
                   >
-                    {view === "current" &&
-                      pagedCurrentQuests.map((quest) => (
+                    ✕
+                  </button>
+                )}
+              </div>
+              <div className="mt-2 text-xs font-serif" style={{ color: COLORS.goldDarker }}>
+                {view === "current" ? currentSearchLabel : upcomingSearchLabel}
+              </div>
+            </div>
+
+            {(view === "current" && pagedCurrentQuests.length > 0) ||
+            (view === "upcoming" && pagedUpcomingQuests.length > 0) ? (
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={`${view}-${activePage}`}
+                  initial={{ opacity: 0, x: 30 * pageDirection }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -30 * pageDirection }}
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4"
+                >
+                  {view === "current" &&
+                    pagedCurrentQuests.map((quest) => (
+                      <CompactQuestCard
+                        key={quest.id}
+                        quest={quest}
+                        questParticipantNames={getQuestParticipantNames(quest, homeUsers)}
+                        isDailyBounty={activeBountyQuest?.id === quest.id}
+                        onClick={() => openQuestDetails(quest, "current")}
+                      />
+                    ))}
+
+                  {view === "upcoming" &&
+                    pagedUpcomingQuests.map((quest) => {
+                      const upcoming = upcomingQuests.find((item) => item.id === quest.id);
+                      return (
                         <CompactQuestCard
                           key={quest.id}
                           quest={quest}
                           questParticipantNames={getQuestParticipantNames(quest, homeUsers)}
-                          isDailyBounty={activeBountyQuest?.id === quest.id}
-                          onClick={() => openQuestDetails(quest, "current")}
+                          isUpcoming={true}
+                          onClick={() =>
+                            openQuestDetails(quest, "upcoming", upcoming?.next_spawn_at)
+                          }
                         />
-                      ))}
+                      );
+                    })}
+                </motion.div>
+              </AnimatePresence>
+            ) : (
+              <div className="py-16 text-center font-serif" style={{ color: COLORS.brown }}>
+                {activeSearchTerm
+                  ? "No quests match your search"
+                  : view === "current"
+                    ? "No quests found"
+                    : "No upcoming quests found"}
+              </div>
+            )}
 
-                    {view === "upcoming" &&
-                      pagedUpcomingQuests.map((quest) => {
-                        const upcoming = upcomingQuests.find((item) => item.id === quest.id);
-                        return (
-                          <CompactQuestCard
-                            key={quest.id}
-                            quest={quest}
-                            questParticipantNames={getQuestParticipantNames(quest, homeUsers)}
-                            isUpcoming={true}
-                            onClick={() =>
-                              openQuestDetails(quest, "upcoming", upcoming?.next_spawn_at)
-                            }
-                          />
-                        );
-                      })}
-                  </motion.div>
-                </AnimatePresence>
-              ) : (
-                <div className="py-16 text-center font-serif" style={{ color: COLORS.brown }}>
-                  {activeSearchTerm
-                    ? "No quests match your search"
-                    : view === "current"
-                      ? "No quests found"
-                      : "No upcoming quests found"}
-                </div>
-              )}
+            {activePageCount > 1 && (
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => goToPage(activePage - 1)}
+                  disabled={activePage === 0}
+                  className="px-4 py-2 font-serif text-sm uppercase tracking-wide disabled:opacity-35"
+                  style={{
+                    border: `1px solid ${COLORS.gold}`,
+                    color: COLORS.gold,
+                    backgroundColor: "rgba(30, 21, 17, 0.65)",
+                  }}
+                >
+                  ← Prev
+                </button>
 
-              {activePageCount > 1 && (
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => goToPage(activePage - 1)}
-                    disabled={activePage === 0}
-                    className="px-4 py-2 font-serif text-sm uppercase tracking-wide disabled:opacity-35"
-                    style={{
-                      border: `1px solid ${COLORS.gold}`,
-                      color: COLORS.gold,
-                      backgroundColor: "rgba(30, 21, 17, 0.65)",
-                    }}
-                  >
-                    ← Prev
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => goToPage(activePage + 1)}
-                    disabled={activePage >= activePageCount - 1}
-                    className="px-4 py-2 font-serif text-sm uppercase tracking-wide disabled:opacity-35"
-                    style={{
-                      border: `1px solid ${COLORS.gold}`,
-                      color: COLORS.gold,
-                      backgroundColor: "rgba(30, 21, 17, 0.65)",
-                    }}
-                  >
-                    Next →
-                  </button>
-                </div>
-              )}
-            </div>
+                <button
+                  type="button"
+                  onClick={() => goToPage(activePage + 1)}
+                  disabled={activePage >= activePageCount - 1}
+                  className="px-4 py-2 font-serif text-sm uppercase tracking-wide disabled:opacity-35"
+                  style={{
+                    border: `1px solid ${COLORS.gold}`,
+                    color: COLORS.gold,
+                    backgroundColor: "rgba(30, 21, 17, 0.65)",
+                  }}
+                >
+                  Next →
+                </button>
+              </div>
+            )}
           </div>
+        </div>
       )}
 
       {!loading && view === "current" && quests.length === 0 && !currentSearchTerm && (

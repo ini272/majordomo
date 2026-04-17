@@ -3,7 +3,10 @@ from typing import Optional
 from sqlmodel import Session, delete, select
 
 from app.auth import hash_password
-from app.models.quest import QuestParticipant
+from app.models.achievement import UserAchievement
+from app.models.daily_bounty import DailyBounty
+from app.models.quest import Quest, QuestParticipant, UserTemplateSubscription
+from app.models.reward import UserRewardClaim
 from app.models.user import User, UserCreate, UserUpdate
 
 
@@ -119,6 +122,42 @@ def delete_user(db: Session, user_id: int) -> bool:
     if not db_user:
         return False
 
+    participant_quest_ids = db.exec(select(QuestParticipant.quest_id).where(QuestParticipant.user_id == user_id)).all()
+    primary_quest_ids = db.exec(select(Quest.id).where(Quest.user_id == user_id)).all()
+    affected_quest_ids = set(participant_quest_ids) | set(primary_quest_ids)
+
+    for quest_id in affected_quest_ids:
+        quest = db.get(Quest, quest_id)
+        if not quest:
+            continue
+
+        remaining_participants = db.exec(
+            select(QuestParticipant)
+            .where(QuestParticipant.quest_id == quest_id)
+            .where(QuestParticipant.user_id != user_id)
+            .order_by(QuestParticipant.id)
+        ).all()
+
+        if remaining_participants:
+            if quest.user_id == user_id:
+                quest.user_id = remaining_participants[0].user_id
+            if quest.created_by == user_id:
+                quest.created_by = quest.user_id
+            db.add(quest)
+            continue
+
+        db.exec(delete(DailyBounty).where(DailyBounty.quest_id == quest_id))
+        db.exec(delete(QuestParticipant).where(QuestParticipant.quest_id == quest_id))
+        db.delete(quest)
+
+    for quest in db.exec(select(Quest).where(Quest.created_by == user_id)).all():
+        quest.created_by = quest.user_id
+        db.add(quest)
+
+    db.exec(delete(DailyBounty).where(DailyBounty.user_id == user_id))
+    db.exec(delete(UserRewardClaim).where(UserRewardClaim.user_id == user_id))
+    db.exec(delete(UserAchievement).where(UserAchievement.user_id == user_id))
+    db.exec(delete(UserTemplateSubscription).where(UserTemplateSubscription.user_id == user_id))
     db.exec(delete(QuestParticipant).where(QuestParticipant.user_id == user_id))
     db.delete(db_user)
     db.commit()

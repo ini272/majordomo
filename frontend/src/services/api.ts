@@ -45,7 +45,9 @@ const buildHeaders = (token?: string, contentType: boolean = false): HeadersInit
 };
 
 const withOptionalUserId = (path: string, userId?: number | null): string =>
-  userId === null || userId === undefined ? path : `${path}${path.includes("?") ? "&" : "?"}user_id=${userId}`;
+  userId === null || userId === undefined
+    ? path
+    : `${path}${path.includes("?") ? "&" : "?"}user_id=${userId}`;
 
 const extractErrorMessage = (error: unknown, fallback: string): string => {
   if (!error || typeof error !== "object") return fallback;
@@ -168,11 +170,7 @@ export const api = {
     getAll: async (token: string): Promise<Quest[]> =>
       requestJSON<Quest[]>("/quests", { headers: buildHeaders(token) }, "Failed to fetch quests"),
 
-    getByUser: async (
-      userId: number,
-      token: string,
-      completed?: boolean
-    ): Promise<Quest[]> => {
+    getByUser: async (userId: number, token: string, completed?: boolean): Promise<Quest[]> => {
       const params = new URLSearchParams();
       if (completed !== undefined) {
         params.set("completed", completed ? "true" : "false");
@@ -344,7 +342,11 @@ export const api = {
         "Failed to create quest template"
       ),
 
-    create: async (questData: QuestCreateRequest, token: string, userId?: number | null): Promise<Quest> =>
+    create: async (
+      questData: QuestCreateRequest,
+      token: string,
+      userId?: number | null
+    ): Promise<Quest> =>
       requestJSON<Quest>(
         withOptionalUserId("/quests", userId),
         {
