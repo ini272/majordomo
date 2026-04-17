@@ -33,6 +33,8 @@ function CompactQuestCard({
   isDailyBounty = false,
   onClick,
 }: CompactQuestCardProps) {
+  const participantLabel = (quest.participants?.length || 1) > 1 ? "Party" : "For";
+
   return (
     <button
       type="button"
@@ -71,7 +73,7 @@ function CompactQuestCard({
 
       {questParticipantNames && (
         <div className="mb-3 text-[11px] sm:text-xs font-serif uppercase tracking-wide">
-          <span style={{ color: COLORS.brown }}>Party:</span>{" "}
+          <span style={{ color: COLORS.brown }}>{participantLabel}:</span>{" "}
           <span style={{ color: COLORS.gold }}>{questParticipantNames}</span>
         </div>
       )}

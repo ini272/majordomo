@@ -50,6 +50,24 @@ def test_user_quest_list_includes_shared_participation(client: TestClient, db_ho
     assert [quest["id"] for quest in response.json()] == [quest_id]
 
 
+def test_create_shared_quest_dedupes_participant_ids(client: TestClient, db_home_with_users, auth_context):
+    home, user1, user2 = db_home_with_users
+    auth_context.set_user(user1.id, home.id)
+
+    response = client.post(
+        "/api/quests/standalone",
+        json={
+            "title": "Duplicate participant quest",
+            "participant_user_ids": [user1.id, user2.id, user1.id],
+        },
+    )
+
+    assert response.status_code == 200
+    quest = response.json()
+    assert quest["user_id"] == user1.id
+    assert _participant_user_ids(quest) == [user1.id, user2.id]
+
+
 def test_complete_shared_quest_splits_rewards(client: TestClient, db_home_with_users, auth_context):
     home, user1, user2 = db_home_with_users
     auth_context.set_user(user1.id, home.id)

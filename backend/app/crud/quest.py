@@ -37,7 +37,13 @@ def get_quests_by_user(db: Session, home_id: int, user_id: int, completed: Optio
 
 
 def _dedupe_user_ids(user_ids: list[int]) -> list[int]:
-    """Preserve order while removing duplicate user IDs."""
+    """
+    Preserve request order while removing duplicate user IDs.
+
+    API clients can send duplicate participant IDs. Collapsing them here avoids
+    unique-constraint failures and prevents duplicated reward shares while keeping
+    the first selected user as the legacy primary participant.
+    """
     seen: set[int] = set()
     deduped: list[int] = []
     for user_id in user_ids:
@@ -85,7 +91,12 @@ def ensure_quest_participants(db: Session, quest: Quest) -> list[QuestParticipan
 
 
 def replace_quest_participants(db: Session, quest: Quest, participant_user_ids: list[int]) -> list[QuestParticipant]:
-    """Replace the users participating in a quest and keep legacy Quest.user_id aligned."""
+    """
+    Replace the users participating in a quest and keep legacy Quest.user_id aligned.
+
+    Quest.user_id is no longer the sole assignee; it is the primary participant
+    retained for older API callers and UI paths that still expect a single user.
+    """
     if quest.id is None:
         raise ValueError("Quest must be persisted before participants can be assigned")
 

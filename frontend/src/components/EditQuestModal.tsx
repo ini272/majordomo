@@ -96,6 +96,7 @@ export default function EditQuestModal({
     return fallbackUserId !== null ? [fallbackUserId] : [];
   };
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<number[]>(getInitialParticipantIds);
+  const participantLabel = selectedParticipantIds.length > 1 ? "Quest Party" : "Quest For";
 
   // Recurring quest fields
   const [recurrence, setRecurrence] = useState<QuestRecurrence>("one-off");
@@ -595,7 +596,7 @@ export default function EditQuestModal({
                     className="block text-sm uppercase tracking-wider mb-2 font-serif"
                     style={{ color: COLORS.gold }}
                   >
-                    Quest Party
+                    {participantLabel}
                   </label>
                   <div
                     className="rounded p-3 flex flex-wrap gap-2"

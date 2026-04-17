@@ -70,6 +70,7 @@ export default function QuestCard({
   const [showOriginalTitle, setShowOriginalTitle] = useState(false);
   const originalTitlePanelId = `quest-original-title-${quest.id}`;
   const participantCount = quest.participants?.length || 1;
+  const participantLabel = participantCount > 1 ? "Party" : "For";
   const completedXpTotal =
     quest.completed && quest.participants?.some((participant) => participant.xp_awarded !== null)
       ? quest.participants.reduce((total, participant) => total + (participant.xp_awarded ?? 0), 0)
@@ -272,7 +273,7 @@ export default function QuestCard({
         <div className="mb-6 md:mb-8 flex flex-wrap gap-3 text-xs font-serif uppercase tracking-wide">
           {questParticipantNames && (
             <span style={{ color: COLORS.brown }}>
-              Party: <span style={{ color: COLORS.gold }}>{questParticipantNames}</span>
+              {participantLabel}: <span style={{ color: COLORS.gold }}>{questParticipantNames}</span>
             </span>
           )}
           {questCreatorName && !questParticipantNames?.split(", ").includes(questCreatorName) && (

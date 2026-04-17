@@ -61,6 +61,12 @@ def _calculate_corruption_debuff(db: Session, home_id: int, user: User) -> float
 
 
 def _dedupe_user_ids(user_ids: list[int]) -> list[int]:
+    """
+    Preserve the caller's first-choice order while removing duplicates.
+
+    The public API accepts raw arrays, so this guards direct clients from
+    creating duplicate participant rows or duplicate reward shares.
+    """
     seen: set[int] = set()
     deduped: list[int] = []
     for user_id in user_ids:
@@ -79,6 +85,9 @@ def _resolve_participant_user_ids(
 ) -> list[int]:
     """
     Resolve participant IDs from the new request body field or legacy user_id query param.
+
+    `participant_user_ids` is preferred. `user_id` remains accepted so older
+    clients can still create single-participant quests during the transition.
     """
     resolved_user_ids = (
         participant_user_ids

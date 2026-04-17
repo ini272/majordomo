@@ -47,4 +47,5 @@ uv run ruff format .
 - Treat OpenAPI + tests as contract source of truth.
 - If route behavior changes, update `docs/current-architecture.md` in the same PR.
 - Quests can have multiple participants via `quest_participant`; keep legacy `quest.user_id`
-  aligned to the primary participant for compatibility.
+  aligned to the first selected primary participant for compatibility. Treat it as a fallback
+  pointer, not the source of truth for assignment.

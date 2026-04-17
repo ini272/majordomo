@@ -38,6 +38,9 @@ def ensure_runtime_schema_compatibility() -> None:
             connection.execute(text("UPDATE quest SET created_by = user_id WHERE created_by IS NULL"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_quest_created_by ON quest (created_by)"))
 
+        # Keep this idempotent backfill through the production rollout. It can be
+        # removed in a later cleanup once every deployed database has the table
+        # and historical quests have participant rows.
         connection.execute(
             text(
                 """

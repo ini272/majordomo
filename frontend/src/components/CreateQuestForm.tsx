@@ -44,6 +44,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<number[]>(
     userId !== null ? [userId] : []
   );
+  const participantLabel = selectedParticipantIds.length > 1 ? "Quest Party" : "Quest For";
 
   const fetchTemplates = async (): Promise<QuestTemplate[] | null> => {
     setLoadingTemplates(true);
@@ -313,7 +314,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
                 className="block text-sm uppercase tracking-wider mb-2 font-serif"
                 style={{ color: COLORS.gold }}
               >
-                Quest Party
+                {participantLabel}
               </label>
               <div
                 className="rounded p-3 flex flex-wrap gap-2"
