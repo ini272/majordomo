@@ -34,7 +34,7 @@ export interface Quest {
   display_name: string | null;
   description: string | null;
   tags: string | null;
-  xp_reward: number; // Base total quest reward; participant shares are in participants
+  xp_reward: number; // Base reward awarded to each participant
   gold_reward: number;
   recurrence: string; // Snapshot of recurrence when quest was created
   schedule: string | null; // Snapshot of schedule when quest was created

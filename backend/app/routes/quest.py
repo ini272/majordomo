@@ -65,7 +65,7 @@ def _dedupe_user_ids(user_ids: list[int]) -> list[int]:
     Preserve the caller's first-choice order while removing duplicates.
 
     The public API accepts raw arrays, so this guards direct clients from
-    creating duplicate participant rows or duplicate reward shares.
+    creating duplicate participant rows or duplicate reward awards.
     """
     seen: set[int] = set()
     deduped: list[int] = []
@@ -105,13 +105,6 @@ def _resolve_participant_user_ids(
             raise HTTPException(status_code=404, detail="User not found in home")
 
     return resolved_user_ids
-
-
-def _split_reward(total: int, participant_count: int) -> list[int]:
-    """Split an integer reward across participants while preserving the total."""
-    base_share = total // participant_count
-    remainder = total % participant_count
-    return [base_share + (1 if index < remainder else 0) for index in range(participant_count)]
 
 
 # GET endpoints
@@ -390,11 +383,11 @@ def generate_quest_instance(
 @router.post("/{quest_id}/complete")
 def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """
-    Complete a quest and award rewards to the user.
+    Complete a quest and award rewards to every participant.
 
     - **quest_id**: Quest instance ID to complete
 
-    Automatically awards XP and gold from the quest template.
+    Automatically awards XP and gold from the quest template to each participant.
 
     **Reward Calculation Order**:
     1. Base rewards from template
@@ -449,11 +442,8 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
     # Check if quest is corrupted (overdue) - for display purposes only (not bonus rewards)
     is_corrupted = quest.quest_type == "corrupted"
 
-    participant_count = len(participants)
     base_xp = quest.xp_reward
     base_gold = quest.gold_reward
-    base_xp_shares = _split_reward(base_xp, participant_count)
-    base_gold_shares = _split_reward(base_gold, participant_count)
     completed_at = datetime.now(timezone.utc)
     bounty_decisions = {
         participant.user_id: crud_daily_bounty.get_or_create_today_bounty(db, auth["home_id"], participant.user_id)
@@ -478,8 +468,8 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
         has_xp_boost = user.active_xp_boost_count > 0
         any_xp_boost = any_xp_boost or has_xp_boost
 
-        participant_base_xp = base_xp_shares[index]
-        participant_base_gold = base_gold_shares[index]
+        participant_base_xp = base_xp
+        participant_base_gold = base_gold
         bounty_gold_multiplier = 3 if is_daily_bounty else 1
         bounty_xp_multiplier = 1
         xp_boost_multiplier = 2 if has_xp_boost else 1

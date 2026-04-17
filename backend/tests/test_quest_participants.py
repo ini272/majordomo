@@ -68,7 +68,9 @@ def test_create_shared_quest_dedupes_participant_ids(client: TestClient, db_home
     assert _participant_user_ids(quest) == [user1.id, user2.id]
 
 
-def test_complete_shared_quest_splits_rewards(client: TestClient, db_home_with_users, auth_context):
+def test_complete_shared_quest_awards_full_rewards_to_each_participant(
+    client: TestClient, db_home_with_users, auth_context
+):
     home, user1, user2 = db_home_with_users
     auth_context.set_user(user1.id, home.id)
 
@@ -88,23 +90,21 @@ def test_complete_shared_quest_splits_rewards(client: TestClient, db_home_with_u
     assert complete_response.status_code == 200
     result = complete_response.json()
     assert result["quest"]["completed"] is True
-    assert result["rewards"]["xp"] == 21
-    assert result["rewards"]["gold"] == 11
+    assert result["rewards"]["xp"] == 42
+    assert result["rewards"]["gold"] == 22
 
-    participant_rewards = {
-        reward["user_id"]: reward for reward in result["rewards"]["participants"]
-    }
-    assert participant_rewards[user1.id]["xp"] == 11
-    assert participant_rewards[user1.id]["gold"] == 6
-    assert participant_rewards[user2.id]["xp"] == 10
-    assert participant_rewards[user2.id]["gold"] == 5
+    participant_rewards = {reward["user_id"]: reward for reward in result["rewards"]["participants"]}
+    assert participant_rewards[user1.id]["xp"] == 21
+    assert participant_rewards[user1.id]["gold"] == 11
+    assert participant_rewards[user2.id]["xp"] == 21
+    assert participant_rewards[user2.id]["gold"] == 11
 
     user1_stats = client.get(f"/api/users/{user1.id}").json()
     user2_stats = client.get(f"/api/users/{user2.id}").json()
-    assert user1_stats["xp"] == 11
-    assert user1_stats["gold_balance"] == 6
-    assert user2_stats["xp"] == 10
-    assert user2_stats["gold_balance"] == 5
+    assert user1_stats["xp"] == 21
+    assert user1_stats["gold_balance"] == 11
+    assert user2_stats["xp"] == 21
+    assert user2_stats["gold_balance"] == 11
 
 
 def test_shared_quest_rejects_participant_outside_home(

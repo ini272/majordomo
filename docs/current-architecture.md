@@ -20,7 +20,7 @@ Last verified: 2026-04-16
 - Shared quest participants via `quest_participant`
 - Standalone quests, AI-scribe quests, random quest generation
 - Per-user template subscriptions (`/api/subscriptions/*`)
-- Per-user daily bounty with 3x gold on the user's quest share
+- Per-user daily bounty with 3x gold on the user's quest reward
 - Corruption debuff for overdue quests
 - Reward claims including consumables (XP boost, shield)
 - Achievement auto-award on quest completion
@@ -31,9 +31,9 @@ Last verified: 2026-04-16
 - `quest.user_id` remains as the legacy primary participant for compatibility. It is the first
   participant selected at creation/update time, not the only assignee.
 - Multi-user participation is stored in `quest_participant` with one row per quest/user.
-- `quest.xp_reward` and `quest.gold_reward` are the base total quest rewards.
-- On completion, base XP/gold are split across participants, preserving integer totals with deterministic remainder assignment by user id.
-- Per-user effects are applied to each participant's share after splitting: daily bounty, corruption/shield, and XP boost.
+- `quest.xp_reward` and `quest.gold_reward` are the base rewards awarded to each participant.
+- On completion, every participant starts from the full base XP/gold reward.
+- Per-user effects are applied to each participant's reward: daily bounty, corruption/shield, and XP boost.
 - Actual awarded XP/gold are stored on `quest_participant.xp_awarded` and `quest_participant.gold_awarded`.
 - Runtime schema compatibility creates/backfills `quest_participant` rows for existing quests from legacy `quest.user_id`.
   Keep this idempotent compatibility code through the production rollout; remove it only in a later cleanup once

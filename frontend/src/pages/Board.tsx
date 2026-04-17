@@ -172,7 +172,7 @@ const matchesQuestSearch = (
 };
 
 export default function Board() {
-  const { token, userId } = useAuth();
+  const { token } = useAuth();
   const { playSound } = useSound();
   const [view, setView] = useState<"current" | "upcoming">("current");
   const [quests, setQuests] = useState<Quest[]>([]);
@@ -401,30 +401,8 @@ export default function Board() {
     dailyBounty?.status === "assigned" && dailyBounty.quest && !dailyBounty.quest.completed
       ? dailyBounty.quest
       : null;
-  const splitIntegerReward = (total: number, participantCount: number): number[] => {
-    const baseShare = Math.floor(total / participantCount);
-    const remainder = total % participantCount;
-    return Array.from(
-      { length: participantCount },
-      (_, index) => baseShare + (index < remainder ? 1 : 0)
-    );
-  };
-  const getQuestRewardShare = (quest: Quest, participantUserId: number, reward: "xp" | "gold") => {
-    const participantIds = getQuestParticipantUserIds(quest).sort((a, b) => a - b);
-    const participantIndex = participantIds.indexOf(participantUserId);
-    if (participantIndex === -1) return reward === "xp" ? quest.xp_reward : quest.gold_reward;
-
-    const rewardTotal = reward === "xp" ? quest.xp_reward : quest.gold_reward;
-    return splitIntegerReward(rewardTotal, participantIds.length)[participantIndex] ?? rewardTotal;
-  };
-  const activeBountyXpShare =
-    activeBountyQuest && userId !== null
-      ? getQuestRewardShare(activeBountyQuest, userId, "xp")
-      : (activeBountyQuest?.xp_reward ?? 0);
-  const activeBountyGoldShare =
-    activeBountyQuest && userId !== null
-      ? getQuestRewardShare(activeBountyQuest, userId, "gold")
-      : (activeBountyQuest?.gold_reward ?? 0);
+  const activeBountyXpReward = activeBountyQuest?.xp_reward ?? 0;
+  const activeBountyGoldReward = activeBountyQuest?.gold_reward ?? 0;
   const fullUpcomingQuests = useMemo(() => upcomingQuests.map(toUpcomingQuest), [upcomingQuests]);
   const filteredCurrentQuests = useMemo(
     () =>
@@ -700,9 +678,9 @@ export default function Board() {
             </p>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex gap-6 text-sm font-serif" style={{ color: COLORS.gold }}>
-                <span>Your XP: {activeBountyXpShare}</span>
+                <span>Your XP: {activeBountyXpReward}</span>
                 <span>
-                  Your Gold: {activeBountyGoldShare} x3 = {activeBountyGoldShare * 3}
+                  Your Gold: {activeBountyGoldReward} x3 = {activeBountyGoldReward * 3}
                 </span>
               </div>
               <span

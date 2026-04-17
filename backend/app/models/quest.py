@@ -138,7 +138,7 @@ class Quest(SQLModel, table=True):
     description: Optional[str] = Field(default=None, max_length=1000)
     tags: Optional[str] = Field(default=None, max_length=500)
 
-    # Rewards: base total value for the quest. Actual earned shares live on QuestParticipant.
+    # Rewards: base value awarded to each participant. Actual earned values live on QuestParticipant.
     xp_reward: int = Field(default=0, ge=0)
     gold_reward: int = Field(default=0, ge=0)
 

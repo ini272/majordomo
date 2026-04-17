@@ -41,7 +41,7 @@ def _dedupe_user_ids(user_ids: list[int]) -> list[int]:
     Preserve request order while removing duplicate user IDs.
 
     API clients can send duplicate participant IDs. Collapsing them here avoids
-    unique-constraint failures and prevents duplicated reward shares while keeping
+    unique-constraint failures and prevents duplicated reward awards while keeping
     the first selected user as the legacy primary participant.
     """
     seen: set[int] = set()

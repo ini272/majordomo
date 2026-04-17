@@ -89,6 +89,14 @@ export default function QuestCard({
       : quest.completed
         ? completedGoldTotal
         : quest.gold_reward || 0;
+  const activePartyRewardLabel =
+    participantCount > 1 ? `Each participant gets ${quest.xp_reward || 0} XP` : null;
+  const activePartyGoldLabel =
+    participantCount > 1
+      ? isDailyBounty
+        ? "Each participant gets full gold; bounty multiplies yours"
+        : `Each participant gets ${quest.gold_reward || 0} gold`
+      : null;
 
   useEffect(() => {
     setShowOriginalTitle(false);
@@ -324,7 +332,7 @@ export default function QuestCard({
           </div>
           {participantCount > 1 && (
             <div className="mt-1 text-xs font-serif" style={{ color: COLORS.brown }}>
-              {quest.completed ? "Awarded across party" : `Split ${participantCount} ways`}
+              {quest.completed ? "Total awarded to party" : activePartyRewardLabel}
             </div>
           )}
         </div>
@@ -345,11 +353,7 @@ export default function QuestCard({
           </div>
           {participantCount > 1 && (
             <div className="mt-1 text-xs font-serif" style={{ color: COLORS.brown }}>
-              {quest.completed
-                ? "Awarded across party"
-                : isDailyBounty
-                  ? "Split; bounty multiplies your share"
-                  : `Split ${participantCount} ways`}
+              {quest.completed ? "Total awarded to party" : activePartyGoldLabel}
             </div>
           )}
         </div>
