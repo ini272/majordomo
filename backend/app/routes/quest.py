@@ -29,35 +29,90 @@ from app.services.scribe import ScribeResponse, generate_quest_content
 
 router = APIRouter(prefix="/api/quests", tags=["quests"])
 
+CORRUPTION_DEBUFF_PERCENT = 20
+
+
+def _as_aware_datetime(value: datetime) -> datetime:
+    """Treat legacy naive datetimes as UTC so reward previews match completion."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
+def _has_active_shield(user: User) -> bool:
+    if not user.active_shield_expiry:
+        return False
+
+    return _as_aware_datetime(user.active_shield_expiry) > datetime.now(timezone.utc)
+
+
+def _get_corrupted_quest_count(db: Session, home_id: int) -> int:
+    corrupted_quests = db.exec(
+        select(Quest.id).where(
+            (Quest.home_id == home_id)
+            & (Quest.quest_type == "corrupted")
+            & (Quest.completed == False)  # noqa: E712
+        )
+    ).all()
+    return len(corrupted_quests)
+
+
+def _corruption_multiplier(corrupted_quest_count: int) -> float:
+    if corrupted_quest_count <= 0:
+        return 1.0
+
+    return 1.0 - (CORRUPTION_DEBUFF_PERCENT / 100.0)
+
 
 def _calculate_corruption_debuff(db: Session, home_id: int, user: User) -> float:
     """
     Calculate house-wide corruption debuff multiplier.
 
-    Returns multiplier to apply to rewards (1.0 = no debuff, 0.85 = -15% debuff, etc.)
+    Returns multiplier to apply to rewards (1.0 = no debuff, 0.8 = -20% debuff, etc.)
 
     Debuff calculation:
-    - Each corrupted quest in the home adds -5% penalty
-    - Stacks up to -50% cap (10 corrupted quests)
+    - Any active corrupted quest in the home applies a flat -20% penalty
+    - Additional corrupted quests do not increase the penalty
     - Shield suppresses debuff temporarily (returns 1.0 if active)
     """
-    # Check if user has active shield
-    now = datetime.now(timezone.utc)
-    if user.active_shield_expiry and user.active_shield_expiry > now:
+    if _has_active_shield(user):
         return 1.0  # No debuff - shield protects
 
-    # Count corrupted quests in the home
-    corrupted_count = db.exec(
-        select(Quest).where((Quest.home_id == home_id) & (Quest.quest_type == "corrupted") & (Quest.completed == False))  # noqa: E712
-    ).all()
+    return _corruption_multiplier(_get_corrupted_quest_count(db, home_id))
 
-    corrupted_count = len(corrupted_count)
 
-    # Calculate debuff: -5% per corrupted quest, cap at -50%
-    debuff_percent = min(corrupted_count * 5, 50)
-    multiplier = 1.0 - (debuff_percent / 100.0)
+def _get_quest_reward_preview_context(db: Session, auth: dict) -> tuple[int, float]:
+    user = crud_user.get_user(db, auth["user_id"])
+    if not user or user.home_id != auth["home_id"]:
+        raise HTTPException(
+            status_code=404,
+            detail=create_error_detail(ErrorCode.USER_NOT_FOUND, details={"user_id": auth["user_id"]}),
+        )
 
-    return multiplier
+    corrupted_quest_count = _get_corrupted_quest_count(db, auth["home_id"])
+    if _has_active_shield(user):
+        return corrupted_quest_count, 1.0
+
+    return corrupted_quest_count, _corruption_multiplier(corrupted_quest_count)
+
+
+def _quest_to_read(quest: Quest, corrupted_quest_count: int, corruption_debuff: float) -> QuestRead:
+    quest_read = QuestRead.model_validate(quest)
+
+    if quest.completed:
+        return quest_read
+
+    quest_read.corrupted_quest_count = corrupted_quest_count
+    quest_read.corruption_debuff = corruption_debuff
+    quest_read.corruption_debuff_active = corrupted_quest_count > 0 and corruption_debuff < 1.0
+    quest_read.effective_xp_reward = int(quest.xp_reward * corruption_debuff)
+    quest_read.effective_gold_reward = int(quest.gold_reward * corruption_debuff)
+    return quest_read
+
+
+def _quests_to_read(quests: list[Quest], db: Session, auth: dict) -> list[QuestRead]:
+    corrupted_quest_count, corruption_debuff = _get_quest_reward_preview_context(db, auth)
+    return [_quest_to_read(quest, corrupted_quest_count, corruption_debuff) for quest in quests]
 
 
 def _dedupe_user_ids(user_ids: list[int]) -> list[int]:
@@ -131,12 +186,15 @@ def get_all_quests(db: Session = Depends(get_db), auth: dict = Depends(get_curre
     # Check and corrupt any overdue quests before returning the list
     crud_quest.check_and_corrupt_overdue_quests(db)
 
-    return crud_quest.get_quests_by_home(db, auth["home_id"])
+    quests = crud_quest.get_quests_by_home(db, auth["home_id"])
+    return _quests_to_read(quests, db, auth)
 
 
 @router.get("/{quest_id}", response_model=QuestRead)
 def get_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)):
     """Get quest by ID (only those in your home can access)"""
+    crud_quest.check_and_corrupt_overdue_quests(db)
+
     quest = crud_quest.get_quest(db, quest_id)
     if not quest or quest.home_id != auth["home_id"]:
         raise HTTPException(
@@ -144,7 +202,8 @@ def get_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = Depends
             detail=create_error_detail(ErrorCode.QUEST_NOT_FOUND, details={"quest_id": quest_id}),
         )
 
-    return quest
+    corrupted_quest_count, corruption_debuff = _get_quest_reward_preview_context(db, auth)
+    return _quest_to_read(quest, corrupted_quest_count, corruption_debuff)
 
 
 @router.get("/user/{user_id}", response_model=list[QuestRead])
@@ -163,7 +222,9 @@ def get_user_quests(
             detail=create_error_detail(ErrorCode.USER_NOT_FOUND, details={"user_id": user_id}),
         )
 
-    return crud_quest.get_quests_by_user(db, auth["home_id"], user_id, completed)
+    crud_quest.check_and_corrupt_overdue_quests(db)
+    quests = crud_quest.get_quests_by_user(db, auth["home_id"], user_id, completed)
+    return _quests_to_read(quests, db, auth)
 
 
 @router.get("/templates/{template_id}", response_model=QuestTemplateRead)
@@ -391,7 +452,7 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
 
     **Reward Calculation Order**:
     1. Base rewards from template
-    2. Apply corruption debuff (-5% per corrupted quest in home, capped at -50%)
+    2. Apply corruption debuff (-20% while any corrupted quest exists in home)
     3. Apply bounty bonus (3x gold only if daily bounty; XP unchanged)
     4. Apply XP boost (2x if Heroic Elixir active)
 

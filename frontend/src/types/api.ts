@@ -43,6 +43,11 @@ export interface Quest {
   due_in_hours: number | null; // Hours until corruption (deadline = created_at + due_in_hours)
   due_date: string | null; // DEPRECATED: use due_in_hours instead
   corrupted_at: string | null;
+  effective_xp_reward: number | null; // Current user's reward preview after household corruption
+  effective_gold_reward: number | null;
+  corruption_debuff: number | null;
+  corrupted_quest_count: number;
+  corruption_debuff_active: boolean;
   template: QuestTemplate | null; // Null for standalone quests
   participants: QuestParticipant[];
 }

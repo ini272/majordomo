@@ -1,6 +1,6 @@
 # Current Architecture
 
-Last verified: 2026-04-16
+Last verified: 2026-04-20
 
 ## Source of truth priority
 
@@ -32,6 +32,12 @@ Last verified: 2026-04-16
   participant selected at creation/update time, not the only assignee.
 - Multi-user participation is stored in `quest_participant` with one row per quest/user.
 - `quest.xp_reward` and `quest.gold_reward` are the base rewards awarded to each participant.
+- Quest read responses include reward preview fields for incomplete quests:
+  `effective_xp_reward`, `effective_gold_reward`, `corruption_debuff`,
+  `corrupted_quest_count`, and `corruption_debuff_active`.
+- Corruption is a household-wide flat `-20%` reward preview/completion debuff whenever
+  at least one active quest in the household is corrupted. Additional corrupted quests do
+  not increase the percentage. A user's active shield suppresses the debuff for that user.
 - On completion, every participant starts from the full base XP/gold reward.
 - Per-user effects are applied to each participant's reward: daily bounty, corruption/shield, and XP boost.
 - Actual awarded XP/gold are stored on `quest_participant.xp_awarded` and `quest_participant.gold_awarded`.

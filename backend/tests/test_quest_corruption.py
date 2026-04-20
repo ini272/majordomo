@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from app.models.quest import Quest
+from app.models.user import User
 
 
 @pytest.fixture
@@ -206,12 +207,11 @@ def test_corrupted_quest_gives_bonus_rewards(client: TestClient, home_with_user_
 
     # Verify corruption triggers debuff (not bonus)
     assert result["rewards"]["is_corrupted"] is True
-    assert result["rewards"]["corruption_debuff"] == 0.95  # -5% debuff (1 corrupted quest)
+    assert result["rewards"]["corruption_debuff"] == 0.8  # -20% flat debuff while corruption is active
     assert result["rewards"]["base_xp"] == 50
     assert result["rewards"]["base_gold"] == 25
-    # After debuff: 50 * 0.95 = 47 XP, 25 * 0.95 = 23 gold (floored to int)
-    assert result["rewards"]["xp"] == 47
-    assert result["rewards"]["gold"] == 23
+    assert result["rewards"]["xp"] == 40
+    assert result["rewards"]["gold"] == 20
 
 
 def test_future_due_date_not_corrupted(client: TestClient, home_with_user_and_template):
@@ -312,6 +312,117 @@ def test_corrupted_quest_type_in_response(client: TestClient, home_with_user_and
     assert single_quest["quest_type"] == "corrupted"
 
 
+def test_corruption_reward_preview_updates_available_quests(
+    client: TestClient, home_with_user_and_template, db: Session
+):
+    """Quest reads show reduced reward previews while household corruption is active."""
+    _home_id, user_id, template_id = home_with_user_and_template
+
+    corrupted_response = client.post(
+        f"/api/quests?user_id={user_id}",
+        json={"quest_template_id": template_id},
+    )
+    standard_response = client.post(
+        f"/api/quests?user_id={user_id}",
+        json={"quest_template_id": template_id},
+    )
+    corrupted_quest_id = corrupted_response.json()["id"]
+    standard_quest_id = standard_response.json()["id"]
+
+    quest = db.exec(select(Quest).where(Quest.id == corrupted_quest_id)).first()
+    quest.created_at = datetime.now(timezone.utc) - timedelta(hours=26)
+    db.add(quest)
+    db.commit()
+
+    client.post("/api/quests/check-corruption")
+
+    all_quests = client.get("/api/quests").json()
+    quest_by_id = {quest_data["id"]: quest_data for quest_data in all_quests}
+    corrupted_quest = quest_by_id[corrupted_quest_id]
+    standard_quest = quest_by_id[standard_quest_id]
+
+    assert corrupted_quest["quest_type"] == "corrupted"
+    assert standard_quest["quest_type"] == "standard"
+    for quest_data in (corrupted_quest, standard_quest):
+        assert quest_data["corrupted_quest_count"] == 1
+        assert quest_data["corruption_debuff"] == 0.8
+        assert quest_data["corruption_debuff_active"] is True
+        assert quest_data["effective_xp_reward"] == 40
+        assert quest_data["effective_gold_reward"] == 20
+
+    single_quest = client.get(f"/api/quests/{standard_quest_id}").json()
+    assert single_quest["effective_xp_reward"] == 40
+    assert single_quest["effective_gold_reward"] == 20
+
+    user_quests = client.get(f"/api/quests/user/{user_id}").json()
+    user_standard_quest = next(
+        quest_data for quest_data in user_quests if quest_data["id"] == standard_quest_id
+    )
+    assert user_standard_quest["effective_xp_reward"] == 40
+    assert user_standard_quest["effective_gold_reward"] == 20
+
+
+def test_corruption_reward_preview_stays_flat_with_multiple_corrupted_quests(
+    client: TestClient, home_with_user_and_template, db: Session
+):
+    """Multiple corrupted quests still apply the same flat household debuff."""
+    _home_id, user_id, template_id = home_with_user_and_template
+
+    quest_ids = []
+    for _i in range(3):
+        quest_response = client.post(
+            f"/api/quests?user_id={user_id}",
+            json={"quest_template_id": template_id},
+        )
+        quest_ids.append(quest_response.json()["id"])
+
+    for quest_id in quest_ids:
+        quest = db.exec(select(Quest).where(Quest.id == quest_id)).first()
+        quest.created_at = datetime.now(timezone.utc) - timedelta(hours=26)
+        db.add(quest)
+    db.commit()
+
+    client.post("/api/quests/check-corruption")
+
+    all_quests = client.get("/api/quests").json()
+    for quest_data in all_quests:
+        assert quest_data["corrupted_quest_count"] == 3
+        assert quest_data["corruption_debuff"] == 0.8
+        assert quest_data["effective_xp_reward"] == 40
+        assert quest_data["effective_gold_reward"] == 20
+
+
+def test_corruption_reward_preview_respects_active_shield(
+    client: TestClient, home_with_user_and_template, db: Session
+):
+    """A user's active shield suppresses the previewed corruption debuff."""
+    _home_id, user_id, template_id = home_with_user_and_template
+
+    quest_response = client.post(
+        f"/api/quests?user_id={user_id}",
+        json={"quest_template_id": template_id},
+    )
+    quest_id = quest_response.json()["id"]
+
+    quest = db.exec(select(Quest).where(Quest.id == quest_id)).first()
+    quest.created_at = datetime.now(timezone.utc) - timedelta(hours=26)
+    db.add(quest)
+
+    user = db.exec(select(User).where(User.id == user_id)).first()
+    user.active_shield_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+    db.add(user)
+    db.commit()
+
+    client.post("/api/quests/check-corruption")
+
+    quest_data = client.get(f"/api/quests/{quest_id}").json()
+    assert quest_data["corrupted_quest_count"] == 1
+    assert quest_data["corruption_debuff"] == 1.0
+    assert quest_data["corruption_debuff_active"] is False
+    assert quest_data["effective_xp_reward"] == 50
+    assert quest_data["effective_gold_reward"] == 25
+
+
 def test_corruption_timestamp_set_correctly(client: TestClient, home_with_user_and_template, db: Session):
     """Test that corrupted_at timestamp is set when quest becomes corrupted"""
     home_id, user_id, template_id = home_with_user_and_template
@@ -394,8 +505,8 @@ def test_daily_bounty_and_corruption_combined(client: TestClient, home_with_user
     assert result["rewards"]["is_corrupted"] is True
 
     # Check that both debuff and bounty multipliers are applied
-    # Debuff: -5% (0.95) for 1 corrupted quest, Bounty: XP x1 and Gold x3
-    assert result["rewards"]["corruption_debuff"] == 0.95
+    # Debuff: -20% while corruption is active, Bounty: XP x1 and Gold x3
+    assert result["rewards"]["corruption_debuff"] == 0.8
     assert result["rewards"]["bounty_multiplier"] == 3
     assert result["rewards"]["bounty_xp_multiplier"] == 1
     assert result["rewards"]["bounty_gold_multiplier"] == 3
