@@ -34,6 +34,21 @@ function CompactQuestCard({
   onClick,
 }: CompactQuestCardProps) {
   const participantLabel = (quest.participants?.length || 1) > 1 ? "Party" : "For";
+  const isCorrupted = quest.quest_type === "corrupted";
+  const hasCorruptionDebuff =
+    !quest.completed && quest.corruption_debuff_active && (quest.corruption_debuff ?? 1) < 1;
+  const corruptionPenaltyPercent = hasCorruptionDebuff
+    ? Math.round((1 - (quest.corruption_debuff ?? 1)) * 100)
+    : 0;
+  const baseXpReward = quest.xp_reward || 0;
+  const baseGoldReward = quest.gold_reward || 0;
+  const previewXpReward = quest.effective_xp_reward ?? baseXpReward;
+  const previewGoldReward = quest.effective_gold_reward ?? baseGoldReward;
+  const displayGoldReward =
+    isDailyBounty && !quest.completed ? previewGoldReward * 3 : previewGoldReward;
+  const borderColor = isCorrupted ? "#8b3a3a" : isDailyBounty ? "#6b5fb7" : COLORS.gold;
+  const titleColor = isCorrupted ? "#ff6b6b" : isDailyBounty ? "#c0b4ff" : COLORS.gold;
+  const rewardColor = hasCorruptionDebuff ? "#ff8080" : COLORS.gold;
 
   return (
     <button
@@ -42,7 +57,7 @@ function CompactQuestCard({
       className="w-full text-left p-3 sm:p-4 rounded-sm transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
       style={{
         backgroundColor: "rgba(30, 21, 17, 0.7)",
-        border: `2px solid ${isDailyBounty ? "#6b5fb7" : COLORS.gold}`,
+        border: `2px solid ${borderColor}`,
         boxShadow: "0 6px 12px rgba(0, 0, 0, 0.25)",
         opacity: isUpcoming ? 0.8 : 1,
       }}
@@ -50,18 +65,36 @@ function CompactQuestCard({
       <div className="flex items-start justify-between gap-2 mb-2">
         <h3
           className="text-sm sm:text-base font-serif font-bold leading-tight line-clamp-2"
-          style={{ color: isDailyBounty ? "#c0b4ff" : COLORS.gold }}
+          style={{ color: titleColor }}
         >
           {quest.display_name || quest.title || "Unknown Quest"}
         </h3>
-        {quest.completed && (
-          <span
-            className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
-            style={{ backgroundColor: "rgba(95, 183, 84, 0.2)", color: COLORS.greenSuccess }}
-          >
-            Done
-          </span>
-        )}
+        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+          {isCorrupted && (
+            <span
+              className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
+              style={{ backgroundColor: "rgba(139, 58, 58, 0.28)", color: "#ff8080" }}
+            >
+              Corrupted
+            </span>
+          )}
+          {isDailyBounty && (
+            <span
+              className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
+              style={{ backgroundColor: "rgba(107, 95, 183, 0.3)", color: "#c0b4ff" }}
+            >
+              3x
+            </span>
+          )}
+          {quest.completed && (
+            <span
+              className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
+              style={{ backgroundColor: "rgba(95, 183, 84, 0.2)", color: COLORS.greenSuccess }}
+            >
+              Done
+            </span>
+          )}
+        </div>
       </div>
 
       <p
@@ -79,7 +112,7 @@ function CompactQuestCard({
       )}
 
       <div
-        className="flex items-center justify-between text-xs font-serif"
+        className="flex items-center justify-between gap-3 text-xs font-serif"
         style={{ color: COLORS.brown }}
       >
         <div className="flex gap-2">
@@ -98,7 +131,14 @@ function CompactQuestCard({
               </span>
             ))}
         </div>
-        <span style={{ color: COLORS.gold }}>+{quest.xp_reward || 0} XP</span>
+        <span className="min-w-0 text-right" style={{ color: rewardColor }}>
+          +{previewXpReward} XP / +{displayGoldReward} Gold
+          {hasCorruptionDebuff && (
+            <span className="ml-1" style={{ color: "#ff8080" }}>
+              -{corruptionPenaltyPercent}%
+            </span>
+          )}
+        </span>
       </div>
     </button>
   );
@@ -125,6 +165,11 @@ const toUpcomingQuest = (upcoming: UpcomingSubscription): Quest => ({
   due_in_hours: upcoming.due_in_hours,
   due_date: null,
   corrupted_at: null,
+  effective_xp_reward: upcoming.template.xp_reward,
+  effective_gold_reward: upcoming.template.gold_reward,
+  corruption_debuff: null,
+  corrupted_quest_count: 0,
+  corruption_debuff_active: false,
   template: upcoming.template,
   participants: [
     {
@@ -397,12 +442,18 @@ export default function Board() {
     }
   };
 
+  const currentQuestById = useMemo(
+    () => new Map(quests.map((quest) => [quest.id, quest])),
+    [quests]
+  );
   const activeBountyQuest =
     dailyBounty?.status === "assigned" && dailyBounty.quest && !dailyBounty.quest.completed
-      ? dailyBounty.quest
+      ? (currentQuestById.get(dailyBounty.quest.id) ?? dailyBounty.quest)
       : null;
-  const activeBountyXpReward = activeBountyQuest?.xp_reward ?? 0;
-  const activeBountyGoldReward = activeBountyQuest?.gold_reward ?? 0;
+  const activeBountyXpReward =
+    activeBountyQuest?.effective_xp_reward ?? activeBountyQuest?.xp_reward ?? 0;
+  const activeBountyGoldReward =
+    activeBountyQuest?.effective_gold_reward ?? activeBountyQuest?.gold_reward ?? 0;
   const fullUpcomingQuests = useMemo(() => upcomingQuests.map(toUpcomingQuest), [upcomingQuests]);
   const filteredCurrentQuests = useMemo(
     () =>
@@ -429,6 +480,15 @@ export default function Board() {
     view === "current"
       ? quests.length > 0 || currentSearchTerm.trim().length > 0
       : upcomingQuests.length > 0 || upcomingSearchTerm.trim().length > 0;
+  const activeCorruptionDebuffQuest = quests.find(
+    (quest) => quest.corruption_debuff_active && (quest.corruption_debuff ?? 1) < 1
+  );
+  const activeCorruptionPenaltyPercent = activeCorruptionDebuffQuest
+    ? Math.round((1 - (activeCorruptionDebuffQuest.corruption_debuff ?? 1)) * 100)
+    : 0;
+  const activeCorruptedQuestCount =
+    activeCorruptionDebuffQuest?.corrupted_quest_count ??
+    quests.filter((quest) => quest.quest_type === "corrupted").length;
 
   const selectedQuestSequence = useMemo(() => {
     if (selectedQuestView === "current") return filteredCurrentQuests;
@@ -638,6 +698,24 @@ export default function Board() {
       {loading && (
         <div className="text-center py-12 md:py-16 font-serif" style={{ color: COLORS.brown }}>
           Loading quests...
+        </div>
+      )}
+
+      {view === "current" && activeCorruptionPenaltyPercent > 0 && (
+        <div
+          className="mb-6 flex flex-col gap-1 rounded-sm px-4 py-3 font-serif sm:flex-row sm:items-center sm:justify-between"
+          style={{
+            backgroundColor: "rgba(139, 58, 58, 0.18)",
+            border: "1px solid #8b3a3a",
+            color: "#ff8080",
+          }}
+        >
+          <span className="font-bold uppercase tracking-wide">Household Corruption</span>
+          <span className="text-sm">
+            {activeCorruptedQuestCount} corrupted{" "}
+            {activeCorruptedQuestCount === 1 ? "quest" : "quests"} • -
+            {activeCorruptionPenaltyPercent}% XP and gold
+          </span>
         </div>
       )}
 

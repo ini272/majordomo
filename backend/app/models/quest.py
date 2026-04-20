@@ -220,6 +220,13 @@ class QuestRead(SQLModel):
     due_in_hours: Optional[int]
     due_date: Optional[datetime]
     corrupted_at: Optional[datetime]
+    # Reward preview for incomplete quests, after the authenticated user's active
+    # household corruption debuff and before bounty or XP boost modifiers.
+    effective_xp_reward: Optional[int] = None
+    effective_gold_reward: Optional[int] = None
+    corruption_debuff: Optional[float] = None
+    corrupted_quest_count: int = 0
+    corruption_debuff_active: bool = False
     # Include template data for convenience (may be null for standalone quests)
     template: Optional[QuestTemplateRead]
     participants: list[QuestParticipantRead] = Field(default_factory=list)

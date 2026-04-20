@@ -62,6 +62,16 @@ export default function QuestCard({
 }: QuestCardProps) {
   const typeStyles = getQuestTypeStyles(quest.quest_type);
   const isCorrupted = quest.quest_type === "corrupted";
+  const hasCorruptionDebuff =
+    !quest.completed && quest.corruption_debuff_active && (quest.corruption_debuff ?? 1) < 1;
+  const corruptionPenaltyPercent = hasCorruptionDebuff
+    ? Math.round((1 - (quest.corruption_debuff ?? 1)) * 100)
+    : 0;
+  const cardBorderColor = isCorrupted
+    ? typeStyles.borderColor
+    : isDailyBounty
+      ? "#6b5fb7"
+      : typeStyles.borderColor;
   const displayTitle = quest.display_name?.trim() || quest.title || "Unknown Quest";
   const originalTitle = quest.title?.trim() || "";
   const hasOriginalTitle = Boolean(
@@ -82,20 +92,24 @@ export default function QuestCard({
           0
         )
       : quest.gold_reward || 0;
-  const displayXpReward = quest.completed ? completedXpTotal : quest.xp_reward || 0;
+  const baseXpReward = quest.xp_reward || 0;
+  const baseGoldReward = quest.gold_reward || 0;
+  const previewXpReward = quest.effective_xp_reward ?? baseXpReward;
+  const previewGoldReward = quest.effective_gold_reward ?? baseGoldReward;
+  const displayXpReward = quest.completed ? completedXpTotal : previewXpReward;
   const displayGoldReward =
     isDailyBounty && !quest.completed && participantCount === 1
-      ? (quest.gold_reward || 0) * 3
+      ? previewGoldReward * 3
       : quest.completed
         ? completedGoldTotal
-        : quest.gold_reward || 0;
+        : previewGoldReward;
   const activePartyRewardLabel =
-    participantCount > 1 ? `Each participant gets ${quest.xp_reward || 0} XP` : null;
+    participantCount > 1 ? `Each participant gets ${previewXpReward} XP` : null;
   const activePartyGoldLabel =
     participantCount > 1
       ? isDailyBounty
-        ? "Each participant gets full gold; bounty multiplies yours"
-        : `Each participant gets ${quest.gold_reward || 0} gold`
+        ? `Each participant gets ${previewGoldReward} gold; bounty multiplies yours`
+        : `Each participant gets ${previewGoldReward} gold`
       : null;
 
   useEffect(() => {
@@ -156,7 +170,7 @@ export default function QuestCard({
       className="relative p-6 md:p-8 mb-6 md:mb-8 shadow-lg"
       style={{
         backgroundColor: COLORS.darkPanel,
-        borderColor: isDailyBounty ? "#6b5fb7" : typeStyles.borderColor,
+        borderColor: cardBorderColor,
         borderWidth: "3px",
         opacity: isUpcoming ? 0.6 : 1,
       }}
@@ -197,6 +211,18 @@ export default function QuestCard({
             }}
           >
             3x Gold Bounty
+          </span>
+        )}
+        {hasCorruptionDebuff && (
+          <span
+            className="px-2 py-1 rounded text-xs uppercase font-serif font-bold"
+            style={{
+              backgroundColor: "rgba(139, 58, 58, 0.24)",
+              color: "#ff8080",
+              border: "1px solid #ff8080",
+            }}
+          >
+            Household -{corruptionPenaltyPercent}%
           </span>
         )}
         {quest.due_in_hours && !quest.completed && (
@@ -330,6 +356,11 @@ export default function QuestCard({
           <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
             {displayXpReward}
           </div>
+          {hasCorruptionDebuff && (
+            <div className="mt-1 text-xs font-serif" style={{ color: "#ff8080" }}>
+              Base {baseXpReward} XP, corruption -{corruptionPenaltyPercent}%
+            </div>
+          )}
           {participantCount > 1 && (
             <div className="mt-1 text-xs font-serif" style={{ color: COLORS.brown }}>
               {quest.completed ? "Total awarded to party" : activePartyRewardLabel}
@@ -351,6 +382,11 @@ export default function QuestCard({
               </span>
             )}
           </div>
+          {hasCorruptionDebuff && (
+            <div className="mt-1 text-xs font-serif" style={{ color: "#ff8080" }}>
+              Base {baseGoldReward} Gold, corruption -{corruptionPenaltyPercent}%
+            </div>
+          )}
           {participantCount > 1 && (
             <div className="mt-1 text-xs font-serif" style={{ color: COLORS.brown }}>
               {quest.completed ? "Total awarded to party" : activePartyGoldLabel}
