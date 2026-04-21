@@ -226,6 +226,7 @@ export default function Board() {
   const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditQuestModal, setShowEditQuestModal] = useState(false);
+  const [editQuestStartsAsTemplate, setEditQuestStartsAsTemplate] = useState(false);
   const [dailyBounty, setDailyBounty] = useState<DailyBounty | null>(null);
   const [homeUsers, setHomeUsers] = useState<Record<number, string>>({});
 
@@ -562,6 +563,7 @@ export default function Board() {
 
   const closeQuestDetails = () => {
     setShowEditQuestModal(false);
+    setEditQuestStartsAsTemplate(false);
     setSelectedQuest(null);
     setSelectedQuestView(null);
     setSelectedUpcomingSpawnTime(undefined);
@@ -571,6 +573,7 @@ export default function Board() {
 
   const handleQuestEditSaved = async (updatedQuest?: Quest) => {
     setShowEditQuestModal(false);
+    setEditQuestStartsAsTemplate(false);
 
     if (updatedQuest) {
       setSelectedQuest(updatedQuest);
@@ -645,6 +648,9 @@ export default function Board() {
     selectedQuestIndex !== -1 && selectedQuestIndex < selectedQuestSequence.length - 1;
   const pendingAbandonQuestLabel =
     questPendingAbandon?.display_name || questPendingAbandon?.title || "this quest";
+  const canCreateTemplateFromSelectedQuest = Boolean(
+    selectedQuest && selectedQuestView === "current" && selectedQuest.quest_template_id === null
+  );
 
   return (
     <div>
@@ -979,7 +985,10 @@ export default function Board() {
             {selectedQuestView === "current" && (
               <button
                 type="button"
-                onClick={() => setShowEditQuestModal(true)}
+                onClick={() => {
+                  setEditQuestStartsAsTemplate(false);
+                  setShowEditQuestModal(true);
+                }}
                 className="px-3 py-1 font-serif text-xs uppercase tracking-wider"
                 style={{
                   border: `1px solid ${COLORS.gold}`,
@@ -988,6 +997,23 @@ export default function Board() {
                 }}
               >
                 Edit
+              </button>
+            )}
+            {canCreateTemplateFromSelectedQuest && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditQuestStartsAsTemplate(true);
+                  setShowEditQuestModal(true);
+                }}
+                className="px-3 py-1 font-serif text-xs uppercase tracking-wider"
+                style={{
+                  border: `1px solid ${COLORS.gold}`,
+                  color: COLORS.gold,
+                  backgroundColor: "rgba(24, 17, 14, 0.85)",
+                }}
+              >
+                Template
               </button>
             )}
             <button
@@ -1065,8 +1091,12 @@ export default function Board() {
           questId={selectedQuest.id}
           token={token}
           skipAI={true}
+          initialSaveAsTemplate={editQuestStartsAsTemplate}
           onSave={(result) => handleQuestEditSaved(result.quest)}
-          onClose={() => setShowEditQuestModal(false)}
+          onClose={() => {
+            setShowEditQuestModal(false);
+            setEditQuestStartsAsTemplate(false);
+          }}
         />
       )}
 

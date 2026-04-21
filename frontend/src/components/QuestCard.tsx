@@ -37,6 +37,20 @@ const getQuestTypeStyles = (questType: string): QuestTypeStyles => {
   }
 };
 
+const formatQuestDateTime = (value?: string | Date | null): string | null => {
+  if (!value) return null;
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 interface QuestCardProps {
   quest: Quest;
   questParticipantNames?: string;
@@ -159,94 +173,43 @@ export default function QuestCard({
   const deadlineLabel = formatDeadline();
   const isDeadlineCorrupted = deadlineLabel === "Corrupted";
   const showDeadlineBadge = Boolean(quest.due_in_hours && !quest.completed && !isCorrupted);
+  const deadlineDateLabel = formatQuestDateTime(calculateDeadline());
+  const createdAtLabel = formatQuestDateTime(quest.created_at);
+  const hasExceptionBadges = Boolean(
+    isCorrupted ||
+    (isRecurring && scheduleInfo) ||
+    isDailyBounty ||
+    hasCorruptionDebuff ||
+    (showDeadlineBadge && deadlineLabel)
+  );
+  const factsGridColumns = "grid-cols-3";
 
   return (
     <div
-      className="relative p-6 md:p-8 mb-6 md:mb-8 shadow-lg"
+      className="relative flex w-full flex-col overflow-hidden p-5 shadow-lg sm:p-6 md:p-8"
       style={{
         backgroundColor: COLORS.darkPanel,
         borderColor: cardBorderColor,
         borderWidth: "3px",
+        height: "min(760px, calc(92dvh - 4.5rem))",
+        minHeight: "min(520px, calc(92dvh - 4.5rem))",
         opacity: isUpcoming ? 0.6 : 1,
       }}
     >
       {/* Decorative element */}
       <div className="absolute top-3 right-4 text-2xl opacity-20">⚔</div>
 
-      {/* Quest Type Badge */}
-      <div className="mb-4 pr-8 flex gap-2 flex-wrap">
-        <span
-          className={`px-2 py-1 rounded text-xs uppercase font-serif font-bold ${isCorrupted ? "animate-pulse" : ""}`}
-          style={{
-            backgroundColor: typeStyles.badgeBg,
-            color: typeStyles.badgeColor,
-          }}
-        >
-          {quest.quest_type}
-        </span>
-        {isRecurring && scheduleInfo && (
-          <span
-            className="px-2 py-1 rounded text-xs font-serif font-bold"
-            style={{
-              backgroundColor: "rgba(100, 149, 237, 0.2)",
-              color: "#6495ED",
-              border: "1px solid #6495ED",
-            }}
-            title="Recurring Quest"
-          >
-            🔄 {scheduleInfo}
-          </span>
-        )}
-        {isDailyBounty && (
-          <span
-            className="px-2 py-1 rounded text-xs uppercase font-serif font-bold"
-            style={{
-              backgroundColor: "rgba(107, 95, 183, 0.3)",
-              color: "#9d84ff",
-            }}
-          >
-            3x Gold Bounty
-          </span>
-        )}
-        {hasCorruptionDebuff && (
-          <span
-            className="px-2 py-1 rounded text-xs uppercase font-serif font-bold"
-            style={{
-              backgroundColor: "rgba(139, 58, 58, 0.24)",
-              color: "#ff8080",
-              border: "1px solid #ff8080",
-            }}
-          >
-            Household -{corruptionPenaltyPercent}%
-          </span>
-        )}
-        {showDeadlineBadge && deadlineLabel && (
-          <span
-            className="px-2 py-1 rounded text-xs font-serif font-bold"
-            style={{
-              backgroundColor: isDeadlineCorrupted
-                ? "rgba(139, 58, 58, 0.2)"
-                : "rgba(255, 165, 0, 0.2)",
-              color: isDeadlineCorrupted ? "#ff6b6b" : "#ffa500",
-              border: `1px solid ${isDeadlineCorrupted ? "#ff6b6b" : "#ffa500"}`,
-            }}
-          >
-            📅 {deadlineLabel}
-          </span>
-        )}
-      </div>
-
       {/* Title */}
       <div
-        className="pb-3 md:pb-4 mb-4"
+        className="flex-none pb-3 md:pb-4"
         style={{
           borderBottomColor: typeStyles.titleColor,
           borderBottomWidth: "2px",
         }}
       >
-        <div className="flex items-start gap-3">
+        <div className="flex max-h-28 items-start gap-3 overflow-y-auto pr-1">
           <h2
-            className="flex-1 text-2xl md:text-3xl font-serif font-bold uppercase tracking-wider"
+            className="flex-1 text-xl sm:text-2xl md:text-3xl font-serif font-bold uppercase tracking-wider"
             style={{
               color: typeStyles.titleColor,
             }}
@@ -272,7 +235,75 @@ export default function QuestCard({
             </button>
           )}
         </div>
+      </div>
 
+      {hasExceptionBadges && (
+        <div className="mt-3 flex max-h-[4.75rem] flex-none flex-wrap gap-2 overflow-y-auto pr-1">
+          {isCorrupted && (
+            <span
+              className="animate-pulse px-2 py-1 rounded text-xs uppercase font-serif font-bold"
+              style={{
+                backgroundColor: typeStyles.badgeBg,
+                color: typeStyles.badgeColor,
+              }}
+            >
+              Corrupted
+            </span>
+          )}
+          {isRecurring && scheduleInfo && (
+            <span
+              className="px-2 py-1 rounded text-xs font-serif font-bold"
+              style={{
+                backgroundColor: "rgba(100, 149, 237, 0.2)",
+                color: "#6495ED",
+                border: "1px solid #6495ED",
+              }}
+              title="Recurring Quest"
+            >
+              🔄 {scheduleInfo}
+            </span>
+          )}
+          {isDailyBounty && (
+            <span
+              className="px-2 py-1 rounded text-xs uppercase font-serif font-bold"
+              style={{
+                backgroundColor: "rgba(107, 95, 183, 0.3)",
+                color: "#9d84ff",
+              }}
+            >
+              3x Gold Bounty
+            </span>
+          )}
+          {hasCorruptionDebuff && (
+            <span
+              className="px-2 py-1 rounded text-xs uppercase font-serif font-bold"
+              style={{
+                backgroundColor: "rgba(139, 58, 58, 0.24)",
+                color: "#ff8080",
+                border: "1px solid #ff8080",
+              }}
+            >
+              Household -{corruptionPenaltyPercent}%
+            </span>
+          )}
+          {showDeadlineBadge && deadlineLabel && (
+            <span
+              className="px-2 py-1 rounded text-xs font-serif font-bold"
+              style={{
+                backgroundColor: isDeadlineCorrupted
+                  ? "rgba(139, 58, 58, 0.2)"
+                  : "rgba(255, 165, 0, 0.2)",
+                color: isDeadlineCorrupted ? "#ff6b6b" : "#ffa500",
+                border: `1px solid ${isDeadlineCorrupted ? "#ff6b6b" : "#ffa500"}`,
+              }}
+            >
+              📅 {deadlineLabel}
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
         {hasOriginalTitle && showOriginalTitle && (
           <div
             id={originalTitlePanelId}
@@ -293,64 +324,95 @@ export default function QuestCard({
             </p>
           </div>
         )}
+
+        {/* Description */}
+        <p className="italic leading-relaxed font-serif" style={{ color: COLORS.parchment }}>
+          {quest.description || "No description"}
+        </p>
+
+        {/* Tags */}
+        {quest.tags && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {quest.tags.split(",").map((tag) => (
+              <span
+                key={tag}
+                className="px-2 py-1 text-xs uppercase font-serif rounded"
+                style={{
+                  backgroundColor: "rgba(212, 175, 55, 0.2)",
+                  color: COLORS.gold,
+                  border: `1px solid ${COLORS.gold}`,
+                }}
+              >
+                {tag.trim()}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
-
-      {/* Description */}
-      <p
-        className="italic leading-relaxed mb-6 md:mb-8 font-serif"
-        style={{ color: COLORS.parchment }}
-      >
-        {quest.description || "No description"}
-      </p>
-
-      {(questParticipantNames || questCreatorName) && (
-        <div className="mb-6 md:mb-8 flex flex-wrap gap-3 text-xs font-serif uppercase tracking-wide">
-          {questParticipantNames && (
-            <span style={{ color: COLORS.brown }}>
-              {participantLabel}:{" "}
-              <span style={{ color: COLORS.gold }}>{questParticipantNames}</span>
-            </span>
-          )}
-          {questCreatorName && !questParticipantNames?.split(", ").includes(questCreatorName) && (
-            <span style={{ color: COLORS.brown }}>
-              Created by: <span style={{ color: COLORS.parchment }}>{questCreatorName}</span>
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Tags */}
-      {quest.tags && (
-        <div className="flex flex-wrap gap-2 mb-6 md:mb-8">
-          {quest.tags.split(",").map((tag) => (
-            <span
-              key={tag}
-              className="px-2 py-1 text-xs uppercase font-serif rounded"
-              style={{
-                backgroundColor: "rgba(212, 175, 55, 0.2)",
-                color: COLORS.gold,
-                border: `1px solid ${COLORS.gold}`,
-              }}
-            >
-              {tag.trim()}
-            </span>
-          ))}
-        </div>
-      )}
 
       {/* Stats Grid */}
       <div
-        className="flex flex-col md:flex-row gap-8 md:gap-12 md:gap-16 mt-6 md:mt-8 pt-6 md:pt-8"
+        className={`mt-4 grid max-h-52 flex-none ${factsGridColumns} gap-3 overflow-y-auto pr-1 pt-4 md:gap-4`}
         style={{ borderTopColor: COLORS.redBorder, borderTopWidth: "1px" }}
       >
-        <div className="text-center flex-1">
+        <div>
           <div
-            className="text-xs uppercase tracking-widest mb-2 font-serif"
+            className="text-[10px] uppercase tracking-widest mb-1 font-serif md:text-xs"
+            style={{ color: COLORS.brown }}
+          >
+            {participantLabel}
+          </div>
+          <div
+            className="text-sm font-serif uppercase tracking-wide"
+            style={{ color: COLORS.gold }}
+          >
+            {questParticipantNames ?? "Unassigned"}
+          </div>
+        </div>
+        <div>
+          <div
+            className="text-[10px] uppercase tracking-widest mb-1 font-serif md:text-xs"
+            style={{ color: COLORS.brown }}
+          >
+            Author
+          </div>
+          <div
+            className="text-sm font-serif uppercase tracking-wide"
+            style={{ color: COLORS.parchment }}
+          >
+            {questCreatorName ?? "Unknown"}
+          </div>
+        </div>
+        <div>
+          <div
+            className="text-[10px] uppercase tracking-widest mb-1 font-serif md:text-xs"
+            style={{ color: COLORS.brown }}
+          >
+            Due
+          </div>
+          <div className="text-sm font-serif" style={{ color: COLORS.parchment }}>
+            {deadlineDateLabel ?? "No timer"}
+          </div>
+        </div>
+        <div>
+          <div
+            className="text-[10px] uppercase tracking-widest mb-1 font-serif md:text-xs"
+            style={{ color: COLORS.brown }}
+          >
+            Created
+          </div>
+          <div className="text-sm font-serif" style={{ color: COLORS.parchment }}>
+            {createdAtLabel ?? "Unknown"}
+          </div>
+        </div>
+        <div>
+          <div
+            className="text-[10px] uppercase tracking-widest mb-1 font-serif md:text-xs"
             style={{ color: COLORS.brown }}
           >
             {quest.completed ? "XP Awarded" : "XP Reward"}
           </div>
-          <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
+          <div className="text-xl md:text-2xl font-serif font-bold" style={{ color: COLORS.gold }}>
             {displayXpReward}
           </div>
           {hasCorruptionDebuff && (
@@ -359,14 +421,14 @@ export default function QuestCard({
             </div>
           )}
         </div>
-        <div className="text-center flex-1">
+        <div>
           <div
-            className="text-xs uppercase tracking-widest mb-2 font-serif"
+            className="text-[10px] uppercase tracking-widest mb-1 font-serif md:text-xs"
             style={{ color: COLORS.brown }}
           >
             {quest.completed ? "Gold Awarded" : "Gold Reward"}
           </div>
-          <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
+          <div className="text-xl md:text-2xl font-serif font-bold" style={{ color: COLORS.gold }}>
             {displayGoldReward}
             {isDailyBounty && !quest.completed && participantCount === 1 && (
               <span className="text-sm ml-2" style={{ color: "#9d84ff" }}>
@@ -380,23 +442,12 @@ export default function QuestCard({
             </div>
           )}
         </div>
-        <div className="text-center flex-1">
-          <div
-            className="text-xs uppercase tracking-widest mb-2 font-serif"
-            style={{ color: COLORS.brown }}
-          >
-            Status
-          </div>
-          <div className="text-2xl md:text-3xl font-serif font-bold" style={{ color: COLORS.gold }}>
-            {quest.completed ? "COMPLETED" : "ACTIVE"}
-          </div>
-        </div>
       </div>
 
       {/* Complete Button / Upcoming Info */}
       {isUpcoming ? (
         <div
-          className="w-full mt-6 md:mt-8 py-3 md:py-4 px-4 font-serif font-semibold text-sm md:text-base uppercase tracking-wider text-center"
+          className="w-full mt-4 flex-none py-3 md:py-4 px-4 font-serif font-semibold text-sm md:text-base uppercase tracking-wider text-center"
           style={{
             backgroundColor: "rgba(212, 175, 55, 0.15)",
             borderColor: COLORS.gold,
@@ -407,7 +458,7 @@ export default function QuestCard({
           📅 {formatUpcomingTime(upcomingSpawnTime)}
         </div>
       ) : !quest.completed || showAbandonAction ? (
-        <div className="mt-7 md:mt-8 flex items-stretch gap-2">
+        <div className="mt-4 flex flex-none items-stretch gap-2">
           {showAbandonAction && (
             <button
               className="flex-1 min-w-0 py-2.5 md:py-3 px-3 font-serif font-semibold text-xs md:text-sm uppercase tracking-wide transition-all duration-300 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"

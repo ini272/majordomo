@@ -54,6 +54,7 @@ interface EditQuestModalProps {
   targetUserId?: number | null;
   targetParticipantUserIds?: number[];
   createQuestOnSave?: boolean; // If true, creates quest on save (for template/initialData modes)
+  initialSaveAsTemplate?: boolean;
   onSave?: (result: {
     createdQuest: boolean;
     updatedTemplateDefaults: boolean;
@@ -71,6 +72,7 @@ export default function EditQuestModal({
   targetUserId,
   targetParticipantUserIds,
   createQuestOnSave = false,
+  initialSaveAsTemplate = false,
   onSave,
   onClose,
 }: EditQuestModalProps) {
@@ -96,7 +98,7 @@ export default function EditQuestModal({
   const [nameAnimationDone, setNameAnimationDone] = useState(false);
   const [subscription, setSubscription] = useState<UserTemplateSubscription | null>(null);
   const [originalRecurrence, setOriginalRecurrence] = useState<QuestRecurrence>("one-off");
-  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [saveAsTemplate, setSaveAsTemplate] = useState(initialSaveAsTemplate);
   const [homeUsers, setHomeUsers] = useState<User[]>([]);
   const getInitialParticipantIds = useCallback(() => {
     if (targetParticipantUserIds && targetParticipantUserIds.length > 0) {
@@ -148,6 +150,10 @@ export default function EditQuestModal({
 
     loadHomeUsers();
   }, [token, userId]);
+
+  useEffect(() => {
+    setSaveAsTemplate(initialSaveAsTemplate);
+  }, [initialSaveAsTemplate, questId]);
 
   useEffect(() => {
     if (!questId) {
