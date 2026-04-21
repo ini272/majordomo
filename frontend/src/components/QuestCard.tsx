@@ -43,11 +43,12 @@ const formatQuestDateTime = (value?: string | Date | null): string | null => {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
 
-  return date.toLocaleString(undefined, {
+  return date.toLocaleString("en-GB", {
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
 };
 
@@ -191,8 +192,8 @@ export default function QuestCard({
         backgroundColor: COLORS.darkPanel,
         borderColor: cardBorderColor,
         borderWidth: "3px",
-        height: "min(760px, calc(92dvh - 4.5rem))",
-        minHeight: "min(520px, calc(92dvh - 4.5rem))",
+        height: "min(820px, calc(100dvh - 5.75rem))",
+        minHeight: "min(560px, calc(100dvh - 5.75rem))",
         opacity: isUpcoming ? 0.6 : 1,
       }}
     >
@@ -303,7 +304,7 @@ export default function QuestCard({
         </div>
       )}
 
-      <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+      <div className="mt-3 min-h-[3.75rem] flex-1 overflow-y-auto pr-1 md:min-h-[4.25rem]">
         {hasOriginalTitle && showOriginalTitle && (
           <div
             id={originalTitlePanelId}
@@ -352,7 +353,7 @@ export default function QuestCard({
 
       {/* Stats Grid */}
       <div
-        className={`mt-4 grid max-h-52 flex-none ${factsGridColumns} gap-3 overflow-y-auto pr-1 pt-4 md:gap-4`}
+        className={`mt-3 grid max-h-44 flex-none ${factsGridColumns} gap-2 overflow-y-auto pr-1 pt-3 md:gap-3`}
         style={{ borderTopColor: COLORS.redBorder, borderTopWidth: "1px" }}
       >
         <div>
@@ -447,7 +448,7 @@ export default function QuestCard({
       {/* Complete Button / Upcoming Info */}
       {isUpcoming ? (
         <div
-          className="w-full mt-4 flex-none py-3 md:py-4 px-4 font-serif font-semibold text-sm md:text-base uppercase tracking-wider text-center"
+          className="w-full mt-3 flex-none py-2.5 md:py-3 px-4 font-serif font-semibold text-sm md:text-base uppercase tracking-wider text-center"
           style={{
             backgroundColor: "rgba(212, 175, 55, 0.15)",
             borderColor: COLORS.gold,
@@ -458,10 +459,10 @@ export default function QuestCard({
           📅 {formatUpcomingTime(upcomingSpawnTime)}
         </div>
       ) : !quest.completed || showAbandonAction ? (
-        <div className="mt-4 flex flex-none items-stretch gap-2">
+        <div className="mt-3 flex flex-none items-stretch gap-2">
           {showAbandonAction && (
             <button
-              className="flex-1 min-w-0 py-2.5 md:py-3 px-3 font-serif font-semibold text-xs md:text-sm uppercase tracking-wide transition-all duration-300 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex-1 min-w-0 py-2 md:py-2.5 px-3 font-serif font-semibold text-xs md:text-sm uppercase tracking-wide transition-all duration-300 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
               style={{
                 backgroundColor: "rgba(196, 72, 72, 0.2)",
                 borderColor: COLORS.redLight,
@@ -476,7 +477,7 @@ export default function QuestCard({
           )}
           {!quest.completed && (
             <button
-              className="flex-1 min-w-0 py-2.5 md:py-3 px-3 font-serif font-semibold text-xs md:text-sm uppercase tracking-wide transition-all duration-300 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex-1 min-w-0 py-2 md:py-2.5 px-3 font-serif font-semibold text-xs md:text-sm uppercase tracking-wide transition-all duration-300 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
               style={{
                 backgroundColor: "rgba(95, 183, 84, 0.25)",
                 borderColor: COLORS.greenSuccess,

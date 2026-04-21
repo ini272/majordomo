@@ -977,11 +977,11 @@ export default function Board() {
           isOpen={true}
           onClose={closeQuestDetails}
           closeOnBackdrop={true}
-          overlayClassName="p-3 sm:p-6 items-end sm:items-center bg-black/75"
-          panelClassName="w-full max-w-3xl max-h-[92dvh]"
+          overlayClassName="items-end bg-black/75 p-2 sm:items-center sm:p-6"
+          panelClassName="w-full max-w-3xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-3rem)]"
           zIndex={LAYERS.modal}
         >
-          <div className="mb-2 flex justify-end gap-2">
+          <div className="mb-1 flex justify-end gap-2 sm:mb-2">
             {selectedQuestView === "current" && (
               <button
                 type="button"
