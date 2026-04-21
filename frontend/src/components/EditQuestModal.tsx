@@ -11,13 +11,23 @@ import { buildSchedule, parseSchedule, type QuestRecurrence } from "../utils/sch
 import { sortHomeUsers } from "../utils/homeUsers";
 import {
   buildStandaloneQuestUpdateData,
+  CORRUPTION_TIMER_PRESETS,
+  CORRUPTION_TIMER_UNITS,
+  customCorruptionTimerToHours,
+  deriveCustomCorruptionTimerValue,
   deriveDifficultySlidersFromXP,
+  formatCorruptionTimerDuration,
+  getMaxCorruptionTimerAmount,
   getEditQuestModalLabels,
+  isCorruptionTimerPreset,
+  normalizeCustomCorruptionTimerAmount,
   toDueInHoursStateValue,
+  type CorruptionTimerUnit,
   waitForScribeContent,
 } from "./editQuestModalHelpers";
 
 const AVAILABLE_TAGS = ["Chores", "Learning", "Exercise", "Health", "Organization"];
+type CorruptionTimerMode = "preset" | "custom";
 
 interface TemplateInitialData {
   title: string;
@@ -88,14 +98,14 @@ export default function EditQuestModal({
   const [originalRecurrence, setOriginalRecurrence] = useState<QuestRecurrence>("one-off");
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [homeUsers, setHomeUsers] = useState<User[]>([]);
-  const getInitialParticipantIds = () => {
+  const getInitialParticipantIds = useCallback(() => {
     if (targetParticipantUserIds && targetParticipantUserIds.length > 0) {
       return targetParticipantUserIds;
     }
 
     const fallbackUserId = targetUserId ?? userId;
     return fallbackUserId !== null ? [fallbackUserId] : [];
-  };
+  }, [targetParticipantUserIds, targetUserId, userId]);
   const [selectedParticipantIds, setSelectedParticipantIds] =
     useState<number[]>(getInitialParticipantIds);
   const showParticipantSelector = Boolean(quest || isTemplateDefaultsMode);
@@ -113,6 +123,18 @@ export default function EditQuestModal({
   const [scheduleDay, setScheduleDay] = useState<string>("monday");
   const [scheduleDayOfMonth, setScheduleDayOfMonth] = useState<number>(1);
   const [dueInHours, setDueInHours] = useState<string>("");
+  const [corruptionTimerMode, setCorruptionTimerMode] = useState<CorruptionTimerMode>("preset");
+  const [customDueAmount, setCustomDueAmount] = useState("2");
+  const [customDueUnit, setCustomDueUnit] = useState<CorruptionTimerUnit>("days");
+
+  const setCorruptionTimerFromHours = useCallback((nextDueInHours?: number | null) => {
+    setDueInHours(toDueInHoursStateValue(nextDueInHours));
+
+    const customValue = deriveCustomCorruptionTimerValue(nextDueInHours);
+    setCustomDueAmount(customValue.amount);
+    setCustomDueUnit(customValue.unit);
+    setCorruptionTimerMode(isCorruptionTimerPreset(nextDueInHours) ? "preset" : "custom");
+  }, []);
 
   useEffect(() => {
     const loadHomeUsers = async () => {
@@ -131,7 +153,7 @@ export default function EditQuestModal({
     if (!questId) {
       setSelectedParticipantIds(getInitialParticipantIds());
     }
-  }, [questId, targetParticipantUserIds, targetUserId, userId]);
+  }, [questId, getInitialParticipantIds]);
 
   // Load data based on mode
   useEffect(() => {
@@ -154,7 +176,7 @@ export default function EditQuestModal({
           setTime(createModeSliders.time);
           setEffort(createModeSliders.effort);
           setDread(createModeSliders.dread);
-          setDueInHours(toDueInHoursStateValue(initialData.due_in_hours));
+          setCorruptionTimerFromHours(initialData.due_in_hours);
 
           setLoading(false);
           if (initialData.display_name || initialData.description) {
@@ -210,7 +232,7 @@ export default function EditQuestModal({
               setScheduleDayOfMonth(parsedSchedule.day);
             }
           }
-          setDueInHours(toDueInHoursStateValue(effectiveDueInHours));
+          setCorruptionTimerFromHours(effectiveDueInHours);
 
           setLoading(false);
           if (response.display_name || response.description) {
@@ -253,7 +275,7 @@ export default function EditQuestModal({
               setScheduleDayOfMonth(parsedSchedule.day);
             }
           }
-          setDueInHours(toDueInHoursStateValue(response.due_in_hours));
+          setCorruptionTimerFromHours(response.due_in_hours);
 
           setQuest(response);
           setSelectedParticipantIds(
@@ -274,7 +296,7 @@ export default function EditQuestModal({
     };
 
     loadData();
-  }, [questId, templateId, initialData, token, skipAI, isCreateMode]);
+  }, [questId, templateId, initialData, token, skipAI, isCreateMode, setCorruptionTimerFromHours]);
 
   const handleSave = useCallback(
     async (options?: { createQuestAfterTemplateSave?: boolean }) => {
@@ -289,6 +311,7 @@ export default function EditQuestModal({
 
         // Build schedule JSON if needed
         const schedule = buildSchedule(recurrence, scheduleTime, scheduleDay, scheduleDayOfMonth);
+        const dueInHoursValue = dueInHours ? parseInt(dueInHours, 10) : null;
 
         if (createQuestOnSave) {
           // CREATE QUEST MODE (From Template or Random with initialData)
@@ -305,7 +328,7 @@ export default function EditQuestModal({
               ...(selectedTags.length > 0 && { tags: selectedTags.join(",").toLowerCase() }),
               xp_reward: baseXP,
               gold_reward: baseGold,
-              ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
+              ...(dueInHoursValue !== null && { due_in_hours: dueInHoursValue }),
               participant_user_ids: selectedParticipantIds,
             };
 
@@ -323,7 +346,7 @@ export default function EditQuestModal({
                 {
                   recurrence: recurrence,
                   schedule: schedule,
-                  due_in_hours: dueInHours ? parseInt(dueInHours) : null,
+                  due_in_hours: dueInHoursValue,
                 },
                 token
               );
@@ -352,7 +375,7 @@ export default function EditQuestModal({
             gold_reward: baseGold,
             recurrence: recurrence,
             schedule: schedule,
-            due_in_hours: dueInHours ? parseInt(dueInHours) : null,
+            due_in_hours: dueInHoursValue,
           };
 
           await api.quests.updateTemplate(templateId, updateData, token);
@@ -365,7 +388,7 @@ export default function EditQuestModal({
                 quest_template_id: templateId,
                 recurrence: recurrence,
                 ...(schedule && { schedule }),
-                ...(dueInHours && { due_in_hours: parseInt(dueInHours) }),
+                ...(dueInHoursValue !== null && { due_in_hours: dueInHoursValue }),
               },
               token
             );
@@ -381,7 +404,7 @@ export default function EditQuestModal({
               {
                 recurrence: recurrence,
                 schedule: schedule,
-                due_in_hours: dueInHours ? parseInt(dueInHours) : null,
+                due_in_hours: dueInHoursValue,
               },
               token
             );
@@ -429,7 +452,7 @@ export default function EditQuestModal({
             const conversionData = {
               recurrence: recurrence,
               schedule: schedule,
-              due_in_hours: dueInHours ? parseInt(dueInHours) : null,
+              due_in_hours: dueInHoursValue,
             };
             console.log("Converting to template with data:", conversionData);
             console.log("dueInHours state:", dueInHours);
@@ -469,9 +492,7 @@ export default function EditQuestModal({
       token,
       userId,
       targetUserId,
-      targetParticipantUserIds,
       onSave,
-      onClose,
     ]
   );
 
@@ -484,6 +505,42 @@ export default function EditQuestModal({
       handleSave();
     }
   };
+
+  const handleSelectCorruptionTimerPreset = (hours: number) => {
+    setCorruptionTimerMode("preset");
+    setDueInHours(toDueInHoursStateValue(hours));
+  };
+
+  const handleSelectCustomCorruptionTimer = () => {
+    const currentDueInHours = parseInt(dueInHours, 10);
+    const customValue = deriveCustomCorruptionTimerValue(
+      Number.isFinite(currentDueInHours) && currentDueInHours > 0 ? currentDueInHours : null
+    );
+
+    setCustomDueAmount(customValue.amount);
+    setCustomDueUnit(customValue.unit);
+    setDueInHours(customCorruptionTimerToHours(customValue.amount, customValue.unit));
+    setCorruptionTimerMode("custom");
+  };
+
+  const handleCustomCorruptionAmountChange = (rawAmount: string) => {
+    const normalizedAmount = normalizeCustomCorruptionTimerAmount(rawAmount, customDueUnit);
+
+    setCustomDueAmount(normalizedAmount);
+    setDueInHours(customCorruptionTimerToHours(normalizedAmount, customDueUnit));
+    setCorruptionTimerMode("custom");
+  };
+
+  const handleCustomCorruptionUnitChange = (unit: CorruptionTimerUnit) => {
+    const normalizedAmount = normalizeCustomCorruptionTimerAmount(customDueAmount, unit);
+
+    setCustomDueUnit(unit);
+    setCustomDueAmount(normalizedAmount);
+    setDueInHours(customCorruptionTimerToHours(normalizedAmount, unit));
+    setCorruptionTimerMode("custom");
+  };
+
+  const corruptionTimerDuration = formatCorruptionTimerDuration(dueInHours);
 
   const toggleParticipant = (participantId: number) => {
     setSelectedParticipantIds((current) =>
@@ -819,27 +876,23 @@ export default function EditQuestModal({
                   Corruption Timer
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {[
-                    { label: "None", hours: 0 },
-                    { label: "1 Day", hours: 24 },
-                    { label: "3 Days", hours: 72 },
-                    { label: "7 Days", hours: 168 },
-                    { label: "1 Month", hours: 720 },
-                  ].map((option) => (
+                  {CORRUPTION_TIMER_PRESETS.map((option) => (
                     <button
                       key={option.label}
                       type="button"
-                      onClick={() => setDueInHours(option.hours > 0 ? option.hours.toString() : "")}
+                      onClick={() => handleSelectCorruptionTimerPreset(option.hours)}
                       className="px-3 py-1.5 text-xs uppercase tracking-wider font-serif rounded transition-all"
                       style={{
                         backgroundColor:
-                          (option.hours === 0 && !dueInHours) ||
-                          parseInt(dueInHours || "0") === option.hours
+                          corruptionTimerMode === "preset" &&
+                          ((option.hours === 0 && !dueInHours) ||
+                            parseInt(dueInHours || "0", 10) === option.hours)
                             ? COLORS.gold
                             : `rgba(212, 175, 55, 0.2)`,
                         color:
-                          (option.hours === 0 && !dueInHours) ||
-                          parseInt(dueInHours || "0") === option.hours
+                          corruptionTimerMode === "preset" &&
+                          ((option.hours === 0 && !dueInHours) ||
+                            parseInt(dueInHours || "0", 10) === option.hours)
                             ? COLORS.darkPanel
                             : COLORS.gold,
                         border: `1px solid ${COLORS.gold}`,
@@ -850,10 +903,85 @@ export default function EditQuestModal({
                       {option.label}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={handleSelectCustomCorruptionTimer}
+                    className="px-3 py-1.5 text-xs uppercase tracking-wider font-serif rounded transition-all"
+                    style={{
+                      backgroundColor:
+                        corruptionTimerMode === "custom" ? COLORS.gold : `rgba(212, 175, 55, 0.2)`,
+                      color: corruptionTimerMode === "custom" ? COLORS.darkPanel : COLORS.gold,
+                      border: `1px solid ${COLORS.gold}`,
+                      cursor: saving ? "not-allowed" : "pointer",
+                    }}
+                    disabled={saving}
+                  >
+                    Custom
+                  </button>
                 </div>
-                {dueInHours && parseInt(dueInHours) > 0 && (
+
+                {corruptionTimerMode === "custom" && (
+                  <div
+                    className="mt-3 p-3 rounded space-y-3"
+                    style={{
+                      backgroundColor: `rgba(212, 175, 55, 0.1)`,
+                      border: `1px solid ${COLORS.gold}`,
+                    }}
+                  >
+                    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                      <div>
+                        <label
+                          className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                          style={{ color: COLORS.parchment }}
+                        >
+                          Corrupts After
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max={getMaxCorruptionTimerAmount(customDueUnit)}
+                          value={customDueAmount}
+                          onChange={(e) => handleCustomCorruptionAmountChange(e.target.value)}
+                          className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                          style={{
+                            backgroundColor: COLORS.black,
+                            borderColor: COLORS.gold,
+                            borderWidth: "2px",
+                            color: COLORS.parchment,
+                          }}
+                          disabled={saving}
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {CORRUPTION_TIMER_UNITS.map((option) => (
+                          <button
+                            key={option.unit}
+                            type="button"
+                            onClick={() => handleCustomCorruptionUnitChange(option.unit)}
+                            className="px-3 py-2 text-xs uppercase tracking-wider font-serif rounded transition-all"
+                            style={{
+                              backgroundColor:
+                                customDueUnit === option.unit
+                                  ? COLORS.gold
+                                  : `rgba(212, 175, 55, 0.2)`,
+                              color: customDueUnit === option.unit ? COLORS.darkPanel : COLORS.gold,
+                              border: `1px solid ${COLORS.gold}`,
+                              cursor: saving ? "not-allowed" : "pointer",
+                            }}
+                            disabled={saving}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {corruptionTimerDuration && (
                   <p className="text-xs mt-2 font-serif italic" style={{ color: COLORS.parchment }}>
-                    Quest will corrupt if not completed within {parseInt(dueInHours)} hours
+                    Quest will corrupt if not completed within {corruptionTimerDuration}
                   </p>
                 )}
               </div>

@@ -48,6 +48,24 @@ interface WaitForScribeContentOptions<T extends ScribeQuestSnapshot> {
   sleep?: (intervalMs: number) => Promise<void>;
 }
 
+export type CorruptionTimerUnit = "hours" | "days" | "weeks";
+
+export const MAX_DUE_IN_HOURS = 8760;
+
+export const CORRUPTION_TIMER_PRESETS = [
+  { label: "None", hours: 0 },
+  { label: "1 Day", hours: 24 },
+  { label: "3 Days", hours: 72 },
+  { label: "7 Days", hours: 168 },
+  { label: "30 Days", hours: 720 },
+] as const;
+
+export const CORRUPTION_TIMER_UNITS: { label: string; unit: CorruptionTimerUnit }[] = [
+  { label: "Hours", unit: "hours" },
+  { label: "Days", unit: "days" },
+  { label: "Weeks", unit: "weeks" },
+];
+
 const DEFAULT_SCRIBE_POLL_ATTEMPTS = 12;
 const DEFAULT_SCRIBE_POLL_INTERVAL_MS = 750;
 
@@ -61,6 +79,80 @@ function delay(intervalMs: number): Promise<void> {
 
 export function toDueInHoursStateValue(dueInHours?: number | null): string {
   return dueInHours && dueInHours > 0 ? dueInHours.toString() : "";
+}
+
+export function isCorruptionTimerPreset(dueInHours?: number | null): boolean {
+  const normalizedHours = dueInHours ?? 0;
+  return CORRUPTION_TIMER_PRESETS.some((preset) => preset.hours === normalizedHours);
+}
+
+function getCorruptionTimerUnitMultiplier(unit: CorruptionTimerUnit): number {
+  if (unit === "weeks") return 168;
+  if (unit === "days") return 24;
+  return 1;
+}
+
+export function getMaxCorruptionTimerAmount(unit: CorruptionTimerUnit): number {
+  return Math.floor(MAX_DUE_IN_HOURS / getCorruptionTimerUnitMultiplier(unit));
+}
+
+export function normalizeCustomCorruptionTimerAmount(
+  rawAmount: string,
+  unit: CorruptionTimerUnit
+): string {
+  const digitsOnly = rawAmount.replace(/\D/g, "");
+  if (!digitsOnly) return "";
+
+  const parsedAmount = parseInt(digitsOnly, 10);
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) return "";
+
+  return Math.min(parsedAmount, getMaxCorruptionTimerAmount(unit)).toString();
+}
+
+export function customCorruptionTimerToHours(amount: string, unit: CorruptionTimerUnit): string {
+  const normalizedAmount = normalizeCustomCorruptionTimerAmount(amount, unit);
+  if (!normalizedAmount) return "";
+
+  const hours = parseInt(normalizedAmount, 10) * getCorruptionTimerUnitMultiplier(unit);
+  return Math.min(hours, MAX_DUE_IN_HOURS).toString();
+}
+
+export function deriveCustomCorruptionTimerValue(dueInHours?: number | null): {
+  amount: string;
+  unit: CorruptionTimerUnit;
+} {
+  if (!dueInHours || dueInHours <= 0) {
+    return { amount: "2", unit: "days" };
+  }
+
+  if (dueInHours % 168 === 0) {
+    return { amount: (dueInHours / 168).toString(), unit: "weeks" };
+  }
+
+  if (dueInHours % 24 === 0) {
+    return { amount: (dueInHours / 24).toString(), unit: "days" };
+  }
+
+  return { amount: dueInHours.toString(), unit: "hours" };
+}
+
+function formatDurationUnit(value: number, singular: string): string {
+  return `${value} ${singular}${value === 1 ? "" : "s"}`;
+}
+
+export function formatCorruptionTimerDuration(dueInHours: string): string | null {
+  const hours = parseInt(dueInHours, 10);
+  if (!Number.isFinite(hours) || hours <= 0) return null;
+
+  if (hours % 168 === 0) {
+    return formatDurationUnit(hours / 168, "week");
+  }
+
+  if (hours % 24 === 0) {
+    return formatDurationUnit(hours / 24, "day");
+  }
+
+  return formatDurationUnit(hours, "hour");
 }
 
 export function buildStandaloneQuestUpdateData({
