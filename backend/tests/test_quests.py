@@ -1,4 +1,9 @@
+import re
+
 from fastapi.testclient import TestClient
+
+
+UTC_OFFSET_PATTERN = re.compile(r"(?:Z|[+-]\d{2}:\d{2})$")
 
 
 def test_create_quest_template(client: TestClient, home_with_user):
@@ -891,6 +896,7 @@ def test_create_standalone_quest(client: TestClient, home_with_user, auth_contex
     assert quest["xp_reward"] == 200
     assert quest["gold_reward"] == 100
     assert quest["completed"] is False
+    assert UTC_OFFSET_PATTERN.search(quest["created_at"])
 
 
 def test_standalone_quest_completion(client: TestClient, home_with_user):

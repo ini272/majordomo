@@ -1,17 +1,18 @@
 from datetime import datetime
 import json
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlmodel import Session
 
 from app.auth import get_current_user
+from app.crud import home as crud_home
 from app.crud import subscription as crud_subscription
 from app.crud import quest_template as crud_quest_template
-from app.crud import user as crud_user
 from app.database import get_db
 from app.models.quest import (
+    _as_utc_datetime,
     QuestTemplateRead,
     UserTemplateSubscriptionCreate,
     UserTemplateSubscriptionRead,
@@ -36,6 +37,11 @@ class UpcomingSubscription(BaseModel):
     next_spawn_at: datetime
     template: QuestTemplateRead
 
+    @field_validator("last_generated_at", "created_at", "next_spawn_at", mode="before")
+    @classmethod
+    def normalize_utc_datetimes(cls, value: Any) -> Any:
+        return _as_utc_datetime(value)
+
 
 @router.get("/upcoming", response_model=list[UpcomingSubscription])
 def get_upcoming_subscriptions(
@@ -44,6 +50,8 @@ def get_upcoming_subscriptions(
 ):
     """Get active recurring subscriptions with calculated next spawn times"""
     user_id = auth["user_id"]
+    home = crud_home.get_home(db, auth["home_id"])
+    home_timezone = home.timezone if home else "UTC"
 
     # Get active subscriptions
     subscriptions = crud_subscription.get_user_subscriptions(db, user_id, active_only=True)
@@ -61,7 +69,9 @@ def get_upcoming_subscriptions(
         # Parse schedule and calculate next spawn time
         try:
             schedule_dict = json.loads(sub.schedule) if sub.schedule else {}
-            next_spawn = calculate_next_generation_time(sub.last_generated_at, schedule_dict)
+            next_spawn = calculate_next_generation_time(
+                sub.last_generated_at, schedule_dict, home_timezone
+            )
 
             result.append(UpcomingSubscription(
                 id=sub.id,

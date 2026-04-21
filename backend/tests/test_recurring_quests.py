@@ -117,6 +117,36 @@ def test_daily_generated_yesterday():
         assert next_time.hour == 8
 
 
+def test_daily_schedule_uses_home_timezone():
+    """Test that schedule times are interpreted in the home's timezone."""
+    # 06:30 UTC is 07:30 in Berlin on this date.
+    mock_now = datetime(2026, 1, 27, 6, 30, tzinfo=timezone.utc)
+
+    with patch("app.services.recurring_quests.datetime") as mock_datetime:
+        mock_datetime.now.return_value = mock_now
+
+        schedule = {"type": "daily", "time": "08:00"}
+        next_time = calculate_next_generation_time(None, schedule, "Europe/Berlin")
+
+        assert next_time == datetime(2026, 1, 27, 7, 0, tzinfo=timezone.utc)
+
+
+def test_daily_already_generated_today_uses_home_timezone():
+    """Test that duplicate prevention uses the home's local calendar day."""
+    # 00:30 UTC is 01:30 in Berlin on Jan 27.
+    mock_now = datetime(2026, 1, 27, 0, 30, tzinfo=timezone.utc)
+    # 23:30 UTC the previous day is 00:30 in Berlin on Jan 27.
+    last_generated = datetime(2026, 1, 26, 23, 30, tzinfo=timezone.utc)
+
+    with patch("app.services.recurring_quests.datetime") as mock_datetime:
+        mock_datetime.now.return_value = mock_now
+
+        schedule = {"type": "daily", "time": "00:15"}
+        next_time = calculate_next_generation_time(last_generated, schedule, "Europe/Berlin")
+
+        assert next_time == datetime(2026, 1, 27, 23, 15, tzinfo=timezone.utc)
+
+
 # ============================================================================
 # Unit Tests: Weekly Schedule Time Calculation
 # ============================================================================
@@ -460,8 +490,8 @@ def test_generate_skips_existing_shared_instance_for_participant(db: Session, db
     assert [quest.id for quest in quests] == [existing_quest.id]
 
 
-def test_generate_sets_due_date_from_template(db: Session, db_home_with_users):
-    """Test that generation sets due_date based on subscription's due_in_hours (Phase 3)"""
+def test_generate_snapshots_due_in_hours_from_subscription(db: Session, db_home_with_users):
+    """Test that generated quests use the active due_in_hours corruption timer."""
     home, user, _user2 = db_home_with_users
 
     # Create template
@@ -499,15 +529,11 @@ def test_generate_sets_due_date_from_template(db: Session, db_home_with_users):
     with patch("app.services.recurring_quests.datetime", MockDatetime):
         generate_due_quests(home.id, db)
 
-    # Verify quest has due_date set
+    # Verify quest has due_in_hours set for the active corruption timer path
     quest = db.exec(select(Quest).where(Quest.quest_template_id == template.id)).first()
     assert quest is not None
-    assert quest.due_date is not None
-    # Due date should be 48 hours from now
-    expected_due = mock_now + timedelta(hours=48)
-    # Handle timezone comparison (quest.due_date might be naive)
-    quest_due_date = quest.due_date if quest.due_date.tzinfo else quest.due_date.replace(tzinfo=timezone.utc)
-    assert abs((quest_due_date - expected_due).total_seconds()) < 1
+    assert quest.due_in_hours == 48
+    assert quest.due_date is None
 
 
 # ============================================================================

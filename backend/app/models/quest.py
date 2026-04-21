@@ -1,11 +1,22 @@
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
+from pydantic import field_validator
 from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 if TYPE_CHECKING:
     from app.models.home import Home
     from app.models.user import User
+
+
+def _as_utc_datetime(value: Any) -> Any:
+    if value is None or not isinstance(value, datetime):
+        return value
+
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+
+    return value.astimezone(timezone.utc)
 
 
 class QuestTemplate(SQLModel, table=True):
@@ -89,6 +100,11 @@ class QuestTemplateRead(SQLModel):
     system: bool
     created_by: int
     created_at: datetime
+
+    @field_validator("last_generated_at", "created_at", mode="before")
+    @classmethod
+    def normalize_utc_datetimes(cls, value: Any) -> Any:
+        return _as_utc_datetime(value)
 
 
 class QuestTemplateCreate(SQLModel):
@@ -193,6 +209,11 @@ class QuestParticipantRead(SQLModel):
     completed_at: Optional[datetime]
     created_at: datetime
 
+    @field_validator("completed_at", "created_at", mode="before")
+    @classmethod
+    def normalize_utc_datetimes(cls, value: Any) -> Any:
+        return _as_utc_datetime(value)
+
 
 class QuestRead(SQLModel):
     """Schema for reading quest data"""
@@ -230,6 +251,11 @@ class QuestRead(SQLModel):
     # Include template data for convenience (may be null for standalone quests)
     template: Optional[QuestTemplateRead]
     participants: list[QuestParticipantRead] = Field(default_factory=list)
+
+    @field_validator("created_at", "completed_at", "due_date", "corrupted_at", mode="before")
+    @classmethod
+    def normalize_utc_datetimes(cls, value: Any) -> Any:
+        return _as_utc_datetime(value)
 
 
 class QuestCreate(SQLModel):
@@ -282,6 +308,11 @@ class UserTemplateSubscriptionRead(SQLModel):
     created_at: datetime
     # Include template data for convenience
     template: Optional[QuestTemplateRead] = None
+
+    @field_validator("last_generated_at", "created_at", mode="before")
+    @classmethod
+    def normalize_utc_datetimes(cls, value: Any) -> Any:
+        return _as_utc_datetime(value)
 
 
 class UserTemplateSubscriptionCreate(SQLModel):

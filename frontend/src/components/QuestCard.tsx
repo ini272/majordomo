@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { COLORS } from "../constants/colors";
 import type { Quest } from "../types/api";
+import { addHoursToApiDateTime, formatQuestDateTime, parseApiDateTime } from "../utils/dateTime";
 import { formatScheduleLabel } from "../utils/schedule";
 
 interface QuestTypeStyles {
@@ -35,21 +36,6 @@ const getQuestTypeStyles = (questType: string): QuestTypeStyles => {
         badgeColor: COLORS.gold,
       };
   }
-};
-
-const formatQuestDateTime = (value?: string | Date | null): string | null => {
-  if (!value) return null;
-
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-
-  return date.toLocaleString("en-GB", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
 };
 
 interface QuestCardProps {
@@ -123,10 +109,14 @@ export default function QuestCard({
     setShowOriginalTitle(false);
   }, [quest.id]);
 
+  const timingStart = isUpcoming && upcomingSpawnTime ? upcomingSpawnTime : quest.created_at;
+
   // Format upcoming spawn time
   const formatUpcomingTime = (spawnTime: string | undefined) => {
     if (!spawnTime) return null;
-    const spawn = new Date(spawnTime);
+    const spawn = parseApiDateTime(spawnTime);
+    if (!spawn) return null;
+
     const now = new Date();
     const diff = spawn.getTime() - now.getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
@@ -143,10 +133,7 @@ export default function QuestCard({
 
   // Calculate deadline from created_at + due_in_hours
   const calculateDeadline = () => {
-    if (!quest.due_in_hours) return null;
-    const createdAt = new Date(quest.created_at);
-    const deadline = new Date(createdAt.getTime() + quest.due_in_hours * 60 * 60 * 1000);
-    return deadline;
+    return addHoursToApiDateTime(timingStart, quest.due_in_hours);
   };
 
   // Format deadline for display
@@ -175,7 +162,7 @@ export default function QuestCard({
   const isDeadlineCorrupted = deadlineLabel === "Corrupted";
   const showDeadlineBadge = Boolean(quest.due_in_hours && !quest.completed && !isCorrupted);
   const deadlineDateLabel = formatQuestDateTime(calculateDeadline());
-  const createdAtLabel = formatQuestDateTime(quest.created_at);
+  const timingStartLabel = formatQuestDateTime(timingStart);
   const hasExceptionBadges = Boolean(
     isCorrupted ||
     (isRecurring && scheduleInfo) ||
@@ -400,10 +387,10 @@ export default function QuestCard({
             className="text-[10px] uppercase tracking-widest mb-1 font-serif md:text-xs"
             style={{ color: COLORS.brown }}
           >
-            Created
+            {isUpcoming ? "Spawns" : "Created"}
           </div>
           <div className="text-sm font-serif" style={{ color: COLORS.parchment }}>
-            {createdAtLabel ?? "Unknown"}
+            {timingStartLabel ?? "Unknown"}
           </div>
         </div>
         <div>
