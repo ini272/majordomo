@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, type WheelEvent } from "react";
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import QuestCard from "../components/QuestCard";
 import CreateQuestForm from "../components/CreateQuestForm";
@@ -15,6 +15,8 @@ import ModalShell from "../components/modal/ModalShell";
 const QUESTS_PER_PAGE = 6;
 const SWIPE_DISTANCE_THRESHOLD = 72;
 const SWIPE_VELOCITY_THRESHOLD = 420;
+const TRACKPAD_NAVIGATION_THRESHOLD = 60;
+const TRACKPAD_NAVIGATION_COOLDOWN_MS = 450;
 
 type QuestCollectionView = "current" | "upcoming";
 
@@ -245,6 +247,7 @@ export default function Board() {
   const [currentSearchTerm, setCurrentSearchTerm] = useState("");
   const [upcomingSearchTerm, setUpcomingSearchTerm] = useState("");
   const userLevelRef = useRef<number | null>(null);
+  const lastDetailWheelNavigationAtRef = useRef(0);
 
   useEffect(() => {
     userLevelRef.current = userLevel;
@@ -601,27 +604,114 @@ export default function Board() {
     }
   };
 
-  const moveSelectedQuest = (delta: 1 | -1) => {
-    if (!selectedQuest || selectedQuestSequence.length < 2) return;
+  const canSwipeQuestDetails = isCoarsePointer && selectedQuestSequence.length > 1;
+  const canNavigatePrevQuest = selectedQuestIndex > 0;
+  const canNavigateNextQuest =
+    selectedQuestIndex !== -1 && selectedQuestIndex < selectedQuestSequence.length - 1;
 
-    const currentIndex = selectedQuestSequence.findIndex((quest) => quest.id === selectedQuest.id);
-    if (currentIndex === -1) return;
+  const moveSelectedQuest = useCallback(
+    (delta: 1 | -1) => {
+      if (!selectedQuest || selectedQuestSequence.length < 2) return;
 
-    const nextIndex = currentIndex + delta;
-    if (nextIndex < 0 || nextIndex >= selectedQuestSequence.length) return;
+      const currentIndex = selectedQuestSequence.findIndex(
+        (quest) => quest.id === selectedQuest.id
+      );
+      if (currentIndex === -1) return;
 
-    const nextQuest = selectedQuestSequence[nextIndex];
-    setSelectedQuest(nextQuest);
+      const nextIndex = currentIndex + delta;
+      if (nextIndex < 0 || nextIndex >= selectedQuestSequence.length) return;
 
-    if (selectedQuestView === "upcoming") {
-      const nextUpcomingQuest = upcomingQuests.find((upcoming) => upcoming.id === nextQuest.id);
-      setSelectedUpcomingSpawnTime(nextUpcomingQuest?.next_spawn_at);
-      setSelectedIsDailyBounty(false);
+      const nextQuest = selectedQuestSequence[nextIndex];
+      setSelectedQuest(nextQuest);
+
+      if (selectedQuestView === "upcoming") {
+        const nextUpcomingQuest = upcomingQuests.find((upcoming) => upcoming.id === nextQuest.id);
+        setSelectedUpcomingSpawnTime(nextUpcomingQuest?.next_spawn_at);
+        setSelectedIsDailyBounty(false);
+        return;
+      }
+
+      setSelectedUpcomingSpawnTime(undefined);
+      setSelectedIsDailyBounty(activeBountyQuest?.id === nextQuest.id);
+    },
+    [activeBountyQuest?.id, selectedQuest, selectedQuestSequence, selectedQuestView, upcomingQuests]
+  );
+
+  useEffect(() => {
+    if (
+      !selectedQuest ||
+      selectedQuestSequence.length < 2 ||
+      showEditQuestModal ||
+      questPendingAbandon
+    ) {
       return;
     }
 
-    setSelectedUpcomingSpawnTime(undefined);
-    setSelectedIsDailyBounty(activeBountyQuest?.id === nextQuest.id);
+    const handleQuestDetailKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      ) {
+        return;
+      }
+
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName))
+      ) {
+        return;
+      }
+
+      if (event.key === "ArrowLeft" && canNavigatePrevQuest) {
+        event.preventDefault();
+        moveSelectedQuest(-1);
+      }
+
+      if (event.key === "ArrowRight" && canNavigateNextQuest) {
+        event.preventDefault();
+        moveSelectedQuest(1);
+      }
+    };
+
+    window.addEventListener("keydown", handleQuestDetailKeyDown);
+    return () => window.removeEventListener("keydown", handleQuestDetailKeyDown);
+  }, [
+    canNavigateNextQuest,
+    canNavigatePrevQuest,
+    moveSelectedQuest,
+    questPendingAbandon,
+    selectedQuest,
+    selectedQuestSequence.length,
+    showEditQuestModal,
+  ]);
+
+  const handleQuestDetailWheel = (event: WheelEvent<HTMLDivElement>) => {
+    if (isCoarsePointer || selectedQuestSequence.length < 2) return;
+
+    const horizontalIntent = Math.abs(event.deltaX) > Math.abs(event.deltaY) * 1.25;
+    if (!horizontalIntent || Math.abs(event.deltaX) < TRACKPAD_NAVIGATION_THRESHOLD) return;
+
+    const now = Date.now();
+    if (now - lastDetailWheelNavigationAtRef.current < TRACKPAD_NAVIGATION_COOLDOWN_MS) {
+      event.preventDefault();
+      return;
+    }
+
+    if (event.deltaX > 0 && canNavigateNextQuest) {
+      event.preventDefault();
+      lastDetailWheelNavigationAtRef.current = now;
+      moveSelectedQuest(1);
+    }
+
+    if (event.deltaX < 0 && canNavigatePrevQuest) {
+      event.preventDefault();
+      lastDetailWheelNavigationAtRef.current = now;
+      moveSelectedQuest(-1);
+    }
   };
 
   const handleDetailSwipeEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
@@ -642,10 +732,6 @@ export default function Board() {
     }
   };
 
-  const canSwipeQuestDetails = isCoarsePointer && selectedQuestSequence.length > 1;
-  const canNavigatePrevQuest = selectedQuestIndex > 0;
-  const canNavigateNextQuest =
-    selectedQuestIndex !== -1 && selectedQuestIndex < selectedQuestSequence.length - 1;
   const pendingAbandonQuestLabel =
     questPendingAbandon?.display_name || questPendingAbandon?.title || "this quest";
   const canCreateTemplateFromSelectedQuest = Boolean(
@@ -978,10 +1064,10 @@ export default function Board() {
           onClose={closeQuestDetails}
           closeOnBackdrop={true}
           overlayClassName="items-end bg-black/75 p-2 sm:items-center sm:p-6"
-          panelClassName="w-full max-w-3xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-3rem)]"
+          panelClassName="w-full max-w-4xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-3rem)]"
           zIndex={LAYERS.modal}
         >
-          <div className="mb-1 flex justify-end gap-2 sm:mb-2">
+          <div className="mx-auto mb-1 flex max-w-3xl justify-end gap-2 sm:mb-2">
             {selectedQuestView === "current" && (
               <button
                 type="button"
@@ -1029,7 +1115,10 @@ export default function Board() {
               Close
             </button>
           </div>
-          <div className="relative">
+          <div
+            className="relative mx-auto max-w-4xl md:px-14"
+            onWheelCapture={handleQuestDetailWheel}
+          >
             {!isCoarsePointer && selectedQuestSequence.length > 1 && (
               <>
                 <button
@@ -1037,7 +1126,7 @@ export default function Board() {
                   aria-label="Previous quest"
                   onClick={() => moveSelectedQuest(-1)}
                   disabled={!canNavigatePrevQuest}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full text-lg font-bold disabled:opacity-35"
+                  className="absolute left-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full text-lg font-bold disabled:opacity-35"
                   style={{
                     backgroundColor: "rgba(24, 17, 14, 0.92)",
                     border: `1px solid ${COLORS.gold}`,
@@ -1051,7 +1140,7 @@ export default function Board() {
                   aria-label="Next quest"
                   onClick={() => moveSelectedQuest(1)}
                   disabled={!canNavigateNextQuest}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full text-lg font-bold disabled:opacity-35"
+                  className="absolute right-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full text-lg font-bold disabled:opacity-35"
                   style={{
                     backgroundColor: "rgba(24, 17, 14, 0.92)",
                     border: `1px solid ${COLORS.gold}`,
