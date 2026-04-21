@@ -103,14 +103,6 @@ export default function QuestCard({
       : quest.completed
         ? completedGoldTotal
         : previewGoldReward;
-  const activePartyRewardLabel =
-    participantCount > 1 ? `Each participant gets ${previewXpReward} XP` : null;
-  const activePartyGoldLabel =
-    participantCount > 1
-      ? isDailyBounty
-        ? `Each participant gets ${previewGoldReward} gold; bounty multiplies yours`
-        : `Each participant gets ${previewGoldReward} gold`
-      : null;
 
   useEffect(() => {
     setShowOriginalTitle(false);
@@ -152,7 +144,7 @@ export default function QuestCard({
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(hours / 24);
 
-    if (diff < 0) return "Overdue";
+    if (diff < 0) return "Corrupted";
     if (days > 0) return `${days} day${days > 1 ? "s" : ""} left`;
     if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""} left`;
     return "Due soon";
@@ -164,6 +156,9 @@ export default function QuestCard({
   );
   const isRecurring = quest.recurrence !== "one-off";
   const showAbandonAction = Boolean(onAbandon) && !quest.completed;
+  const deadlineLabel = formatDeadline();
+  const isDeadlineCorrupted = deadlineLabel === "Corrupted";
+  const showDeadlineBadge = Boolean(quest.due_in_hours && !quest.completed && !isCorrupted);
 
   return (
     <div
@@ -179,7 +174,7 @@ export default function QuestCard({
       <div className="absolute top-3 right-4 text-2xl opacity-20">⚔</div>
 
       {/* Quest Type Badge */}
-      <div className="absolute top-4 left-4 flex gap-2 flex-wrap">
+      <div className="mb-4 pr-8 flex gap-2 flex-wrap">
         <span
           className={`px-2 py-1 rounded text-xs uppercase font-serif font-bold ${isCorrupted ? "animate-pulse" : ""}`}
           style={{
@@ -225,16 +220,18 @@ export default function QuestCard({
             Household -{corruptionPenaltyPercent}%
           </span>
         )}
-        {quest.due_in_hours && !quest.completed && (
+        {showDeadlineBadge && deadlineLabel && (
           <span
             className="px-2 py-1 rounded text-xs font-serif font-bold"
             style={{
-              backgroundColor: isCorrupted ? "rgba(139, 58, 58, 0.2)" : "rgba(255, 165, 0, 0.2)",
-              color: isCorrupted ? "#ff6b6b" : "#ffa500",
-              border: `1px solid ${isCorrupted ? "#ff6b6b" : "#ffa500"}`,
+              backgroundColor: isDeadlineCorrupted
+                ? "rgba(139, 58, 58, 0.2)"
+                : "rgba(255, 165, 0, 0.2)",
+              color: isDeadlineCorrupted ? "#ff6b6b" : "#ffa500",
+              border: `1px solid ${isDeadlineCorrupted ? "#ff6b6b" : "#ffa500"}`,
             }}
           >
-            📅 {formatDeadline()}
+            📅 {deadlineLabel}
           </span>
         )}
       </div>
@@ -361,11 +358,6 @@ export default function QuestCard({
               Base {baseXpReward} XP, corruption -{corruptionPenaltyPercent}%
             </div>
           )}
-          {participantCount > 1 && (
-            <div className="mt-1 text-xs font-serif" style={{ color: COLORS.brown }}>
-              {quest.completed ? "Total awarded to party" : activePartyRewardLabel}
-            </div>
-          )}
         </div>
         <div className="text-center flex-1">
           <div
@@ -385,11 +377,6 @@ export default function QuestCard({
           {hasCorruptionDebuff && (
             <div className="mt-1 text-xs font-serif" style={{ color: "#ff8080" }}>
               Base {baseGoldReward} Gold, corruption -{corruptionPenaltyPercent}%
-            </div>
-          )}
-          {participantCount > 1 && (
-            <div className="mt-1 text-xs font-serif" style={{ color: COLORS.brown }}>
-              {quest.completed ? "Total awarded to party" : activePartyGoldLabel}
             </div>
           )}
         </div>
