@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
@@ -53,7 +54,7 @@ def _find_recent_completed_user_quest_for_template(
     user_id: int,
     quest_template_id: int,
     now: datetime,
-) -> Quest | None:
+) -> Optional[Quest]:
     cooldown_cutoff = now - timedelta(seconds=NFC_DUPLICATE_SCAN_COOLDOWN_SECONDS)
     return db.exec(
         select(Quest)
