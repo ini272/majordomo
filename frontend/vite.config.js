@@ -18,6 +18,7 @@ export default defineConfig({
       port: 3000,
     },
     allowedHosts: [
+      "majordomo",
       ".trycloudflare.com",
     ],
   },

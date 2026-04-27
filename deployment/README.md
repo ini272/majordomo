@@ -82,6 +82,83 @@ cd /srv/majordomo
 
 Production deploys should not be run directly from unmerged feature branches unless this is an intentional emergency/manual override.
 
+## Staging stack
+
+Use staging when you need a production-shaped test against copied data, such as NFC scans, without mutating real XP/gold.
+
+Staging result:
+
+- Frontend served on port `8080`: `http://majordomo:8080`
+- Backend exposed only on `127.0.0.1:18000`
+- Frontend reverse-proxies `/api` to the staging backend
+- SQLite copied to `/srv/majordomo-staging/data/majordomo.db`
+- Containers use separate names and Compose project: `majordomo-staging`
+
+Prepare an isolated staging database on the server:
+
+```bash
+sudo mkdir -p /srv/majordomo-staging/data
+sudo cp /srv/majordomo/data/majordomo.db /srv/majordomo-staging/data/majordomo.db
+sudo chown -R "$USER":"$USER" /srv/majordomo-staging
+cp deployment/.env.staging.example /srv/majordomo-staging/.env
+```
+
+Edit `/srv/majordomo-staging/.env` and set a staging-only `SECRET_KEY`.
+
+Start staging from the checkout or worktree you want to test:
+
+```bash
+docker compose \
+  -p majordomo-staging \
+  --env-file /srv/majordomo-staging/.env \
+  -f deployment/docker-compose.yml \
+  -f deployment/docker-compose.staging.yml \
+  up -d --build
+```
+
+Check logs:
+
+```bash
+docker compose \
+  -p majordomo-staging \
+  --env-file /srv/majordomo-staging/.env \
+  -f deployment/docker-compose.yml \
+  -f deployment/docker-compose.staging.yml \
+  logs -f
+```
+
+Stop staging:
+
+```bash
+docker compose \
+  -p majordomo-staging \
+  --env-file /srv/majordomo-staging/.env \
+  -f deployment/docker-compose.yml \
+  -f deployment/docker-compose.staging.yml \
+  down
+```
+
+For NFC testing, enable a copied staging template manually:
+
+```sql
+UPDATE quest_template
+SET nfc_enabled = 1,
+    nfc_code = 'trash-bin'
+WHERE id = 42;
+```
+
+Write the temporary staging URL to the NFC tag:
+
+```text
+http://majordomo:8080/t/trash-bin
+```
+
+After production rollout, rewrite the tag without the staging port:
+
+```text
+http://majordomo/t/trash-bin
+```
+
 ## Routine operations
 
 Create a manual database backup:

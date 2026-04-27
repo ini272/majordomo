@@ -1,51 +1,57 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { api } from "../services/api";
+import { api, isRequestError } from "../services/api";
 import { COLORS } from "../constants/colors";
 import { useAuth } from "../contexts/AuthContext";
-import type { QuestCompleteResponse } from "../types/api";
+import type { TriggerQuestResponse } from "../types/api";
 
-interface NFCTriggerResult extends QuestCompleteResponse {
-  user_stats: {
-    level: number;
-    xp: number;
-    gold: number;
-  };
-}
+const SHARED_QUEST_ERROR_FRAGMENT = "shared quest";
 
 export default function NFCTrigger() {
-  const { questTemplateId } = useParams<{ questTemplateId: string }>();
+  const { nfcCode } = useParams<{ nfcCode: string }>();
   const navigate = useNavigate();
-  const [result, setResult] = useState<NFCTriggerResult | null>(null);
+  const requestKeyRef = useRef<string | null>(null);
+  const [result, setResult] = useState<TriggerQuestResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const { token } = useAuth();
+  const { token, logout } = useAuth();
 
   useEffect(() => {
+    const nextUrl = `/t/${nfcCode ?? ""}`;
+
     if (!token) {
-      // Not logged in, redirect to login with next param
-      const nextUrl = `/trigger/quest/${questTemplateId}`;
       navigate(`/?next=${encodeURIComponent(nextUrl)}`);
       return;
     }
 
-    // Logged in, trigger the quest
+    const requestKey = `${token}:${nfcCode ?? ""}`;
+    if (requestKeyRef.current === requestKey) return;
+    requestKeyRef.current = requestKey;
+
     const triggerQuest = async () => {
       try {
-        const templateId = parseInt(questTemplateId || "0");
-        const data = await api.triggers.quest(templateId, token);
+        if (!nfcCode) {
+          throw new Error("Invalid quest trigger");
+        }
+
+        const data = await api.triggers.nfc(nfcCode, token);
         setResult(data);
         setError(null);
-        // Auto-return to board after 3 seconds
-        setTimeout(() => navigate("/board"), 3000);
+        setLoading(false);
       } catch (err) {
+        if (isRequestError(err) && err.status === 401) {
+          logout();
+          navigate(`/?next=${encodeURIComponent(nextUrl)}`);
+          return;
+        }
+
         setError(err instanceof Error ? err.message : "Failed to trigger quest");
         setLoading(false);
       }
     };
 
     triggerQuest();
-  }, [questTemplateId, token, navigate]);
+  }, [nfcCode, token, navigate, logout]);
 
   // Still loading
   if (loading && !result && !error) {
@@ -60,17 +66,31 @@ export default function NFCTrigger() {
 
   // Error state
   if (error) {
+    const isSharedQuestError = error.toLowerCase().includes(SHARED_QUEST_ERROR_FRAGMENT);
+    const errorTitle = isSharedQuestError ? "Shared Quest Found" : "Scan Failed";
+    const errorMessage = isSharedQuestError
+      ? "This tag matched a quest that is assigned to more than one player."
+      : error;
+    const errorGuidance = isSharedQuestError
+      ? "NFC only completes personal quests. Open the board to complete this shared quest there."
+      : null;
+
     return (
       <div className="text-center py-12 md:py-16">
         <h2
           className="text-2xl md:text-3xl font-serif font-bold mb-4"
           style={{ color: COLORS.redLight }}
         >
-          ⚠ Error
+          ⚠ {errorTitle}
         </h2>
         <p className="font-serif mb-6" style={{ color: COLORS.parchment }}>
-          {error}
+          {errorMessage}
         </p>
+        {errorGuidance && (
+          <p className="font-serif mb-6" style={{ color: COLORS.brown }}>
+            {errorGuidance}
+          </p>
+        )}
         <button
           onClick={() => navigate("/board")}
           className="px-6 py-2 font-serif text-sm uppercase tracking-wider transition-all"
@@ -96,13 +116,20 @@ export default function NFCTrigger() {
         </div>
         <h2
           className="text-2xl md:text-4xl font-serif font-bold mb-2"
-          style={{ color: COLORS.greenSuccess }}
+          style={{ color: result.duplicate ? COLORS.gold : COLORS.greenSuccess }}
         >
-          Quest Complete!
+          {result.duplicate ? "Already Counted" : "Quest Complete!"}
         </h2>
         <p className="text-lg md:text-2xl font-serif mb-8" style={{ color: COLORS.gold }}>
           {result.quest.display_name || result.quest.title}
         </p>
+
+        {result.duplicate && (
+          <p className="font-serif mb-8" style={{ color: COLORS.parchment }}>
+            Scan ignored for {result.cooldown_remaining_seconds ?? result.cooldown_seconds} more
+            seconds.
+          </p>
+        )}
 
         {/* Rewards Display */}
         <div className="flex flex-col md:flex-row gap-8 md:gap-12 justify-center mb-8 py-6 md:py-8">
@@ -141,9 +168,24 @@ export default function NFCTrigger() {
           </p>
         </div>
 
-        <p className="text-xs md:text-sm font-serif italic" style={{ color: COLORS.brown }}>
-          Returning to board...
-        </p>
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-xs md:text-sm font-serif italic" style={{ color: COLORS.brown }}>
+            Review the result, then head back when you are ready.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/board")}
+            className="px-6 py-2 font-serif text-sm uppercase tracking-wider transition-all"
+            style={{
+              backgroundColor: "rgba(212, 175, 55, 0.14)",
+              borderColor: COLORS.gold,
+              borderWidth: "1px",
+              color: COLORS.gold,
+            }}
+          >
+            Return to Board
+          </button>
+        </div>
       </div>
     );
   }

@@ -61,7 +61,7 @@ bun run build
 - `/board`
 - `/profile`
 - `/market`
-- `/trigger/quest/:questTemplateId`
+- `/t/:nfcCode`
 - `/playground` (UI/dev)
 
 ## API wiring

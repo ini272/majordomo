@@ -92,7 +92,7 @@ function App() {
           <Route path="/board" element={<Board />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/market" element={<Market />} />
-          <Route path="/trigger/quest/:questTemplateId" element={<NFCTrigger />} />
+          <Route path="/t/:nfcCode" element={<NFCTrigger />} />
           <Route path="/playground" element={<QuestCardPlayground />} />
           <Route path="/" element={<Navigate to="/board" replace />} />
         </Routes>

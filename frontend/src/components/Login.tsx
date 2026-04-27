@@ -67,7 +67,7 @@ export default function Login() {
       const params = new URLSearchParams(window.location.search);
       const nextUrl = params.get("next");
 
-      if (nextUrl) {
+      if (nextUrl && nextUrl.startsWith("/") && !nextUrl.startsWith("//")) {
         navigate(nextUrl);
       }
     } catch (err) {

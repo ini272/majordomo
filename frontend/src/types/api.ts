@@ -15,6 +15,8 @@ export interface QuestTemplate {
   last_generated_at: string | null;
   due_in_hours: number | null;
   system: boolean;
+  nfc_enabled: boolean;
+  nfc_code: string | null;
   created_by: number;
   created_at: string;
 }
@@ -103,6 +105,27 @@ export interface QuestCompleteResponse {
     xp_boost_active?: boolean;
     xp_boost_remaining?: number;
     participants?: QuestParticipantReward[];
+    duplicate_scan?: boolean;
+    previous_xp?: number;
+    previous_gold?: number;
+  };
+  achievements?: Array<{
+    user_id: number;
+    id: number;
+    unlocked_at: string;
+  }>;
+}
+
+export interface TriggerQuestResponse extends QuestCompleteResponse {
+  success: boolean;
+  duplicate: boolean;
+  source: "active_quest" | "created_from_template" | "cooldown";
+  cooldown_seconds: number;
+  cooldown_remaining_seconds?: number;
+  user_stats: {
+    level: number;
+    xp: number;
+    gold: number;
   };
 }
 
@@ -139,6 +162,8 @@ export interface QuestTemplateCreateRequest {
   recurrence?: string;
   schedule?: string | null;
   due_in_hours?: number | null;
+  nfc_enabled?: boolean;
+  nfc_code?: string | null;
 }
 
 export interface QuestTemplateUpdateRequest {
@@ -151,6 +176,8 @@ export interface QuestTemplateUpdateRequest {
   recurrence?: string;
   schedule?: string | null;
   due_in_hours?: number | null;
+  nfc_enabled?: boolean;
+  nfc_code?: string | null;
 }
 
 export interface QuestCreateRequest {

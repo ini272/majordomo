@@ -1,0 +1,12 @@
+services:
+  backend:
+    container_name: majordomo-staging-backend
+    ports: !override
+      - "127.0.0.1:${BACKEND_PORT:-18000}:8000"
+    volumes: !override
+      - ${STAGING_DATA_DIR:-/srv/majordomo-staging/data}:/data
+
+  frontend:
+    container_name: majordomo-staging-frontend
+    ports: !override
+      - "${FRONTEND_PORT:-8080}:80"
