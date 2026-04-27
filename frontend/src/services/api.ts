@@ -1,5 +1,6 @@
 import type {
   LoginResponse,
+  TriggerQuestResponse,
   User,
   Quest,
   QuestTemplate,
@@ -19,6 +20,21 @@ import type {
   UpcomingSubscription,
   ConvertToTemplateRequest,
 } from "../types/api";
+
+export interface RequestError extends Error {
+  status: number;
+}
+
+export const isRequestError = (error: unknown): error is RequestError =>
+  error instanceof Error &&
+  "status" in error &&
+  typeof (error as { status?: unknown }).status === "number";
+
+const createRequestError = (status: number, message: string): RequestError => {
+  const error = new Error(message) as RequestError;
+  error.status = status;
+  return error;
+};
 
 const getAPIURL = (): string => {
   if (import.meta.env.VITE_API_URL) {
@@ -70,12 +86,14 @@ const requestJSON = async <T>(
 ): Promise<T> => {
   const res = await fetch(`${API_URL}${path}`, options);
   if (!res.ok) {
+    let message = fallbackError;
     try {
       const error = await res.json();
-      throw new Error(extractErrorMessage(error, fallbackError));
+      message = extractErrorMessage(error, fallbackError);
     } catch {
-      throw new Error(fallbackError);
+      message = fallbackError;
     }
+    throw createRequestError(res.status, message);
   }
 
   return res.json();
@@ -87,7 +105,7 @@ const requestVoid = async (
   fallbackError: string
 ): Promise<void> => {
   const res = await fetch(`${API_URL}${path}`, options);
-  if (!res.ok) throw new Error(fallbackError);
+  if (!res.ok) throw createRequestError(res.status, fallbackError);
 };
 
 export const api = {
@@ -359,16 +377,9 @@ export const api = {
   },
 
   triggers: {
-    quest: async (
-      questTemplateId: number,
-      token: string
-    ): Promise<
-      QuestCompleteResponse & { user_stats: { level: number; xp: number; gold: number } }
-    > =>
-      requestJSON<
-        QuestCompleteResponse & { user_stats: { level: number; xp: number; gold: number } }
-      >(
-        `/triggers/quest/${questTemplateId}`,
+    nfc: async (nfcCode: string, token: string): Promise<TriggerQuestResponse> =>
+      requestJSON<TriggerQuestResponse>(
+        `/triggers/nfc/${encodeURIComponent(nfcCode)}`,
         {
           method: "POST",
           headers: buildHeaders(token),

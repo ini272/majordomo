@@ -27,6 +27,8 @@ class QuestTemplate(SQLModel, table=True):
     last_generated_at: Optional[datetime] = None  # when last instance was created
     due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)  # relative deadline (1h-1yr)
     system: bool = Field(default=False)  # true = system default, false = user created
+    nfc_enabled: bool = Field(default=False, index=True)
+    nfc_code: Optional[str] = Field(default=None, max_length=128, index=True, unique=True)
     created_by: int = Field(foreign_key="user.id")  # user who created it
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -87,6 +89,8 @@ class QuestTemplateRead(SQLModel):
     last_generated_at: Optional[datetime]
     due_in_hours: Optional[int]
     system: bool
+    nfc_enabled: bool
+    nfc_code: Optional[str]
     created_by: int
     created_at: datetime
 
@@ -104,6 +108,8 @@ class QuestTemplateCreate(SQLModel):
     recurrence: str = Field(default="one-off")
     schedule: Optional[str] = None
     due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)
+    nfc_enabled: bool = Field(default=False)
+    nfc_code: Optional[str] = Field(default=None, max_length=128)
 
 
 class QuestTemplateUpdate(SQLModel):
@@ -118,6 +124,8 @@ class QuestTemplateUpdate(SQLModel):
     recurrence: Optional[str] = Field(default=None)
     schedule: Optional[str] = None
     due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)
+    nfc_enabled: Optional[bool] = Field(default=None)
+    nfc_code: Optional[str] = Field(default=None, max_length=128)
 
 
 class Quest(SQLModel, table=True):

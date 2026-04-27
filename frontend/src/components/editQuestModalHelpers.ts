@@ -51,6 +51,7 @@ interface WaitForScribeContentOptions<T extends ScribeQuestSnapshot> {
 export type CorruptionTimerUnit = "hours" | "days" | "weeks";
 
 export const MAX_DUE_IN_HOURS = 8760;
+export const MAX_NFC_CODE_LENGTH = 48;
 
 export const CORRUPTION_TIMER_PRESETS = [
   { label: "None", hours: 0 },
@@ -178,6 +179,37 @@ export function buildStandaloneQuestUpdateData({
       participant_user_ids: participantIds,
     }),
   };
+}
+
+export function normalizeNfcCode(value: string, maxLength: number = MAX_NFC_CODE_LENGTH): string {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+
+  return trimNfcCodeToMaxLength(normalized, maxLength);
+}
+
+export function trimNfcCodeToMaxLength(
+  normalizedCode: string,
+  maxLength: number = MAX_NFC_CODE_LENGTH
+): string {
+  return normalizedCode.slice(0, maxLength).replace(/-+$/g, "");
+}
+
+export function buildSuggestedNfcCode(
+  value: string,
+  maxLength: number = MAX_NFC_CODE_LENGTH
+): string {
+  return trimNfcCodeToMaxLength(normalizeNfcCode(value, maxLength), maxLength);
+}
+
+export function buildNfcTagUrl(nfcCode: string, origin: string): string {
+  return `${origin.replace(/\/+$/, "")}/t/${encodeURIComponent(nfcCode)}`;
 }
 
 export function deriveDifficultySlidersFromXP(xpReward?: number): DifficultySliders {

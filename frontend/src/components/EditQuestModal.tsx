@@ -9,7 +9,10 @@ import { useAuth } from "../contexts/AuthContext";
 import ModalShell from "./modal/ModalShell";
 import { buildSchedule, parseSchedule, type QuestRecurrence } from "../utils/schedule";
 import { sortHomeUsers } from "../utils/homeUsers";
+import { copyTextToClipboard } from "../utils/clipboard";
 import {
+  buildSuggestedNfcCode,
+  buildNfcTagUrl,
   buildStandaloneQuestUpdateData,
   CORRUPTION_TIMER_PRESETS,
   CORRUPTION_TIMER_UNITS,
@@ -20,6 +23,8 @@ import {
   getMaxCorruptionTimerAmount,
   getEditQuestModalLabels,
   isCorruptionTimerPreset,
+  MAX_NFC_CODE_LENGTH,
+  normalizeNfcCode,
   normalizeCustomCorruptionTimerAmount,
   toDueInHoursStateValue,
   type CorruptionTimerUnit,
@@ -100,6 +105,10 @@ export default function EditQuestModal({
   const [originalRecurrence, setOriginalRecurrence] = useState<QuestRecurrence>("one-off");
   const [saveAsTemplate, setSaveAsTemplate] = useState(initialSaveAsTemplate);
   const [homeUsers, setHomeUsers] = useState<User[]>([]);
+  const [templateTitle, setTemplateTitle] = useState(initialData?.title || "");
+  const [nfcEnabled, setNfcEnabled] = useState(false);
+  const [nfcCode, setNfcCode] = useState("");
+  const [copiedNfcUrl, setCopiedNfcUrl] = useState(false);
   const getInitialParticipantIds = useCallback(() => {
     if (targetParticipantUserIds && targetParticipantUserIds.length > 0) {
       return targetParticipantUserIds;
@@ -128,6 +137,14 @@ export default function EditQuestModal({
   const [corruptionTimerMode, setCorruptionTimerMode] = useState<CorruptionTimerMode>("preset");
   const [customDueAmount, setCustomDueAmount] = useState("2");
   const [customDueUnit, setCustomDueUnit] = useState<CorruptionTimerUnit>("days");
+  const normalizedNfcCode = normalizeNfcCode(nfcCode);
+  const suggestedNfcCode = buildSuggestedNfcCode(templateTitle || "quest-tag");
+  const nfcTagUrl = normalizedNfcCode
+    ? buildNfcTagUrl(
+        normalizedNfcCode,
+        typeof window !== "undefined" ? window.location.origin : "http://majordomo"
+      )
+    : "";
 
   const setCorruptionTimerFromHours = useCallback((nextDueInHours?: number | null) => {
     setDueInHours(toDueInHoursStateValue(nextDueInHours));
@@ -167,6 +184,9 @@ export default function EditQuestModal({
       try {
         if (isCreateMode) {
           // CREATE MODE (Random): Use provided initial data
+          setTemplateTitle(initialData.title);
+          setNfcEnabled(false);
+          setNfcCode("");
           setDisplayName(initialData.display_name || "");
           setDescription(initialData.description || "");
 
@@ -195,6 +215,9 @@ export default function EditQuestModal({
           }
 
           const response = await api.quests.getTemplate(templateId, token);
+          setTemplateTitle(response.title);
+          setNfcEnabled(response.nfc_enabled);
+          setNfcCode(response.nfc_code || "");
 
           // Fetch user's subscriptions
           const subscriptions = await api.subscriptions.getAll(token);
@@ -253,6 +276,9 @@ export default function EditQuestModal({
             });
           }
 
+          setTemplateTitle(response.template?.title || response.title);
+          setNfcEnabled(false);
+          setNfcCode("");
           setDisplayName(response.display_name || "");
           setDescription(response.description || "");
 
@@ -373,6 +399,11 @@ export default function EditQuestModal({
           // Don't call onClose - parent's onSave callback handles closing
         } else if (templateId) {
           // EDIT TEMPLATE MODE: Update template and subscriptions
+          const resolvedNfcCode = normalizedNfcCode || null;
+          if (nfcEnabled && !resolvedNfcCode) {
+            throw new Error("NFC code is required when NFC is enabled");
+          }
+
           const updateData = {
             ...(displayName.trim() && { display_name: displayName.trim() }),
             ...(description.trim() && { description: description.trim() }),
@@ -382,6 +413,8 @@ export default function EditQuestModal({
             recurrence: recurrence,
             schedule: schedule,
             due_in_hours: dueInHoursValue,
+            nfc_enabled: nfcEnabled,
+            nfc_code: resolvedNfcCode,
           };
 
           await api.quests.updateTemplate(templateId, updateData, token);
@@ -494,6 +527,8 @@ export default function EditQuestModal({
       scheduleDay,
       scheduleDayOfMonth,
       dueInHours,
+      nfcEnabled,
+      normalizedNfcCode,
       selectedParticipantIds,
       token,
       userId,
@@ -554,6 +589,23 @@ export default function EditQuestModal({
         ? current.filter((id) => id !== participantId)
         : [...current, participantId]
     );
+  };
+
+  const handleToggleNfcEnabled = (enabled: boolean) => {
+    setNfcEnabled(enabled);
+    if (enabled && !normalizedNfcCode) {
+      setNfcCode(suggestedNfcCode);
+    }
+  };
+
+  const handleCopyNfcUrl = async () => {
+    if (!nfcTagUrl) return;
+
+    const copied = await copyTextToClipboard(nfcTagUrl);
+    if (!copied) return;
+
+    setCopiedNfcUrl(true);
+    window.setTimeout(() => setCopiedNfcUrl(false), 2000);
   };
 
   return (
@@ -1212,6 +1264,117 @@ export default function EditQuestModal({
                     )}
                   </div>
                 )}
+
+              {isTemplateDefaultsMode && (
+                <div
+                  className="mb-6 p-4 rounded-lg"
+                  style={{
+                    backgroundColor: `rgba(212, 175, 55, 0.1)`,
+                    borderColor: COLORS.gold,
+                    borderWidth: "1px",
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3
+                        className="text-sm uppercase tracking-wider font-serif"
+                        style={{ color: COLORS.gold }}
+                      >
+                        NFC Trigger
+                      </h3>
+                      <p className="mt-1 text-xs font-serif" style={{ color: COLORS.parchment }}>
+                        Scanning the tag completes your active quest from this template or creates
+                        and completes one if none exists.
+                      </p>
+                    </div>
+                    <label className="inline-flex items-center gap-2 font-serif text-sm">
+                      <input
+                        type="checkbox"
+                        checked={nfcEnabled}
+                        onChange={(e) => handleToggleNfcEnabled(e.target.checked)}
+                        className="w-4 h-4"
+                        style={{ accentColor: COLORS.gold }}
+                        disabled={saving}
+                      />
+                      <span style={{ color: COLORS.gold }}>Use for NFC</span>
+                    </label>
+                  </div>
+
+                  {nfcEnabled && (
+                    <div className="mt-4 space-y-4">
+                      <div>
+                        <label
+                          className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                          style={{ color: COLORS.parchment }}
+                        >
+                          NFC Code
+                        </label>
+                        <input
+                          type="text"
+                          value={nfcCode}
+                          onChange={(e) => setNfcCode(normalizeNfcCode(e.target.value))}
+                          placeholder={suggestedNfcCode || "trash-bin"}
+                          className="w-full px-3 py-2 font-serif focus:outline-none transition-all"
+                          style={{
+                            backgroundColor: COLORS.black,
+                            borderColor: COLORS.gold,
+                            borderWidth: "2px",
+                            color: COLORS.parchment,
+                          }}
+                          disabled={saving}
+                        />
+                        <p
+                          className="mt-1 text-xs font-serif italic"
+                          style={{ color: COLORS.brown }}
+                        >
+                          Lowercase letters, numbers, and dashes only. Suggested codes are capped at{" "}
+                          {MAX_NFC_CODE_LENGTH} characters. Changing the code means rewriting the
+                          physical tag.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label
+                          className="block text-xs uppercase tracking-wider mb-1 font-serif"
+                          style={{ color: COLORS.parchment }}
+                        >
+                          Tag URL
+                        </label>
+                        <div className="flex flex-col gap-2 md:flex-row">
+                          <input
+                            type="text"
+                            value={nfcTagUrl}
+                            readOnly
+                            className="w-full px-3 py-2 font-serif focus:outline-none"
+                            style={{
+                              backgroundColor: COLORS.black,
+                              borderColor: COLORS.gold,
+                              borderWidth: "2px",
+                              color: COLORS.parchment,
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleCopyNfcUrl}
+                            className="px-4 py-2 font-serif text-xs uppercase tracking-wider transition-all"
+                            style={{
+                              backgroundColor: copiedNfcUrl
+                                ? COLORS.gold
+                                : `rgba(212, 175, 55, 0.2)`,
+                              border: `1px solid ${COLORS.gold}`,
+                              color: copiedNfcUrl ? COLORS.darkPanel : COLORS.gold,
+                              cursor: nfcTagUrl ? "pointer" : "not-allowed",
+                            }}
+                            disabled={saving || !nfcTagUrl}
+                          >
+                            {copiedNfcUrl ? "Copied" : "Copy URL"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Sliders */}
               <div

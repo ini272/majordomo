@@ -31,12 +31,25 @@ def ensure_runtime_schema_compatibility() -> None:
         return
 
     column_names = {column["name"] for column in inspector.get_columns("quest")}
+    quest_template_column_names = (
+        {column["name"] for column in inspector.get_columns("quest_template")}
+        if "quest_template" in inspector.get_table_names()
+        else set()
+    )
 
     with engine.begin() as connection:
         if "created_by" not in column_names:
             connection.execute(text("ALTER TABLE quest ADD COLUMN created_by INTEGER"))
             connection.execute(text("UPDATE quest SET created_by = user_id WHERE created_by IS NULL"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_quest_created_by ON quest (created_by)"))
+
+        if "nfc_enabled" not in quest_template_column_names:
+            connection.execute(text("ALTER TABLE quest_template ADD COLUMN nfc_enabled BOOLEAN DEFAULT 0 NOT NULL"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_quest_template_nfc_enabled ON quest_template (nfc_enabled)"))
+
+        if "nfc_code" not in quest_template_column_names:
+            connection.execute(text("ALTER TABLE quest_template ADD COLUMN nfc_code VARCHAR(128)"))
+            connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_quest_template_nfc_code ON quest_template (nfc_code)"))
 
         # Keep this idempotent backfill through the production rollout. It can be
         # removed in a later cleanup once every deployed database has the table

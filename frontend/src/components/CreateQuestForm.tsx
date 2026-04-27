@@ -502,6 +502,18 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
                                 )}
                             </div>
                             <div className="flex gap-2 ml-4">
+                              {template.nfc_enabled && (
+                                <span
+                                  className="text-xs font-serif px-2 py-1"
+                                  style={{
+                                    color: COLORS.greenSuccess,
+                                    backgroundColor: "rgba(34, 197, 94, 0.12)",
+                                    border: `1px solid ${COLORS.greenSuccess}`,
+                                  }}
+                                >
+                                  NFC
+                                </span>
+                              )}
                               <span
                                 className="text-xs font-serif px-2 py-1"
                                 style={{

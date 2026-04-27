@@ -1,99 +1,118 @@
 # NFC Trigger Setup Guide
 
+Last verified: 2026-04-27
+
 ## Overview
-NFC tags are simple triggers that link to quest completion. When scanned, they automatically complete a quest template and award XP/Gold to the authenticated user.
+
+NFC tags link to a Majordomo trigger URL. When a logged-in user scans a tag, Majordomo completes a quest for that user and shows the reward result.
+
+Current behavior:
+
+- NFC tags point to a public NFC code, not a raw template ID.
+- The NFC code resolves to one NFC-enabled quest template.
+- If the user has an active quest from the scanned template, the oldest active matching quest is completed.
+- If there is no active matching quest, Majordomo creates a quest instance from the template and completes it immediately.
+- Duplicate scans of the same NFC template by the same user within 30 seconds are ignored and do not award rewards again.
+- If the user is not logged in, the app sends them to login and then resumes the trigger URL.
 
 ## Backend
-- **Endpoint:** `POST /api/triggers/quest/{quest_template_id}`
-- **Authentication:** Required (JWT Bearer token)
-- **Response:** Quest completion details + rewards + updated user stats
+
+- Endpoint: `POST /api/triggers/nfc/{nfc_code}`
+- Authentication: required JWT Bearer token
+- Duplicate cooldown: 30 seconds per `home_id + user_id + quest_template_id`
+- Response: quest completion details, rewards, user stats, trigger source, and duplicate status
 
 ## Frontend
-- **Route:** `/trigger/quest/:questTemplateId`
-- **Auth Handling:** Automatically redirects to login if not authenticated
-- **Post-Login Flow:** Redirects back to trigger URL and completes quest
-- **UX:** Shows completion animation, rewards display, auto-returns to board in 3 seconds
+
+- Route: `/t/:nfcCode`
+- Production URL shape: `http://majordomo/t/<nfc_code>`
+- Dev URL shape: `http://majordomo:3000/t/<nfc_code>`
+- API wiring:
+  - Production Docker/Caddy serves the frontend on port 80 and reverse-proxies `/api` to the backend.
+  - Vite dev derives `http://<same-host>:8000/api` when opened on port 3000.
 
 ## NFC Tag Configuration
 
-### What to Write
-Write a URI record to your NFC tag with the following format:
+Write a URI record to the tag:
 
+```text
+http://majordomo/t/<nfc_code>
 ```
-https://<your-lan-ip>:3000/trigger/quest/<quest_template_id>
+
+Example:
+
+```text
+http://majordomo/t/trash-bin
 ```
 
-**Examples:**
-- If your laptop IP is `192.168.1.100`: `https://192.168.1.100:3000/trigger/quest/1`
-- If using mDNS: `https://majordomo.local:3000/trigger/quest/1`
+Use the Tailscale/MagicDNS hostname, not a LAN IP. The tag should not include `localhost`, a laptop IP, or the dev port unless you are intentionally testing against the Vite dev server.
 
-### How to Write the Tag
-1. Use an NFC writing app on your phone (e.g., TagWriter by NXP, Trigger)
-2. Create a new URI record
-3. Paste the URL above
-4. Write to your NFC tag
-5. Test by scanning
+## Enabling A Template For NFC
 
-## Quest Template IDs
-Reference seeded templates (from seed.py):
-- `1`: Clean Kitchen (Standard)
-- `2`: Do Laundry (Standard)
-- `3`: Vacuum Living Room (Corrupted)
-- `4`: Walk the Dog (Bounty)
-- `5`: Mow Lawn (Bounty)
-- `6`: Take out Trash (Corrupted)
+Open the template in template edit mode and use the NFC section:
 
-Create more templates via the API and note their IDs for new tags.
+- Enable `Use for NFC`
+- Set or adjust the `NFC code`
+- Copy the generated `Tag URL`
 
-## Testing Flow
+Example:
 
-### Without NFC Hardware
-1. Start both servers:
+- `NFC code`: `trash-bin`
+- `Tag URL`: `http://majordomo/t/trash-bin`
+
+Keep `nfc_code` stable once written to a physical tag. The tag can keep working through template name/reward/schedule edits as long as the code remains assigned to that template.
+
+## Testing Without NFC Hardware
+
+Production-style test:
+
+1. Ensure the server stack is running and reachable through Tailscale.
+2. Open:
+
+   ```text
+   http://majordomo/t/<nfc_code>
+   ```
+
+3. Log in if prompted.
+4. Confirm the quest completion screen appears and stays visible until `Return to Board` is pressed.
+5. Open the same URL again immediately and confirm it shows the duplicate cooldown state.
+
+Dev test:
+
+1. Start backend:
+
    ```bash
-   cd backend && uv run python main.py
-   cd frontend && bun run dev
+   cd backend
+   uv run python main.py
    ```
 
-2. Manually open the trigger URL:
+2. Start frontend:
+
+   ```bash
+   cd frontend
+   bun run dev
    ```
-   http://localhost:3000/trigger/quest/1
+
+3. Open:
+
+   ```text
+   http://majordomo:3000/t/<nfc_code>
    ```
 
-3. Login with seeded credentials:
-   - Username: `alice`, `bob`, or `charlie`
-   - Password: `alice123`, `bob123`, `charlie123`
-   - Home ID: `1`
+The Vite config allows the `majordomo` host for this flow.
 
-4. Quest completes and shows rewards
+## Testing With NFC Hardware
 
-### With NFC Hardware
-1. Ensure servers running on `0.0.0.0:8000` and `localhost:3000`
-2. Phone on same LAN as laptop
-3. Open browser, navigate to `http://<your-laptop-ip>:3000`, login
-4. Scan NFC tag with phone
-5. App triggers quest completion
-6. See animation + rewards
-7. Auto-return to board
+1. Confirm the phone is connected to Tailscale and can open `http://majordomo`.
+2. Open the app once and log in on the phone.
+3. Write the production trigger URL to the NFC tag.
+4. Scan the tag.
+5. Confirm completion rewards.
+6. Scan again immediately and confirm no second reward is awarded.
 
-## Server Configuration
-To allow phone access over LAN:
+## Operational Notes
 
-**Backend:** Already configured for `0.0.0.0:8000` in `backend/main.py`
-
-**Frontend:**
-- Dev server binds to all interfaces automatically
-- Access via `http://<your-ip>:3000` from any device on LAN
-
-## Quest Type System
-Each quest instance inherits `quest_type` from its template:
-- `standard`: Normal quest (gold borders)
-- `bounty`: Higher value quest (purple borders)
-- `corrupted`: Urgent/overdue quest (red borders)
-
-Types are for visual distinction and future mechanic variation.
-
-## Future Enhancements
-- **Zone Mappings**: Map physical locations to quest templates (rotate which quest a zone points to)
-- **Cooldown**: Prevent scanning same tag multiple times in short window
-- **Activity Log**: Track all NFC scans per user/zone
-- **Analytics**: Dashboard showing which zones are scanned most
+- The production Docker deployment should keep `VITE_API_URL=/api`.
+- The backend is only exposed on `127.0.0.1:8000`; Caddy handles browser access through `/api`.
+- Tailscale hostname resolution must make `majordomo` resolve on the scanning device.
+- NFC rewards now use the same completion logic as board completion: bounty, corruption/shield, XP boost, participant reward rows, and achievements stay aligned.
