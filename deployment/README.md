@@ -84,7 +84,7 @@ Production deploys should not be run directly from unmerged feature branches unl
 
 ## Staging stack
 
-Use staging when you need a production-shaped test against copied data, such as NFC scans, without mutating real XP/gold.
+Use staging when you need a production-shaped test on the server before merging, such as NFC scans from a phone, without mutating production data.
 
 Staging result:
 
@@ -93,6 +93,15 @@ Staging result:
 - Frontend reverse-proxies `/api` to the staging backend
 - SQLite copied to `/srv/majordomo-staging/data/majordomo.db`
 - Containers use separate names and Compose project: `majordomo-staging`
+
+Expected staging layout on the server:
+
+```text
+/srv/majordomo-staging/
+  .env
+  data/
+  app/
+```
 
 Prepare an isolated staging database on the server:
 
@@ -105,7 +114,35 @@ cp deployment/.env.staging.example /srv/majordomo-staging/.env
 
 Edit `/srv/majordomo-staging/.env` and set a staging-only `SECRET_KEY`.
 
-Start staging from the checkout or worktree you want to test:
+Sync a full local worktree to the staging app checkout:
+
+```bash
+rsync -az --delete \
+  --exclude='.git' \
+  --exclude='backend/.venv' \
+  --exclude='frontend/node_modules' \
+  --exclude='frontend/dist' \
+  --exclude='data' \
+  -e 'ssh -F /home/jvr/.ssh/config' \
+  /home/jvr/majordomo/.worktrees/<worktree-name>/ \
+  192.168.178.51:/srv/majordomo-staging/app/
+```
+
+If you only need to sync a few changed files, run `rsync` from the worktree root and keep `--relative` so the repo paths are preserved on the server:
+
+```bash
+cd /home/jvr/majordomo/.worktrees/<worktree-name>
+rsync -az --relative \
+  -e 'ssh -F /home/jvr/.ssh/config' \
+  backend/app/routes/triggers.py \
+  backend/tests/test_triggers.py \
+  frontend/src/pages/NFCTrigger.tsx \
+  192.168.178.51:/srv/majordomo-staging/app/
+```
+
+Without `--relative`, the files land directly in `/srv/majordomo-staging/app/` instead of their repo directories.
+
+Start or rebuild staging from the checkout or worktree you want to test:
 
 ```bash
 docker compose \
@@ -113,7 +150,7 @@ docker compose \
   --env-file /srv/majordomo-staging/.env \
   -f deployment/docker-compose.yml \
   -f deployment/docker-compose.staging.yml \
-  up -d --build
+  up -d --build backend frontend
 ```
 
 Check logs:
