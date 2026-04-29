@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 
 import { COLORS } from "../constants/colors";
 import type { Quest } from "../types/api";
-import { addHoursToApiDateTime, formatQuestDateTime, parseApiDateTime } from "../utils/dateTime";
+import {
+  formatQuestDateTime,
+  formatQuestDeadlineLabel,
+  formatUpcomingSpawnLabel,
+  getQuestDeadlineDate,
+} from "../utils/dateTime";
 import { formatScheduleLabel } from "../utils/schedule";
 
 interface QuestTypeStyles {
@@ -48,6 +53,7 @@ interface QuestCardProps {
   isUpcoming?: boolean;
   upcomingSpawnTime?: string;
   isAbandoning?: boolean;
+  timeZone?: string;
 }
 
 export default function QuestCard({
@@ -60,6 +66,7 @@ export default function QuestCard({
   isUpcoming = false,
   upcomingSpawnTime,
   isAbandoning = false,
+  timeZone,
 }: QuestCardProps) {
   const typeStyles = getQuestTypeStyles(quest.quest_type);
   const isCorrupted = quest.quest_type === "corrupted";
@@ -110,47 +117,9 @@ export default function QuestCard({
   }, [quest.id]);
 
   const timingStart = isUpcoming && upcomingSpawnTime ? upcomingSpawnTime : quest.created_at;
-
-  // Format upcoming spawn time
-  const formatUpcomingTime = (spawnTime: string | undefined) => {
-    if (!spawnTime) return null;
-    const spawn = parseApiDateTime(spawnTime);
-    if (!spawn) return null;
-
-    const now = new Date();
-    const diff = spawn.getTime() - now.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(hours / 24);
-
-    if (hours < 1) return "Spawns soon";
-    if (hours < 24) return `Spawns in ${hours} hour${hours > 1 ? "s" : ""}`;
-    if (days === 1) return "Spawns tomorrow";
-    if (days < 7) return `Spawns in ${days} days`;
-
-    // Show actual date for far future
-    return `Spawns ${spawn.toLocaleDateString()}`;
-  };
-
-  // Calculate deadline from created_at + due_in_hours
-  const calculateDeadline = () => {
-    return addHoursToApiDateTime(timingStart, quest.due_in_hours);
-  };
-
-  // Format deadline for display
-  const formatDeadline = () => {
-    const deadline = calculateDeadline();
-    if (!deadline) return null;
-
-    const now = new Date();
-    const diff = deadline.getTime() - now.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(hours / 24);
-
-    if (diff < 0) return "Corrupted";
-    if (days > 0) return `${days} day${days > 1 ? "s" : ""} left`;
-    if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""} left`;
-    return "Due soon";
-  };
+  const deadline = getQuestDeadlineDate(timingStart, quest.due_in_hours);
+  const deadlineLabel = formatQuestDeadlineLabel(timingStart, quest.due_in_hours);
+  const upcomingLabel = formatUpcomingSpawnLabel(upcomingSpawnTime);
 
   const scheduleInfo = formatScheduleLabel(
     quest.recurrence as "one-off" | "daily" | "weekly" | "monthly",
@@ -158,11 +127,10 @@ export default function QuestCard({
   );
   const isRecurring = quest.recurrence !== "one-off";
   const showAbandonAction = Boolean(onAbandon) && !quest.completed;
-  const deadlineLabel = formatDeadline();
   const isDeadlineCorrupted = deadlineLabel === "Corrupted";
   const showDeadlineBadge = Boolean(quest.due_in_hours && !quest.completed && !isCorrupted);
-  const deadlineDateLabel = formatQuestDateTime(calculateDeadline());
-  const timingStartLabel = formatQuestDateTime(timingStart);
+  const deadlineDateLabel = formatQuestDateTime(deadline, { timeZone });
+  const timingStartLabel = formatQuestDateTime(timingStart, { timeZone });
   const hasExceptionBadges = Boolean(
     isCorrupted ||
     (isRecurring && scheduleInfo) ||
@@ -443,7 +411,7 @@ export default function QuestCard({
             color: COLORS.gold,
           }}
         >
-          📅 {formatUpcomingTime(upcomingSpawnTime)}
+          📅 {upcomingLabel ?? "Upcoming"}
         </div>
       ) : !quest.completed || showAbandonAction ? (
         <div className="mt-3 flex flex-none items-stretch gap-2">

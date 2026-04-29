@@ -114,6 +114,31 @@ checked-in automated tests.
 - `VITE_API_URL` if set (auto-appends `/api` when missing)
 - else browser host with port `8000` and `/api`
 
+## Time handling
+
+Treat backend datetimes as UTC in transport and storage. On the frontend, parse API datetime
+strings through `src/utils/dateTime.ts`, not raw `Date.parse(...)` or `new Date(apiValue)`, so
+SQLite timestamps without an explicit offset are normalized consistently.
+
+Rules:
+
+- Use `parseApiDateTime` for API timestamps.
+- Use `formatQuestDateTime(..., { timeZone })` for absolute displayed times.
+- Use the household timezone only at display time, not for storage or API payloads.
+- Use shared relative-time helpers from `src/utils/dateTime.ts` for deadline/spawn labels and
+  related sorting:
+  - `describeQuestDeadline`
+  - `formatQuestDeadlineLabel`
+  - `describeUpcomingSpawn`
+  - `formatUpcomingSpawnLabel`
+- Keep rounding behavior consistent across views: whole hours/days are floored so compact board
+  chips and detail views do not drift.
+- Quest corruption deadline is `created_at + due_in_hours`; do not recompute it with separate
+  local-time assumptions in individual components.
+
+If a new page needs "time left", "spawns in", or similar quest timing text, add or reuse a shared
+helper in `src/utils/dateTime.ts` instead of creating page-local formatting logic.
+
 ## Frontend Flow Diagrams
 
 ### Auth and session lifecycle

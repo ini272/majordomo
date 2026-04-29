@@ -2,6 +2,7 @@ import type {
   LoginResponse,
   TriggerQuestResponse,
   User,
+  Home,
   Quest,
   QuestTemplate,
   QuestCompleteResponse,
@@ -415,6 +416,13 @@ export const api = {
   },
 
   home: {
+    get: async (homeId: number, token: string): Promise<Home> =>
+      requestJSON<Home>(
+        `/homes/${homeId}`,
+        { headers: buildHeaders(token) },
+        "Failed to fetch home details"
+      ),
+
     getInviteCode: async (
       homeId: number,
       token: string

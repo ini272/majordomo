@@ -75,6 +75,14 @@ export interface User {
   active_shield_expiry: string | null;
 }
 
+export interface Home {
+  id: number;
+  name: string;
+  invite_code: string;
+  timezone: string;
+  created_at: string;
+}
+
 export interface DailyBounty {
   bounty_date: string;
   status: "assigned" | "none_eligible";

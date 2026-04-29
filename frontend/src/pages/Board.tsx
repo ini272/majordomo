@@ -1,4 +1,12 @@
-import { useState, useEffect, useMemo, useRef, useCallback, type WheelEvent } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  type ReactNode,
+  type WheelEvent,
+} from "react";
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import QuestCard from "../components/QuestCard";
 import CreateQuestForm from "../components/CreateQuestForm";
@@ -11,22 +19,33 @@ import type { Quest, DailyBounty, UpcomingSubscription } from "../types/api";
 import { useAuth } from "../contexts/AuthContext";
 import { useSound } from "../contexts/SoundContext";
 import ModalShell from "../components/modal/ModalShell";
-import { addHoursToApiDateTime, parseApiDateTime } from "../utils/dateTime";
+import {
+  describeQuestDeadline,
+  describeUpcomingSpawn,
+  formatQuestDeadlineLabel,
+  formatUpcomingSpawnLabel,
+  getQuestDeadlineDate,
+  parseApiDateTime,
+} from "../utils/dateTime";
 
 const QUESTS_PER_PAGE = 6;
 const SWIPE_DISTANCE_THRESHOLD = 72;
 const SWIPE_VELOCITY_THRESHOLD = 420;
 const TRACKPAD_NAVIGATION_THRESHOLD = 60;
 const TRACKPAD_NAVIGATION_COOLDOWN_MS = 450;
-const SOON_WINDOW_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
 type QuestCollectionView = "current" | "upcoming";
 type CurrentQuestSort = "newest" | "expiring-soon" | "user-az";
 type UpcomingQuestSort = "spawn-soonest" | "spawn-latest" | "user-az";
-type CurrentQuestFilter = "all" | "corrupted-only" | "due-soon";
-type UpcomingQuestFilter = "all" | "spawning-soon";
+type QuestFilter = "all" | "mine";
+
+interface BoardControlOption<T extends string> {
+  value: T;
+  label: string;
+  shortLabel: string;
+}
 
 interface QuestBoardEntry {
   quest: Quest;
@@ -56,20 +75,174 @@ interface CompactQuestStatusChip {
   textColor: string;
 }
 
-const formatCompactDuration = (diffMs: number) => {
-  if (diffMs <= HOUR_MS) return "soon";
-  if (diffMs < DAY_MS) return `${Math.max(1, Math.ceil(diffMs / HOUR_MS))}h`;
-  return `${Math.max(1, Math.ceil(diffMs / DAY_MS))}d`;
-};
+const CURRENT_SORT_OPTIONS: BoardControlOption<CurrentQuestSort>[] = [
+  { value: "newest", label: "Newest", shortLabel: "Newest" },
+  {
+    value: "expiring-soon",
+    label: "Corrupted / Expiring",
+    shortLabel: "Expiring",
+  },
+  { value: "user-az", label: "User A-Z", shortLabel: "User A-Z" },
+];
+
+const UPCOMING_SORT_OPTIONS: BoardControlOption<UpcomingQuestSort>[] = [
+  { value: "spawn-soonest", label: "Next Spawn Soonest", shortLabel: "Soonest" },
+  { value: "spawn-latest", label: "Next Spawn Latest", shortLabel: "Latest" },
+  { value: "user-az", label: "User A-Z", shortLabel: "User A-Z" },
+];
+
+const FILTER_OPTIONS: BoardControlOption<QuestFilter>[] = [
+  { value: "all", label: "All Quests", shortLabel: "All" },
+  { value: "mine", label: "My Quests", shortLabel: "Mine" },
+];
+
+const SortIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor">
+    <path d="M7 4v12" strokeWidth="1.8" strokeLinecap="round" />
+    <path d="M4.5 6.5 7 4l2.5 2.5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M13 16V4" strokeWidth="1.8" strokeLinecap="round" />
+    <path
+      d="M10.5 13.5 13 16l2.5-2.5"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const FilterIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor">
+    <path
+      d="M3.5 5.5h13l-5 5.7v3.5l-3 1.8v-5.3Z"
+      strokeWidth="1.6"
+      strokeLinejoin="round"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+interface BoardControlMenuProps<T extends string> {
+  label: string;
+  icon: ReactNode;
+  options: BoardControlOption<T>[];
+  value: T;
+  onSelect: (value: T) => void;
+}
+
+function BoardControlMenu<T extends string>({
+  label,
+  icon,
+  options,
+  value,
+  onSelect,
+}: BoardControlMenuProps<T>) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const activeOption = options.find((option) => option.value === value) ?? options[0];
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [open]);
+
+  return (
+    <div ref={menuRef} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`${label}: ${activeOption.label}`}
+        className="flex h-10 items-center gap-2 rounded-sm px-3 font-serif text-xs uppercase tracking-[0.18em] transition-all"
+        style={{
+          backgroundColor: "rgba(14, 10, 8, 0.92)",
+          border: `1px solid ${COLORS.gold}`,
+          color: COLORS.parchment,
+        }}
+      >
+        <span style={{ color: COLORS.gold }}>{icon}</span>
+        <span className="hidden sm:inline">{activeOption.shortLabel}</span>
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          aria-label={label}
+          className="absolute right-0 top-[calc(100%+0.45rem)] z-20 min-w-[12.75rem] overflow-hidden rounded-sm"
+          style={{
+            backgroundColor: "rgba(16, 11, 9, 0.98)",
+            border: `1px solid ${COLORS.gold}`,
+            boxShadow: "0 10px 24px rgba(0, 0, 0, 0.35)",
+          }}
+        >
+          <div
+            className="px-3 py-2 text-[11px] font-serif uppercase tracking-[0.2em]"
+            style={{
+              backgroundColor: "rgba(212, 175, 55, 0.08)",
+              borderBottom: `1px solid ${COLORS.brown}`,
+              color: COLORS.brown,
+            }}
+          >
+            {label}
+          </div>
+          <div className="p-1">
+            {options.map((option) => {
+              const isActive = option.value === value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={isActive}
+                  onClick={() => {
+                    onSelect(option.value);
+                    setOpen(false);
+                  }}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left font-serif text-sm transition-colors"
+                  style={{
+                    backgroundColor: isActive ? "rgba(212, 175, 55, 0.16)" : "transparent",
+                    color: isActive ? COLORS.gold : COLORS.parchment,
+                  }}
+                >
+                  <span>{option.label}</span>
+                  <span aria-hidden="true" style={{ color: isActive ? COLORS.gold : COLORS.brown }}>
+                    {isActive ? "✓" : ""}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const getCurrentQuestStatusChip = (quest: Quest): CompactQuestStatusChip | null => {
-  if (quest.completed || quest.quest_type === "corrupted") return null;
+  if (quest.completed) return null;
+  if (quest.quest_type === "corrupted") return null;
 
-  const deadline = addHoursToApiDateTime(quest.created_at, quest.due_in_hours);
-  if (!deadline) return null;
+  const relativeDeadline = describeQuestDeadline(quest.created_at, quest.due_in_hours);
+  const label = formatQuestDeadlineLabel(quest.created_at, quest.due_in_hours, { compact: true });
+  if (!relativeDeadline || !label) return null;
 
-  const diffMs = deadline.getTime() - Date.now();
-  if (diffMs <= 0) {
+  if (relativeDeadline.bucket === "past") {
     return {
       label: "Corrupted",
       backgroundColor: "rgba(139, 58, 58, 0.28)",
@@ -78,18 +251,18 @@ const getCurrentQuestStatusChip = (quest: Quest): CompactQuestStatusChip | null 
     };
   }
 
-  if (diffMs <= 12 * HOUR_MS) {
+  if (relativeDeadline.bucket === "soon" || relativeDeadline.diffMs <= 12 * HOUR_MS) {
     return {
-      label: `Corrupts in ${formatCompactDuration(diffMs)}`,
+      label,
       backgroundColor: "rgba(139, 58, 58, 0.24)",
       borderColor: "#8b3a3a",
       textColor: "#ff9b80",
     };
   }
 
-  if (diffMs <= 2 * DAY_MS) {
+  if (relativeDeadline.diffMs <= 2 * DAY_MS) {
     return {
-      label: `Corrupts in ${formatCompactDuration(diffMs)}`,
+      label,
       backgroundColor: "rgba(186, 122, 44, 0.22)",
       borderColor: "#ba7a2c",
       textColor: "#f0c36b",
@@ -97,7 +270,7 @@ const getCurrentQuestStatusChip = (quest: Quest): CompactQuestStatusChip | null 
   }
 
   return {
-    label: `Corrupts in ${formatCompactDuration(diffMs)}`,
+    label,
     backgroundColor: "rgba(108, 87, 48, 0.2)",
     borderColor: COLORS.brown,
     textColor: COLORS.parchment,
@@ -105,11 +278,11 @@ const getCurrentQuestStatusChip = (quest: Quest): CompactQuestStatusChip | null 
 };
 
 const getUpcomingQuestStatusChip = (upcomingSpawnTime?: string): CompactQuestStatusChip | null => {
-  const spawnTime = parseApiDateTime(upcomingSpawnTime);
-  if (!spawnTime) return null;
+  const relativeSpawn = describeUpcomingSpawn(upcomingSpawnTime);
+  const label = formatUpcomingSpawnLabel(upcomingSpawnTime, { compact: true });
+  if (!relativeSpawn || !label) return null;
 
-  const diffMs = spawnTime.getTime() - Date.now();
-  if (diffMs <= HOUR_MS) {
+  if (relativeSpawn.bucket === "past" || relativeSpawn.bucket === "soon") {
     return {
       label: "Spawns soon",
       backgroundColor: "rgba(84, 127, 183, 0.26)",
@@ -119,7 +292,7 @@ const getUpcomingQuestStatusChip = (upcomingSpawnTime?: string): CompactQuestSta
   }
 
   return {
-    label: `Spawns in ${formatCompactDuration(diffMs)}`,
+    label,
     backgroundColor: "rgba(84, 127, 183, 0.18)",
     borderColor: "#547fb7",
     textColor: "#9ec5ff",
@@ -315,15 +488,12 @@ const getQuestParticipantNames = (quest: Quest, homeUsers: Record<number, string
     .join(", ");
 const getQuestTitle = (quest: Quest) => quest.display_name || quest.title || "Unknown Quest";
 const getTimestamp = (value: string | null | undefined) => {
-  if (!value) return 0;
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
+  const parsed = parseApiDateTime(value);
+  return parsed ? parsed.getTime() : 0;
 };
 const getQuestDeadlineTimestamp = (quest: Quest) => {
-  if (!quest.due_in_hours) return null;
-  const createdTimestamp = getTimestamp(quest.created_at);
-  if (!createdTimestamp) return null;
-  return createdTimestamp + quest.due_in_hours * 60 * 60 * 1000;
+  const deadline = getQuestDeadlineDate(quest.created_at, quest.due_in_hours);
+  return deadline ? deadline.getTime() : null;
 };
 const compareText = (left: string, right: string) =>
   left.localeCompare(right, undefined, { sensitivity: "base" });
@@ -354,8 +524,11 @@ const matchesQuestSearch = (
   );
 };
 
+const questIncludesUser = (quest: Quest, userId: number | null) =>
+  userId !== null && getQuestParticipantUserIds(quest).includes(userId);
+
 export default function Board() {
-  const { token } = useAuth();
+  const { token, userId, homeId } = useAuth();
   const { playSound } = useSound();
   const [view, setView] = useState<"current" | "upcoming">("current");
   const [quests, setQuests] = useState<Quest[]>([]);
@@ -367,6 +540,7 @@ export default function Board() {
   const [editQuestStartsAsTemplate, setEditQuestStartsAsTemplate] = useState(false);
   const [dailyBounty, setDailyBounty] = useState<DailyBounty | null>(null);
   const [homeUsers, setHomeUsers] = useState<Record<number, string>>({});
+  const [homeTimeZone, setHomeTimeZone] = useState("UTC");
 
   const [currentPage, setCurrentPage] = useState(0);
   const [upcomingPage, setUpcomingPage] = useState(0);
@@ -384,8 +558,8 @@ export default function Board() {
   const [upcomingSearchTerm, setUpcomingSearchTerm] = useState("");
   const [currentSort, setCurrentSort] = useState<CurrentQuestSort>("newest");
   const [upcomingSort, setUpcomingSort] = useState<UpcomingQuestSort>("spawn-soonest");
-  const [currentFilter, setCurrentFilter] = useState<CurrentQuestFilter>("all");
-  const [upcomingFilter, setUpcomingFilter] = useState<UpcomingQuestFilter>("all");
+  const [currentFilter, setCurrentFilter] = useState<QuestFilter>("all");
+  const [upcomingFilter, setUpcomingFilter] = useState<QuestFilter>("all");
   const userLevelRef = useRef<number | null>(null);
   const lastDetailWheelNavigationAtRef = useRef(0);
 
@@ -442,6 +616,24 @@ export default function Board() {
 
     fetchHomeUsers();
   }, [token]);
+
+  useEffect(() => {
+    const fetchHomeTimeZone = async () => {
+      if (!token || !homeId) {
+        setHomeTimeZone("UTC");
+        return;
+      }
+
+      try {
+        const home = await api.home.get(homeId, token);
+        setHomeTimeZone(home.timezone || "UTC");
+      } catch {
+        setHomeTimeZone("UTC");
+      }
+    };
+
+    fetchHomeTimeZone();
+  }, [homeId, token]);
 
   useEffect(() => {
     const fetchUserLevel = async () => {
@@ -627,20 +819,33 @@ export default function Board() {
   const filteredCurrentQuests = useMemo(() => {
     const now = Date.now();
     return currentQuestEntries
-      .filter(({ quest, participantNames, deadlineTimestamp }) => {
+      .filter(({ quest, participantNames }) => {
         if (!matchesQuestSearch(quest, participantNames, currentSearchTerm)) return false;
-        if (currentFilter === "corrupted-only") return quest.quest_type === "corrupted";
-        if (currentFilter === "due-soon") {
-          if (deadlineTimestamp === null) return false;
-          const timeUntilDeadline = deadlineTimestamp - now;
-          return timeUntilDeadline > 0 && timeUntilDeadline <= SOON_WINDOW_MS;
-        }
+        if (currentFilter === "mine") return questIncludesUser(quest, userId);
         return true;
       })
       .sort((left, right) => {
         if (currentSort === "expiring-soon") {
-          return compareNullableNumber(left.deadlineTimestamp, right.deadlineTimestamp);
+          const leftIsCorrupted =
+            left.quest.quest_type === "corrupted" ||
+            (left.deadlineTimestamp !== null && left.deadlineTimestamp <= now);
+          const rightIsCorrupted =
+            right.quest.quest_type === "corrupted" ||
+            (right.deadlineTimestamp !== null && right.deadlineTimestamp <= now);
+
+          if (leftIsCorrupted !== rightIsCorrupted) {
+            return leftIsCorrupted ? -1 : 1;
+          }
+
+          const deadlineCompare = compareNullableNumber(
+            left.deadlineTimestamp,
+            right.deadlineTimestamp
+          );
+          if (deadlineCompare !== 0) return deadlineCompare;
+
+          return right.createdTimestamp - left.createdTimestamp;
         }
+
         if (currentSort === "user-az") {
           const participantCompare = compareText(left.participantNames, right.participantNames);
           return participantCompare !== 0
@@ -650,16 +855,12 @@ export default function Board() {
         return right.createdTimestamp - left.createdTimestamp;
       })
       .map(({ quest }) => quest);
-  }, [currentQuestEntries, currentSearchTerm, currentFilter, currentSort]);
+  }, [currentQuestEntries, currentSearchTerm, currentFilter, currentSort, userId]);
   const filteredUpcomingQuests = useMemo(() => {
-    const now = Date.now();
     return upcomingQuestEntries
-      .filter(({ quest, participantNames, nextSpawnTimestamp }) => {
+      .filter(({ quest, participantNames }) => {
         if (!matchesQuestSearch(quest, participantNames, upcomingSearchTerm)) return false;
-        if (upcomingFilter === "spawning-soon") {
-          const timeUntilSpawn = nextSpawnTimestamp - now;
-          return timeUntilSpawn >= 0 && timeUntilSpawn <= SOON_WINDOW_MS;
-        }
+        if (upcomingFilter === "mine") return questIncludesUser(quest, userId);
         return true;
       })
       .sort((left, right) => {
@@ -675,7 +876,7 @@ export default function Board() {
         return left.nextSpawnTimestamp - right.nextSpawnTimestamp;
       })
       .map(({ quest }) => quest);
-  }, [upcomingQuestEntries, upcomingSearchTerm, upcomingFilter, upcomingSort]);
+  }, [upcomingQuestEntries, upcomingSearchTerm, upcomingFilter, upcomingSort, userId]);
   const currentSearchLabel = `${filteredCurrentQuests.length} of ${quests.length} ${
     quests.length === 1 ? "quest" : "quests"
   }`;
@@ -685,6 +886,9 @@ export default function Board() {
   const activeSearchTerm = view === "current" ? currentSearchTerm : upcomingSearchTerm;
   const activeSort = view === "current" ? currentSort : upcomingSort;
   const activeFilter = view === "current" ? currentFilter : upcomingFilter;
+  const activeSortOptions = view === "current" ? CURRENT_SORT_OPTIONS : UPCOMING_SORT_OPTIONS;
+  const activeSortOption = activeSortOptions.find((option) => option.value === activeSort);
+  const activeFilterOption = FILTER_OPTIONS.find((option) => option.value === activeFilter);
   const hasBoardContent =
     view === "current"
       ? quests.length > 0 || currentSearchTerm.trim().length > 0
@@ -698,6 +902,13 @@ export default function Board() {
   const activeCorruptedQuestCount =
     activeCorruptionDebuffQuest?.corrupted_quest_count ??
     quests.filter((quest) => quest.quest_type === "corrupted").length;
+  const visibleCurrentQuestIds = useMemo(
+    () => new Set(filteredCurrentQuests.map((quest) => quest.id)),
+    [filteredCurrentQuests]
+  );
+  const isActiveBountyVisible = activeBountyQuest
+    ? visibleCurrentQuestIds.has(activeBountyQuest.id)
+    : false;
 
   const selectedQuestSequence = useMemo(() => {
     if (selectedQuestView === "current") return filteredCurrentQuests;
@@ -1016,7 +1227,7 @@ export default function Board() {
         </div>
       )}
 
-      {view === "current" && activeBountyQuest && (
+      {view === "current" && activeBountyQuest && isActiveBountyVisible && (
         <div className="mb-4">
           <button
             type="button"
@@ -1101,128 +1312,81 @@ export default function Board() {
             </div>
 
             <div className="mb-4">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={view === "current" ? currentSearchTerm : upcomingSearchTerm}
-                  onChange={(event) =>
-                    view === "current"
-                      ? setCurrentSearchTerm(event.target.value)
-                      : setUpcomingSearchTerm(event.target.value)
-                  }
-                  placeholder={
-                    view === "current"
-                      ? "Search quests by title, description, tag, or person..."
-                      : "Search upcoming quests by title, description, tag, or person..."
-                  }
-                  aria-label={
-                    view === "current" ? "Search current quests" : "Search upcoming quests"
-                  }
-                  className="w-full px-3 py-2 pr-10 font-serif focus:outline-none focus:shadow-lg transition-all"
-                  style={{
-                    backgroundColor: COLORS.black,
-                    borderColor: COLORS.gold,
-                    borderWidth: "2px",
-                    color: COLORS.parchment,
-                  }}
-                />
-                {activeSearchTerm && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      view === "current" ? setCurrentSearchTerm("") : setUpcomingSearchTerm("")
+              <div className="flex items-start gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <input
+                    type="text"
+                    value={view === "current" ? currentSearchTerm : upcomingSearchTerm}
+                    onChange={(event) =>
+                      view === "current"
+                        ? setCurrentSearchTerm(event.target.value)
+                        : setUpcomingSearchTerm(event.target.value)
                     }
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-sm font-serif"
-                    style={{ color: COLORS.gold }}
-                    aria-label="Clear quest search"
-                  >
-                    ✕
-                  </button>
-                )}
+                    placeholder={
+                      view === "current"
+                        ? "Search quests by title, description, tag, or person..."
+                        : "Search upcoming quests by title, description, tag, or person..."
+                    }
+                    aria-label={
+                      view === "current" ? "Search current quests" : "Search upcoming quests"
+                    }
+                    className="w-full px-3 py-2 pr-10 font-serif focus:outline-none focus:shadow-lg transition-all"
+                    style={{
+                      backgroundColor: COLORS.black,
+                      borderColor: COLORS.gold,
+                      borderWidth: "2px",
+                      color: COLORS.parchment,
+                    }}
+                  />
+                  {activeSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        view === "current" ? setCurrentSearchTerm("") : setUpcomingSearchTerm("")
+                      }
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-sm font-serif"
+                      style={{ color: COLORS.gold }}
+                      aria-label="Clear quest search"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <BoardControlMenu
+                    label="Sort Quests"
+                    icon={<SortIcon />}
+                    options={activeSortOptions}
+                    value={activeSort}
+                    onSelect={(value) =>
+                      view === "current"
+                        ? setCurrentSort(value as CurrentQuestSort)
+                        : setUpcomingSort(value as UpcomingQuestSort)
+                    }
+                  />
+                  <BoardControlMenu
+                    label="Filter Quests"
+                    icon={<FilterIcon />}
+                    options={FILTER_OPTIONS}
+                    value={activeFilter}
+                    onSelect={(value) =>
+                      view === "current" ? setCurrentFilter(value) : setUpcomingFilter(value)
+                    }
+                  />
+                </div>
               </div>
-              <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-xs font-serif" style={{ color: COLORS.goldDarker }}>
                   {view === "current" ? currentSearchLabel : upcomingSearchLabel}
                 </div>
-                <div className="flex flex-col gap-2 sm:flex-row lg:justify-end">
-                  <label className="flex min-w-0 flex-col gap-1">
-                    <span
-                      className="font-serif text-[11px] uppercase tracking-[0.2em]"
-                      style={{ color: COLORS.brown }}
-                    >
-                      Sort
-                    </span>
-                    <select
-                      value={activeSort}
-                      onChange={(event) =>
-                        view === "current"
-                          ? setCurrentSort(event.target.value as CurrentQuestSort)
-                          : setUpcomingSort(event.target.value as UpcomingQuestSort)
-                      }
-                      aria-label={
-                        view === "current" ? "Sort current quests" : "Sort upcoming quests"
-                      }
-                      className="min-w-[12rem] rounded-sm px-3 py-2 font-serif focus:outline-none focus:shadow-lg"
-                      style={{
-                        backgroundColor: "rgba(14, 10, 8, 0.92)",
-                        border: `1px solid ${COLORS.gold}`,
-                        color: COLORS.parchment,
-                      }}
-                    >
-                      {view === "current" ? (
-                        <>
-                          <option value="newest">Newest</option>
-                          <option value="expiring-soon">Expiring Soon</option>
-                          <option value="user-az">User A-Z</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value="spawn-soonest">Next Spawn Soonest</option>
-                          <option value="spawn-latest">Next Spawn Latest</option>
-                          <option value="user-az">User A-Z</option>
-                        </>
-                      )}
-                    </select>
-                  </label>
-
-                  <label className="flex min-w-0 flex-col gap-1">
-                    <span
-                      className="font-serif text-[11px] uppercase tracking-[0.2em]"
-                      style={{ color: COLORS.brown }}
-                    >
-                      Filter
-                    </span>
-                    <select
-                      value={activeFilter}
-                      onChange={(event) =>
-                        view === "current"
-                          ? setCurrentFilter(event.target.value as CurrentQuestFilter)
-                          : setUpcomingFilter(event.target.value as UpcomingQuestFilter)
-                      }
-                      aria-label={
-                        view === "current" ? "Filter current quests" : "Filter upcoming quests"
-                      }
-                      className="min-w-[12rem] rounded-sm px-3 py-2 font-serif focus:outline-none focus:shadow-lg"
-                      style={{
-                        backgroundColor: "rgba(14, 10, 8, 0.92)",
-                        border: `1px solid ${COLORS.gold}`,
-                        color: COLORS.parchment,
-                      }}
-                    >
-                      {view === "current" ? (
-                        <>
-                          <option value="all">All Quests</option>
-                          <option value="corrupted-only">Corrupted Only</option>
-                          <option value="due-soon">Due Soon</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value="all">All Quests</option>
-                          <option value="spawning-soon">Spawning Soon</option>
-                        </>
-                      )}
-                    </select>
-                  </label>
+                <div
+                  className="text-[11px] font-serif uppercase tracking-[0.18em]"
+                  style={{ color: COLORS.brown }}
+                >
+                  {activeSortOption?.shortLabel}
+                  {activeFilterOption && activeFilterOption.value !== "all"
+                    ? ` • ${activeFilterOption.shortLabel}`
+                    : ""}
                 </div>
               </div>
             </div>
@@ -1460,6 +1624,7 @@ export default function Board() {
                 isUpcoming={selectedQuestView === "upcoming"}
                 upcomingSpawnTime={selectedUpcomingSpawnTime}
                 isAbandoning={abandoningQuestId === selectedQuest.id}
+                timeZone={homeTimeZone}
               />
             </motion.div>
           </div>
