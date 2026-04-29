@@ -2,7 +2,7 @@
 
 React + Vite client for Majordomo.
 
-Last verified: 2026-02-15
+Last verified: 2026-04-29
 
 ## Run locally
 
@@ -44,6 +44,50 @@ bun run lint
 bun run typecheck
 bun run build
 ```
+
+## Local UI verification with `playwright-cli`
+
+Use `playwright-cli` for quick manual verification after frontend changes, especially for
+layout, sort/filter behavior, modal flows, and other UI interactions that are faster to check in
+a real browser than by inspection alone.
+
+Recommended setup on this WSL machine:
+
+- install `@playwright/cli` globally
+- install a Playwright-managed browser with `playwright-cli install-browser firefox`
+- prefer `--browser=firefox` for Codex-driven checks to avoid depending on a system Chrome install
+
+Typical local loop:
+
+```bash
+# Terminal 1
+bun run dev -- --host 127.0.0.1 --port 3000
+
+# Terminal 2
+playwright-cli -s=majordomo-ui open http://127.0.0.1:3000/board --browser=firefox
+playwright-cli -s=majordomo-ui snapshot
+playwright-cli -s=majordomo-ui click <ref>
+playwright-cli -s=majordomo-ui select <ref> <value>
+playwright-cli -s=majordomo-ui close
+```
+
+Notes:
+
+- If port `3000` is busy, start Vite on another local port and open that URL instead.
+- For app flows that need the real API, run the backend locally too.
+- For quick browser-driven checks, `playwright-cli` is preferred over writing a one-off test.
+
+## Playwright tests
+
+For repeatable end-to-end tests, use the repo-local Playwright test setup instead of the global
+CLI:
+
+```bash
+bun run test:e2e
+```
+
+Use the global `playwright-cli` for interactive verification and the repo-local test runner for
+checked-in automated tests.
 
 ## App structure
 

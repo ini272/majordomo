@@ -82,9 +82,47 @@ cd /srv/majordomo
 
 Production deploys should not be run directly from unmerged feature branches unless this is an intentional emergency/manual override.
 
+### Local verification first
+
+For most frontend and product work, the default verification loop should stay local:
+
+- run the feature from the worktree you are editing
+- verify browser behavior locally with `playwright-cli`
+- run repo quality checks before opening or updating the PR
+
+This is usually the fastest path for:
+
+- layout and spacing changes
+- sort/filter/search behavior
+- quest board and modal interactions
+- copy and visual state changes
+- other UI behavior that does not depend on server-only infrastructure
+
+Prefer local verification first because it keeps iteration tight and avoids syncing code or
+rebuilding server containers for every small change.
+
 ## Staging stack
 
 Use staging when you need a production-shaped test on the server before merging, such as NFC scans from a phone, without mutating production data.
+
+Use staging selectively as a second pass, not as the default inner loop.
+
+Good staging cases:
+
+- NFC flows or phone-only interactions
+- Tailscale/LAN access checks
+- reverse-proxy behavior and `/api` routing
+- auth/session behavior behind the real stack
+- changes where production-like data or server config could affect the result
+
+Poor staging cases:
+
+- routine layout adjustments
+- simple sort/filter UI changes
+- quick feedback during active implementation
+
+Staging is valuable, but it adds sync and rebuild overhead. Use it when the production-shaped
+environment is the thing you need to validate, not just because the server is already running.
 
 Staging result:
 

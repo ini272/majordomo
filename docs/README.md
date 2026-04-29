@@ -2,7 +2,7 @@
 
 Single entry point for humans and agents.
 
-Last verified: 2026-02-12
+Last verified: 2026-04-29
 
 ## Read in this order
 
@@ -10,7 +10,8 @@ Last verified: 2026-02-12
 2. `docs/product-goals.md`
 3. `backend/README.md`
 4. `frontend/README.md`
-5. `docs/api-contract-governance.md`
+5. `deployment/README.md` for production deploys, staging workflow, and local-vs-staging verification guidance
+6. `docs/api-contract-governance.md`
 
 ## Fast local startup
 

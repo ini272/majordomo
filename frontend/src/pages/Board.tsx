@@ -11,28 +11,127 @@ import type { Quest, DailyBounty, UpcomingSubscription } from "../types/api";
 import { useAuth } from "../contexts/AuthContext";
 import { useSound } from "../contexts/SoundContext";
 import ModalShell from "../components/modal/ModalShell";
+import { addHoursToApiDateTime, parseApiDateTime } from "../utils/dateTime";
 
 const QUESTS_PER_PAGE = 6;
 const SWIPE_DISTANCE_THRESHOLD = 72;
 const SWIPE_VELOCITY_THRESHOLD = 420;
 const TRACKPAD_NAVIGATION_THRESHOLD = 60;
 const TRACKPAD_NAVIGATION_COOLDOWN_MS = 450;
+const SOON_WINDOW_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
 type QuestCollectionView = "current" | "upcoming";
+type CurrentQuestSort = "newest" | "expiring-soon" | "user-az";
+type UpcomingQuestSort = "spawn-soonest" | "spawn-latest" | "user-az";
+type CurrentQuestFilter = "all" | "corrupted-only" | "due-soon";
+type UpcomingQuestFilter = "all" | "spawning-soon";
+
+interface QuestBoardEntry {
+  quest: Quest;
+  participantNames: string;
+  title: string;
+  createdTimestamp: number;
+  deadlineTimestamp: number | null;
+}
+
+interface UpcomingQuestBoardEntry extends QuestBoardEntry {
+  nextSpawnTimestamp: number;
+}
 
 interface CompactQuestCardProps {
   quest: Quest;
   questParticipantNames?: string;
   isUpcoming?: boolean;
   isDailyBounty?: boolean;
+  upcomingSpawnTime?: string;
   onClick: () => void;
 }
+
+interface CompactQuestStatusChip {
+  label: string;
+  backgroundColor: string;
+  borderColor: string;
+  textColor: string;
+}
+
+const formatCompactDuration = (diffMs: number) => {
+  if (diffMs <= HOUR_MS) return "soon";
+  if (diffMs < DAY_MS) return `${Math.max(1, Math.ceil(diffMs / HOUR_MS))}h`;
+  return `${Math.max(1, Math.ceil(diffMs / DAY_MS))}d`;
+};
+
+const getCurrentQuestStatusChip = (quest: Quest): CompactQuestStatusChip | null => {
+  if (quest.completed || quest.quest_type === "corrupted") return null;
+
+  const deadline = addHoursToApiDateTime(quest.created_at, quest.due_in_hours);
+  if (!deadline) return null;
+
+  const diffMs = deadline.getTime() - Date.now();
+  if (diffMs <= 0) {
+    return {
+      label: "Corrupted",
+      backgroundColor: "rgba(139, 58, 58, 0.28)",
+      borderColor: "#8b3a3a",
+      textColor: "#ff8080",
+    };
+  }
+
+  if (diffMs <= 12 * HOUR_MS) {
+    return {
+      label: `Corrupts in ${formatCompactDuration(diffMs)}`,
+      backgroundColor: "rgba(139, 58, 58, 0.24)",
+      borderColor: "#8b3a3a",
+      textColor: "#ff9b80",
+    };
+  }
+
+  if (diffMs <= 2 * DAY_MS) {
+    return {
+      label: `Corrupts in ${formatCompactDuration(diffMs)}`,
+      backgroundColor: "rgba(186, 122, 44, 0.22)",
+      borderColor: "#ba7a2c",
+      textColor: "#f0c36b",
+    };
+  }
+
+  return {
+    label: `Corrupts in ${formatCompactDuration(diffMs)}`,
+    backgroundColor: "rgba(108, 87, 48, 0.2)",
+    borderColor: COLORS.brown,
+    textColor: COLORS.parchment,
+  };
+};
+
+const getUpcomingQuestStatusChip = (upcomingSpawnTime?: string): CompactQuestStatusChip | null => {
+  const spawnTime = parseApiDateTime(upcomingSpawnTime);
+  if (!spawnTime) return null;
+
+  const diffMs = spawnTime.getTime() - Date.now();
+  if (diffMs <= HOUR_MS) {
+    return {
+      label: "Spawns soon",
+      backgroundColor: "rgba(84, 127, 183, 0.26)",
+      borderColor: "#547fb7",
+      textColor: "#9ec5ff",
+    };
+  }
+
+  return {
+    label: `Spawns in ${formatCompactDuration(diffMs)}`,
+    backgroundColor: "rgba(84, 127, 183, 0.18)",
+    borderColor: "#547fb7",
+    textColor: "#9ec5ff",
+  };
+};
 
 function CompactQuestCard({
   quest,
   questParticipantNames,
   isUpcoming = false,
   isDailyBounty = false,
+  upcomingSpawnTime,
   onClick,
 }: CompactQuestCardProps) {
   const participantLabel = (quest.participants?.length || 1) > 1 ? "Party" : "For";
@@ -51,6 +150,9 @@ function CompactQuestCard({
   const borderColor = isCorrupted ? "#8b3a3a" : isDailyBounty ? "#6b5fb7" : COLORS.gold;
   const titleColor = isCorrupted ? "#ff6b6b" : isDailyBounty ? "#c0b4ff" : COLORS.gold;
   const rewardColor = hasCorruptionDebuff ? "#ff8080" : COLORS.gold;
+  const statusChip = isUpcoming
+    ? getUpcomingQuestStatusChip(upcomingSpawnTime)
+    : getCurrentQuestStatusChip(quest);
 
   return (
     <button
@@ -58,9 +160,11 @@ function CompactQuestCard({
       onClick={onClick}
       className="w-full text-left p-3 sm:p-4 rounded-sm transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
       style={{
-        backgroundColor: "rgba(30, 21, 17, 0.7)",
+        backgroundColor: isDailyBounty ? "rgba(42, 28, 62, 0.72)" : "rgba(30, 21, 17, 0.7)",
         border: `2px solid ${borderColor}`,
-        boxShadow: "0 6px 12px rgba(0, 0, 0, 0.25)",
+        boxShadow: isDailyBounty
+          ? "0 0 0 1px rgba(157, 132, 255, 0.3), 0 10px 18px rgba(40, 20, 68, 0.35)"
+          : "0 6px 12px rgba(0, 0, 0, 0.25)",
         opacity: isUpcoming ? 0.8 : 1,
       }}
     >
@@ -72,6 +176,18 @@ function CompactQuestCard({
           {quest.display_name || quest.title || "Unknown Quest"}
         </h3>
         <div className="flex shrink-0 flex-wrap justify-end gap-1">
+          {statusChip && (
+            <span
+              className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
+              style={{
+                backgroundColor: statusChip.backgroundColor,
+                border: `1px solid ${statusChip.borderColor}`,
+                color: statusChip.textColor,
+              }}
+            >
+              {statusChip.label}
+            </span>
+          )}
           {isCorrupted && (
             <span
               className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
@@ -85,7 +201,7 @@ function CompactQuestCard({
               className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
               style={{ backgroundColor: "rgba(107, 95, 183, 0.3)", color: "#c0b4ff" }}
             >
-              3x
+              Bounty x3
             </span>
           )}
           {quest.completed && (
@@ -197,6 +313,26 @@ const getQuestParticipantNames = (quest: Quest, homeUsers: Record<number, string
     .map((participantUserId) => homeUsers[participantUserId])
     .filter(Boolean)
     .join(", ");
+const getQuestTitle = (quest: Quest) => quest.display_name || quest.title || "Unknown Quest";
+const getTimestamp = (value: string | null | undefined) => {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+const getQuestDeadlineTimestamp = (quest: Quest) => {
+  if (!quest.due_in_hours) return null;
+  const createdTimestamp = getTimestamp(quest.created_at);
+  if (!createdTimestamp) return null;
+  return createdTimestamp + quest.due_in_hours * 60 * 60 * 1000;
+};
+const compareText = (left: string, right: string) =>
+  left.localeCompare(right, undefined, { sensitivity: "base" });
+const compareNullableNumber = (left: number | null, right: number | null) => {
+  if (left === null && right === null) return 0;
+  if (left === null) return 1;
+  if (right === null) return -1;
+  return left - right;
+};
 const matchesQuestSearch = (
   quest: Quest,
   participantNames: string | undefined,
@@ -246,6 +382,10 @@ export default function Board() {
   const [userLevel, setUserLevel] = useState<number | null>(null);
   const [currentSearchTerm, setCurrentSearchTerm] = useState("");
   const [upcomingSearchTerm, setUpcomingSearchTerm] = useState("");
+  const [currentSort, setCurrentSort] = useState<CurrentQuestSort>("newest");
+  const [upcomingSort, setUpcomingSort] = useState<UpcomingQuestSort>("spawn-soonest");
+  const [currentFilter, setCurrentFilter] = useState<CurrentQuestFilter>("all");
+  const [upcomingFilter, setUpcomingFilter] = useState<UpcomingQuestFilter>("all");
   const userLevelRef = useRef<number | null>(null);
   const lastDetailWheelNavigationAtRef = useRef(0);
 
@@ -323,11 +463,11 @@ export default function Board() {
 
   useEffect(() => {
     setCurrentPage(0);
-  }, [currentSearchTerm]);
+  }, [currentSearchTerm, currentSort, currentFilter]);
 
   useEffect(() => {
     setUpcomingPage(0);
-  }, [upcomingSearchTerm]);
+  }, [upcomingSearchTerm, upcomingSort, upcomingFilter]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
@@ -458,28 +598,93 @@ export default function Board() {
     activeBountyQuest?.effective_xp_reward ?? activeBountyQuest?.xp_reward ?? 0;
   const activeBountyGoldReward =
     activeBountyQuest?.effective_gold_reward ?? activeBountyQuest?.gold_reward ?? 0;
-  const fullUpcomingQuests = useMemo(() => upcomingQuests.map(toUpcomingQuest), [upcomingQuests]);
-  const filteredCurrentQuests = useMemo(
+  const currentQuestEntries = useMemo<QuestBoardEntry[]>(
     () =>
-      quests.filter((quest) =>
-        matchesQuestSearch(quest, getQuestParticipantNames(quest, homeUsers), currentSearchTerm)
-      ),
-    [quests, homeUsers, currentSearchTerm]
+      quests.map((quest) => ({
+        quest,
+        participantNames: getQuestParticipantNames(quest, homeUsers),
+        title: getQuestTitle(quest),
+        createdTimestamp: getTimestamp(quest.created_at),
+        deadlineTimestamp: getQuestDeadlineTimestamp(quest),
+      })),
+    [quests, homeUsers]
   );
-  const filteredUpcomingQuests = useMemo(
+  const upcomingQuestEntries = useMemo<UpcomingQuestBoardEntry[]>(
     () =>
-      fullUpcomingQuests.filter((quest) =>
-        matchesQuestSearch(quest, getQuestParticipantNames(quest, homeUsers), upcomingSearchTerm)
-      ),
-    [fullUpcomingQuests, homeUsers, upcomingSearchTerm]
+      upcomingQuests.map((upcoming) => {
+        const quest = toUpcomingQuest(upcoming);
+        return {
+          quest,
+          participantNames: getQuestParticipantNames(quest, homeUsers),
+          title: getQuestTitle(quest),
+          createdTimestamp: getTimestamp(quest.created_at),
+          deadlineTimestamp: getQuestDeadlineTimestamp(quest),
+          nextSpawnTimestamp: getTimestamp(upcoming.next_spawn_at),
+        };
+      }),
+    [upcomingQuests, homeUsers]
   );
+  const filteredCurrentQuests = useMemo(() => {
+    const now = Date.now();
+    return currentQuestEntries
+      .filter(({ quest, participantNames, deadlineTimestamp }) => {
+        if (!matchesQuestSearch(quest, participantNames, currentSearchTerm)) return false;
+        if (currentFilter === "corrupted-only") return quest.quest_type === "corrupted";
+        if (currentFilter === "due-soon") {
+          if (deadlineTimestamp === null) return false;
+          const timeUntilDeadline = deadlineTimestamp - now;
+          return timeUntilDeadline > 0 && timeUntilDeadline <= SOON_WINDOW_MS;
+        }
+        return true;
+      })
+      .sort((left, right) => {
+        if (currentSort === "expiring-soon") {
+          return compareNullableNumber(left.deadlineTimestamp, right.deadlineTimestamp);
+        }
+        if (currentSort === "user-az") {
+          const participantCompare = compareText(left.participantNames, right.participantNames);
+          return participantCompare !== 0
+            ? participantCompare
+            : compareText(left.title, right.title);
+        }
+        return right.createdTimestamp - left.createdTimestamp;
+      })
+      .map(({ quest }) => quest);
+  }, [currentQuestEntries, currentSearchTerm, currentFilter, currentSort]);
+  const filteredUpcomingQuests = useMemo(() => {
+    const now = Date.now();
+    return upcomingQuestEntries
+      .filter(({ quest, participantNames, nextSpawnTimestamp }) => {
+        if (!matchesQuestSearch(quest, participantNames, upcomingSearchTerm)) return false;
+        if (upcomingFilter === "spawning-soon") {
+          const timeUntilSpawn = nextSpawnTimestamp - now;
+          return timeUntilSpawn >= 0 && timeUntilSpawn <= SOON_WINDOW_MS;
+        }
+        return true;
+      })
+      .sort((left, right) => {
+        if (upcomingSort === "spawn-latest") {
+          return right.nextSpawnTimestamp - left.nextSpawnTimestamp;
+        }
+        if (upcomingSort === "user-az") {
+          const participantCompare = compareText(left.participantNames, right.participantNames);
+          return participantCompare !== 0
+            ? participantCompare
+            : compareText(left.title, right.title);
+        }
+        return left.nextSpawnTimestamp - right.nextSpawnTimestamp;
+      })
+      .map(({ quest }) => quest);
+  }, [upcomingQuestEntries, upcomingSearchTerm, upcomingFilter, upcomingSort]);
   const currentSearchLabel = `${filteredCurrentQuests.length} of ${quests.length} ${
     quests.length === 1 ? "quest" : "quests"
   }`;
-  const upcomingSearchLabel = `${filteredUpcomingQuests.length} of ${fullUpcomingQuests.length} ${
-    fullUpcomingQuests.length === 1 ? "quest" : "quests"
+  const upcomingSearchLabel = `${filteredUpcomingQuests.length} of ${upcomingQuestEntries.length} ${
+    upcomingQuestEntries.length === 1 ? "quest" : "quests"
   }`;
   const activeSearchTerm = view === "current" ? currentSearchTerm : upcomingSearchTerm;
+  const activeSort = view === "current" ? currentSort : upcomingSort;
+  const activeFilter = view === "current" ? currentFilter : upcomingFilter;
   const hasBoardContent =
     view === "current"
       ? quests.length > 0 || currentSearchTerm.trim().length > 0
@@ -812,59 +1017,62 @@ export default function Board() {
       )}
 
       {view === "current" && activeBountyQuest && (
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <h2
-              className="text-lg font-serif font-bold uppercase tracking-wider"
-              style={{ color: "#9d84ff" }}
-            >
-              Today&apos;s Bounty
-            </h2>
-            <span
-              className="px-2 py-1 text-xs font-serif font-bold rounded"
-              style={{
-                backgroundColor: "rgba(107, 95, 183, 0.3)",
-                color: "#9d84ff",
-              }}
-            >
-              3x Gold
-            </span>
-          </div>
-          <div
-            className="p-4 md:p-6 rounded-lg"
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => openQuestDetails(activeBountyQuest, "current")}
+            className="w-full rounded-lg px-4 py-3 text-left transition-all duration-200 hover:translate-y-[-1px]"
             style={{
-              backgroundColor: "rgba(107, 95, 183, 0.1)",
+              backgroundColor: "rgba(54, 36, 82, 0.24)",
               border: "2px solid #6b5fb7",
+              boxShadow: "0 8px 18px rgba(36, 19, 62, 0.28)",
             }}
           >
-            <h3
-              className="text-xl md:text-2xl font-serif font-bold mb-2"
-              style={{ color: "#9d84ff" }}
-            >
-              {activeBountyQuest.display_name || activeBountyQuest.title}
-            </h3>
-            <p className="font-serif italic mb-4" style={{ color: COLORS.parchment }}>
-              {activeBountyQuest.description || "Complete this quest for triple gold rewards!"}
-            </p>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex gap-6 text-sm font-serif" style={{ color: COLORS.gold }}>
-                <span>Your XP: {activeBountyXpReward}</span>
-                <span>
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="min-w-0">
+                <div
+                  className="mb-1 text-[11px] font-serif font-bold uppercase tracking-[0.22em]"
+                  style={{ color: "#9d84ff" }}
+                >
+                  Today&apos;s Bounty
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className="min-w-0 text-base font-serif font-bold sm:text-lg"
+                    style={{ color: "#c9b7ff" }}
+                  >
+                    {activeBountyQuest.display_name || activeBountyQuest.title}
+                  </span>
+                  <span
+                    className="rounded px-2 py-1 text-[10px] font-serif font-bold uppercase tracking-wide"
+                    style={{
+                      backgroundColor: "rgba(107, 95, 183, 0.3)",
+                      color: "#c0b4ff",
+                    }}
+                  >
+                    3x Gold
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 text-xs font-serif sm:text-sm">
+                <span style={{ color: COLORS.gold }}>Your XP: {activeBountyXpReward}</span>
+                <span style={{ color: COLORS.gold }}>
                   Your Gold: {activeBountyGoldReward} x3 = {activeBountyGoldReward * 3}
                 </span>
+                <span
+                  className="rounded px-3 py-1 font-serif font-semibold uppercase tracking-wide"
+                  style={{
+                    backgroundColor: "rgba(107, 95, 183, 0.3)",
+                    border: "1px solid #6b5fb7",
+                    color: "#c9b7ff",
+                  }}
+                >
+                  Open
+                </span>
               </div>
-              <span
-                className="px-4 py-2 font-serif font-semibold text-sm uppercase tracking-wider rounded"
-                style={{
-                  backgroundColor: "rgba(107, 95, 183, 0.3)",
-                  border: "2px solid #6b5fb7",
-                  color: "#9d84ff",
-                }}
-              >
-                Bounty Locked
-              </span>
             </div>
-          </div>
+          </button>
         </div>
       )}
 
@@ -932,8 +1140,90 @@ export default function Board() {
                   </button>
                 )}
               </div>
-              <div className="mt-2 text-xs font-serif" style={{ color: COLORS.goldDarker }}>
-                {view === "current" ? currentSearchLabel : upcomingSearchLabel}
+              <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="text-xs font-serif" style={{ color: COLORS.goldDarker }}>
+                  {view === "current" ? currentSearchLabel : upcomingSearchLabel}
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row lg:justify-end">
+                  <label className="flex min-w-0 flex-col gap-1">
+                    <span
+                      className="font-serif text-[11px] uppercase tracking-[0.2em]"
+                      style={{ color: COLORS.brown }}
+                    >
+                      Sort
+                    </span>
+                    <select
+                      value={activeSort}
+                      onChange={(event) =>
+                        view === "current"
+                          ? setCurrentSort(event.target.value as CurrentQuestSort)
+                          : setUpcomingSort(event.target.value as UpcomingQuestSort)
+                      }
+                      aria-label={
+                        view === "current" ? "Sort current quests" : "Sort upcoming quests"
+                      }
+                      className="min-w-[12rem] rounded-sm px-3 py-2 font-serif focus:outline-none focus:shadow-lg"
+                      style={{
+                        backgroundColor: "rgba(14, 10, 8, 0.92)",
+                        border: `1px solid ${COLORS.gold}`,
+                        color: COLORS.parchment,
+                      }}
+                    >
+                      {view === "current" ? (
+                        <>
+                          <option value="newest">Newest</option>
+                          <option value="expiring-soon">Expiring Soon</option>
+                          <option value="user-az">User A-Z</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="spawn-soonest">Next Spawn Soonest</option>
+                          <option value="spawn-latest">Next Spawn Latest</option>
+                          <option value="user-az">User A-Z</option>
+                        </>
+                      )}
+                    </select>
+                  </label>
+
+                  <label className="flex min-w-0 flex-col gap-1">
+                    <span
+                      className="font-serif text-[11px] uppercase tracking-[0.2em]"
+                      style={{ color: COLORS.brown }}
+                    >
+                      Filter
+                    </span>
+                    <select
+                      value={activeFilter}
+                      onChange={(event) =>
+                        view === "current"
+                          ? setCurrentFilter(event.target.value as CurrentQuestFilter)
+                          : setUpcomingFilter(event.target.value as UpcomingQuestFilter)
+                      }
+                      aria-label={
+                        view === "current" ? "Filter current quests" : "Filter upcoming quests"
+                      }
+                      className="min-w-[12rem] rounded-sm px-3 py-2 font-serif focus:outline-none focus:shadow-lg"
+                      style={{
+                        backgroundColor: "rgba(14, 10, 8, 0.92)",
+                        border: `1px solid ${COLORS.gold}`,
+                        color: COLORS.parchment,
+                      }}
+                    >
+                      {view === "current" ? (
+                        <>
+                          <option value="all">All Quests</option>
+                          <option value="corrupted-only">Corrupted Only</option>
+                          <option value="due-soon">Due Soon</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="all">All Quests</option>
+                          <option value="spawning-soon">Spawning Soon</option>
+                        </>
+                      )}
+                    </select>
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -968,6 +1258,7 @@ export default function Board() {
                           quest={quest}
                           questParticipantNames={getQuestParticipantNames(quest, homeUsers)}
                           isUpcoming={true}
+                          upcomingSpawnTime={upcoming?.next_spawn_at}
                           onClick={() =>
                             openQuestDetails(quest, "upcoming", upcoming?.next_spawn_at)
                           }

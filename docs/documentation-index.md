@@ -1,6 +1,6 @@
 # Documentation Index
 
-Last verified: 2026-02-12
+Last verified: 2026-04-29
 
 ## Canonical docs (keep current)
 
@@ -10,6 +10,7 @@ Last verified: 2026-02-12
 - `docs/api-contract-governance.md`
 - `backend/README.md`
 - `frontend/README.md`
+- `deployment/README.md`
 
 ## Archived docs
 
