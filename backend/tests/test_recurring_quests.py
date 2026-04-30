@@ -169,8 +169,8 @@ def test_weekly_next_occurrence_same_week():
         assert next_time.minute == 0
 
 
-def test_weekly_next_occurrence_next_week():
-    """Test weekly schedule for a day earlier in the week (should be next week)"""
+def test_weekly_first_generation_after_scheduled_day_returns_most_recent_occurrence():
+    """Never-generated weekly schedules should catch up when this week's slot already passed."""
     # Mock "now" as Friday 7:00 AM
     mock_now = datetime(2026, 1, 30, 7, 0, tzinfo=timezone.utc)  # Friday
 
@@ -180,10 +180,8 @@ def test_weekly_next_occurrence_next_week():
         schedule = {"type": "weekly", "day": "monday", "time": "18:00"}
         next_time = calculate_next_generation_time(None, schedule)
 
-        # Should return next Monday at 6:00 PM
-        assert next_time.weekday() == 0  # Monday
-        assert next_time > mock_now
-        assert (next_time - mock_now).days >= 3
+        # Should return this week's Monday at 6:00 PM so generation happens immediately.
+        assert next_time == datetime(2026, 1, 26, 18, 0, tzinfo=timezone.utc)
 
 
 def test_weekly_already_generated_this_week():
@@ -205,7 +203,7 @@ def test_weekly_already_generated_this_week():
 
 
 def test_weekly_same_day_after_time():
-    """Test weekly schedule for today but after the scheduled time"""
+    """Never-generated weekly schedules should still fire on the scheduled day after the time passes."""
     # Mock "now" as Monday 19:00 (7 PM)
     mock_now = datetime(2026, 1, 26, 19, 0, tzinfo=timezone.utc)  # Monday
 
@@ -215,10 +213,8 @@ def test_weekly_same_day_after_time():
         schedule = {"type": "weekly", "day": "monday", "time": "18:00"}
         next_time = calculate_next_generation_time(None, schedule)
 
-        # Should return next Monday at 6:00 PM (7 days later)
-        assert next_time.weekday() == 0  # Monday
-        # Time difference is 6 days 23 hours, which equals 7 days
-        assert (next_time - mock_now).total_seconds() == 7 * 24 * 3600 - 3600
+        # Should return today's 6:00 PM so generation happens immediately.
+        assert next_time == datetime(2026, 1, 26, 18, 0, tzinfo=timezone.utc)
 
 
 # ============================================================================
@@ -245,7 +241,7 @@ def test_monthly_generation_normal_day():
 
 
 def test_monthly_generation_after_scheduled_day():
-    """Test monthly schedule after the scheduled day has passed"""
+    """Never-generated monthly schedules should catch up when this month's slot already passed."""
     # Mock "now" as Jan 20, 2026 at 7:00 AM (after 15th)
     mock_now = datetime(2026, 1, 20, 7, 0, tzinfo=timezone.utc)
 
@@ -255,10 +251,8 @@ def test_monthly_generation_after_scheduled_day():
         schedule = {"type": "monthly", "day": 15, "time": "08:00"}
         next_time = calculate_next_generation_time(None, schedule)
 
-        # Should return Feb 15 at 8:00 AM
-        assert next_time.year == 2026
-        assert next_time.month == 2
-        assert next_time.day == 15
+        # Should return this month's scheduled time so generation happens immediately.
+        assert next_time == datetime(2026, 1, 15, 8, 0, tzinfo=timezone.utc)
 
 
 def test_monthly_generation_invalid_day_february():
@@ -377,6 +371,48 @@ def test_generate_creates_instance_when_due(db: Session, db_home_with_users):
     db.refresh(subscription2)
     assert subscription1.last_generated_at is not None
     assert subscription2.last_generated_at is not None
+
+
+def test_generate_creates_weekly_instance_when_first_slot_has_just_passed(
+    db: Session, db_home_with_users
+):
+    """Weekly subscriptions should spawn once the scheduled wall-clock time passes."""
+    home, user, _user2 = db_home_with_users
+
+    template = QuestTemplate(
+        home_id=home.id,
+        title="Monday reset",
+        xp_reward=10,
+        gold_reward=5,
+        created_by=user.id,
+    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+
+    subscription = UserTemplateSubscription(
+        user_id=user.id,
+        quest_template_id=template.id,
+        recurrence="weekly",
+        schedule=json.dumps({"type": "weekly", "day": "monday", "time": "08:00"}),
+        is_active=True,
+    )
+    db.add(subscription)
+    db.commit()
+
+    mock_now = datetime(2026, 1, 26, 9, 0, tzinfo=timezone.utc)  # Monday
+
+    class MockDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return mock_now
+
+    with patch("app.services.recurring_quests.datetime", MockDatetime):
+        generate_due_quests(home.id, db)
+
+    quests = db.exec(select(Quest).where(Quest.quest_template_id == template.id)).all()
+    assert len(quests) == 1
+    assert quests[0].schedule == json.dumps({"type": "weekly", "day": "monday", "time": "08:00"})
 
 
 def test_generate_skips_when_incomplete_exists(db: Session, db_home_with_users):

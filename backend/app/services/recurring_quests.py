@@ -112,6 +112,19 @@ def calculate_next_generation_time(
         }
         target_weekday = day_map.get(day_name, 0)
 
+        if last_generated_local is None:
+            days_behind = now_local.weekday() - target_weekday
+            if days_behind < 0:
+                days_behind += 7
+
+            most_recent_occurrence = now_local - timedelta(days=days_behind)
+            most_recent_occurrence = most_recent_occurrence.replace(
+                hour=hour, minute=minute, second=0, microsecond=0
+            )
+
+            if most_recent_occurrence <= now_local:
+                return most_recent_occurrence.astimezone(timezone.utc)
+
         # Calculate next occurrence of target weekday
         days_ahead = target_weekday - now_local.weekday()
         if days_ahead < 0:  # Target day already passed this week
@@ -137,6 +150,24 @@ def calculate_next_generation_time(
         day_of_month = schedule.get("day", 1)  # 1-31
         time_str = schedule.get("time", "00:00")
         hour, minute = parse_time(time_str)
+
+        if last_generated_local is None:
+            most_recent_date = now_local.replace(
+                day=1,
+                hour=hour,
+                minute=minute,
+                second=0,
+                microsecond=0,
+            )
+
+            try:
+                most_recent_date = most_recent_date.replace(day=day_of_month)
+            except ValueError:
+                last_day = calendar.monthrange(now_local.year, now_local.month)[1]
+                most_recent_date = most_recent_date.replace(day=last_day)
+
+            if most_recent_date <= now_local:
+                return most_recent_date.astimezone(timezone.utc)
 
         # Check if already generated this month
         if (
