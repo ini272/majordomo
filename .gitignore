@@ -89,3 +89,4 @@ alembic/versions/__pycache__/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+.playwright-cli
