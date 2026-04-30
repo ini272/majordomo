@@ -481,7 +481,7 @@ export default function EditQuestModal({
             baseXP,
             baseGold,
             dueInHours,
-            selectedParticipantIds,
+            selectedParticipantIds: quest.completed ? undefined : selectedParticipantIds,
           });
 
           const updatedQuest = await api.quests.update(quest.id, updateData, token);

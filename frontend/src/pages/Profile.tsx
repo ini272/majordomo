@@ -4,6 +4,7 @@ import { api } from "../services/api";
 import type { User, Quest, Achievement, UserAchievement } from "../types/api";
 import { useAuth } from "../contexts/AuthContext";
 import QuestCard from "../components/QuestCard";
+import EditQuestModal from "../components/EditQuestModal";
 import ModalShell from "../components/modal/ModalShell";
 import { LAYERS } from "../constants/layers";
 import { copyTextToClipboard } from "../utils/clipboard";
@@ -19,7 +20,9 @@ export default function Profile() {
   const [copiedInvite, setCopiedInvite] = useState(false);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
+  const [homeUsersById, setHomeUsersById] = useState<Record<number, string>>({});
   const [selectedCompletedQuest, setSelectedCompletedQuest] = useState<Quest | null>(null);
+  const [showCompletedQuestEditModal, setShowCompletedQuestEditModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -42,6 +45,18 @@ export default function Profile() {
         setQuests(questsData);
         setAchievements(achievementsData);
         setUserAchievements(userAchievementsData);
+
+        try {
+          const homeUsersData = await api.user.getAll(token);
+          setHomeUsersById(
+            homeUsersData.reduce<Record<number, string>>((usersById, homeUser) => {
+              usersById[homeUser.id] = homeUser.username;
+              return usersById;
+            }, {})
+          );
+        } catch {
+          setHomeUsersById({});
+        }
 
         // Fetch home info after we have the user stats
         if (stats.home_id) {
@@ -69,6 +84,16 @@ export default function Profile() {
     [completedQuests]
   );
   const completedCount = completedQuests.length;
+  const getQuestParticipantUserIds = (quest: Quest) =>
+    quest.participants && quest.participants.length > 0
+      ? quest.participants.map((participant) => participant.user_id)
+      : [quest.user_id];
+  const getQuestParticipantNames = (quest: Quest) => {
+    const participantNames = getQuestParticipantUserIds(quest)
+      .map((participantUserId) => homeUsersById[participantUserId])
+      .filter(Boolean);
+    return participantNames.length > 0 ? participantNames.join(", ") : null;
+  };
   const getCurrentUserQuestAward = (quest: Quest) => {
     const participantAward = quest.participants?.find(
       (participant) => participant.user_id === userId
@@ -88,6 +113,42 @@ export default function Profile() {
     setCopiedInvite(true);
     setTimeout(() => setCopiedInvite(false), 2000);
   };
+
+  const closeCompletedQuestDetails = () => {
+    setShowCompletedQuestEditModal(false);
+    setSelectedCompletedQuest(null);
+  };
+
+  const handleCompletedQuestEditSaved = async (updatedQuest?: Quest) => {
+    setShowCompletedQuestEditModal(false);
+
+    if (updatedQuest) {
+      setSelectedCompletedQuest(updatedQuest);
+    }
+
+    if (!token || userId === null) return;
+
+    try {
+      const updatedQuests = await api.quests.getByUser(userId, token, true);
+      setQuests(updatedQuests);
+
+      if (updatedQuest) {
+        const refreshedQuest =
+          updatedQuests.find((quest) => quest.id === updatedQuest.id) ?? updatedQuest;
+        setSelectedCompletedQuest(refreshedQuest);
+      }
+    } catch {
+      if (updatedQuest) {
+        setQuests((previousQuests) =>
+          previousQuests.map((quest) => (quest.id === updatedQuest.id ? updatedQuest : quest))
+        );
+      }
+    }
+  };
+
+  const canCreateTemplateFromSelectedCompletedQuest = Boolean(
+    selectedCompletedQuest && selectedCompletedQuest.quest_template_id === null
+  );
 
   if (loading) {
     return (
@@ -491,6 +552,8 @@ export default function Profile() {
               .slice(0, showAllQuests ? sortedCompletedQuests.length : 5)
               .map((quest) => {
                 const award = getCurrentUserQuestAward(quest);
+                const participantNames = getQuestParticipantNames(quest);
+                const participantLabel = (quest.participants?.length || 1) > 1 ? "Party" : "For";
                 return (
                   <button
                     type="button"
@@ -506,6 +569,15 @@ export default function Profile() {
                     <p className="font-serif font-bold mb-1" style={{ color: COLORS.parchment }}>
                       {quest.display_name || quest.title}
                     </p>
+                    {participantNames && (
+                      <p
+                        className="mb-2 text-[11px] font-serif uppercase tracking-wide"
+                        style={{ color: COLORS.brown }}
+                      >
+                        {participantLabel}:{" "}
+                        <span style={{ color: COLORS.gold }}>{participantNames}</span>
+                      </p>
+                    )}
                     <div className="flex justify-between items-center text-xs">
                       <p style={{ color: COLORS.brown }}>
                         Completed {new Date(quest.completed_at!).toLocaleDateString()}
@@ -539,16 +611,30 @@ export default function Profile() {
       {selectedCompletedQuest && (
         <ModalShell
           isOpen={true}
-          onClose={() => setSelectedCompletedQuest(null)}
+          onClose={closeCompletedQuestDetails}
           closeOnBackdrop={true}
           overlayClassName="p-3 sm:p-6 items-end sm:items-center bg-black/75"
           panelClassName="w-full max-w-3xl max-h-[92dvh]"
           zIndex={LAYERS.modal}
         >
-          <div className="mb-2 flex justify-end">
+          <div className="mb-2 flex justify-end gap-2">
+            {canCreateTemplateFromSelectedCompletedQuest && (
+              <button
+                type="button"
+                onClick={() => setShowCompletedQuestEditModal(true)}
+                className="px-3 py-1 font-serif text-xs uppercase tracking-wider"
+                style={{
+                  border: `1px solid ${COLORS.gold}`,
+                  color: COLORS.gold,
+                  backgroundColor: "rgba(24, 17, 14, 0.85)",
+                }}
+              >
+                Template
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setSelectedCompletedQuest(null)}
+              onClick={closeCompletedQuestDetails}
               className="px-3 py-1 font-serif text-xs uppercase tracking-wider"
               style={{
                 border: `1px solid ${COLORS.gold}`,
@@ -559,8 +645,24 @@ export default function Profile() {
               Close
             </button>
           </div>
-          <QuestCard quest={selectedCompletedQuest} onComplete={() => undefined} />
+          <QuestCard
+            quest={selectedCompletedQuest}
+            questParticipantNames={getQuestParticipantNames(selectedCompletedQuest) ?? undefined}
+            questCreatorName={homeUsersById[selectedCompletedQuest.created_by]}
+            onComplete={() => undefined}
+          />
         </ModalShell>
+      )}
+
+      {showCompletedQuestEditModal && selectedCompletedQuest && token && (
+        <EditQuestModal
+          questId={selectedCompletedQuest.id}
+          token={token}
+          skipAI={true}
+          initialSaveAsTemplate={true}
+          onSave={(result) => handleCompletedQuestEditSaved(result.quest)}
+          onClose={() => setShowCompletedQuestEditModal(false)}
+        />
       )}
     </div>
   );

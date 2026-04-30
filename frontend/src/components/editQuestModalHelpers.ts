@@ -48,7 +48,7 @@ interface WaitForScribeContentOptions<T extends ScribeQuestSnapshot> {
   sleep?: (intervalMs: number) => Promise<void>;
 }
 
-export type CorruptionTimerUnit = "hours" | "days" | "weeks";
+export type CorruptionTimerUnit = "hours" | "days" | "weeks" | "months";
 
 export const MAX_DUE_IN_HOURS = 8760;
 export const MAX_NFC_CODE_LENGTH = 48;
@@ -65,6 +65,7 @@ export const CORRUPTION_TIMER_UNITS: { label: string; unit: CorruptionTimerUnit 
   { label: "Hours", unit: "hours" },
   { label: "Days", unit: "days" },
   { label: "Weeks", unit: "weeks" },
+  { label: "Months", unit: "months" },
 ];
 
 const DEFAULT_SCRIBE_POLL_ATTEMPTS = 12;
@@ -88,6 +89,7 @@ export function isCorruptionTimerPreset(dueInHours?: number | null): boolean {
 }
 
 function getCorruptionTimerUnitMultiplier(unit: CorruptionTimerUnit): number {
+  if (unit === "months") return 720;
   if (unit === "weeks") return 168;
   if (unit === "days") return 24;
   return 1;
@@ -126,6 +128,10 @@ export function deriveCustomCorruptionTimerValue(dueInHours?: number | null): {
     return { amount: "2", unit: "days" };
   }
 
+  if (dueInHours % 720 === 0) {
+    return { amount: (dueInHours / 720).toString(), unit: "months" };
+  }
+
   if (dueInHours % 168 === 0) {
     return { amount: (dueInHours / 168).toString(), unit: "weeks" };
   }
@@ -144,6 +150,10 @@ function formatDurationUnit(value: number, singular: string): string {
 export function formatCorruptionTimerDuration(dueInHours: string): string | null {
   const hours = parseInt(dueInHours, 10);
   if (!Number.isFinite(hours) || hours <= 0) return null;
+
+  if (hours % 720 === 0) {
+    return formatDurationUnit(hours / 720, "month");
+  }
 
   if (hours % 168 === 0) {
     return formatDurationUnit(hours / 168, "week");
