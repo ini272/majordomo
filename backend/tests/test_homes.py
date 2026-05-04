@@ -21,6 +21,43 @@ def test_get_home(client: TestClient):
     assert response.json()["name"] == "Test Home"
 
 
+def test_update_home_settings(client: TestClient, home_with_user):
+    """Authenticated home members can update home name and timezone."""
+    home_id, user_id, invite_code = home_with_user
+
+    response = client.put(
+        f"/api/homes/{home_id}",
+        json={"name": "Renamed Manor", "timezone": "Europe/Berlin"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Renamed Manor"
+    assert response.json()["timezone"] == "Europe/Berlin"
+
+
+def test_update_home_settings_rejects_duplicate_name(client: TestClient, home_with_user):
+    """Home settings updates should preserve globally unique home names."""
+    home_id, user_id, invite_code = home_with_user
+
+    other_home = client.post("/api/homes", json={"name": "Occupied Name"})
+    assert other_home.status_code == 200
+
+    response = client.put(f"/api/homes/{home_id}", json={"name": "Occupied Name"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "DUPLICATE_HOME_NAME"
+
+
+def test_update_home_settings_rejects_invalid_timezone(client: TestClient, home_with_user):
+    """Home settings updates should validate timezone names."""
+    home_id, user_id, invite_code = home_with_user
+
+    response = client.put(f"/api/homes/{home_id}", json={"timezone": "Mars/Olympus"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "INVALID_INPUT"
+
+
 def test_get_home_not_found(client: TestClient):
     """Test retrieving a non-existent/unauthorized home"""
     response = client.get("/api/homes/999")

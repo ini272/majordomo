@@ -7,7 +7,7 @@ from app.models.achievement import UserAchievement
 from app.models.daily_bounty import DailyBounty
 from app.models.quest import Quest, QuestParticipant, UserTemplateSubscription
 from app.models.reward import UserRewardClaim
-from app.models.user import User, UserCreate, UserUpdate
+from app.models.user import User, UserCreate, UserProfileUpdate, UserUpdate
 
 
 def get_all_users(db: Session) -> list[User]:
@@ -70,6 +70,43 @@ def update_user(db: Session, user_id: int, user_in: UserUpdate) -> Optional[User
         return None
 
     update_data = user_in.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_user, key, value)
+
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+
+def update_user_profile(db: Session, user_id: int, user_in: UserProfileUpdate) -> Optional[User]:
+    """Update self-service profile fields for a user."""
+    db_user = get_user(db, user_id)
+    if not db_user:
+        return None
+
+    update_data = user_in.model_dump(exclude_unset=True)
+
+    if "username" in update_data:
+        username = update_data["username"].strip()
+        if not username:
+            raise ValueError("Username cannot be empty")
+
+        existing_username = get_user_by_username(db, db_user.home_id, username)
+        if existing_username and existing_username.id != user_id:
+            raise ValueError(f"Username '{username}' already exists in this home")
+
+        update_data["username"] = username
+
+    if "email" in update_data:
+        email = update_data["email"]
+        if email is not None:
+            email = str(email).strip().lower()
+            existing_email = get_user_by_email(db, email)
+            if existing_email and existing_email.id != user_id:
+                raise ValueError(f"Email '{email}' is already registered")
+        update_data["email"] = email
+
     for key, value in update_data.items():
         setattr(db_user, key, value)
 

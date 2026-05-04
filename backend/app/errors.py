@@ -29,6 +29,7 @@ class ErrorCode(str, Enum):
     INVALID_INPUT = "INVALID_INPUT"
     DUPLICATE_HOME_NAME = "DUPLICATE_HOME_NAME"
     DUPLICATE_USERNAME = "DUPLICATE_USERNAME"
+    DUPLICATE_EMAIL = "DUPLICATE_EMAIL"
     NEGATIVE_XP = "NEGATIVE_XP"
     INSUFFICIENT_GOLD = "INSUFFICIENT_GOLD"
     NEGATIVE_AMOUNT = "NEGATIVE_AMOUNT"
@@ -74,6 +75,7 @@ ERROR_MESSAGES = {
     ErrorCode.INVALID_INPUT: "Invalid input provided",
     ErrorCode.DUPLICATE_HOME_NAME: "A home with this name already exists",
     ErrorCode.DUPLICATE_USERNAME: "Username already exists in this home",
+    ErrorCode.DUPLICATE_EMAIL: "Email address is already registered",
     ErrorCode.NEGATIVE_XP: "XP amount cannot be negative",
     ErrorCode.INSUFFICIENT_GOLD: "Insufficient gold balance",
     ErrorCode.NEGATIVE_AMOUNT: "Amount cannot be negative",

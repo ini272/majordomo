@@ -68,9 +68,11 @@ export interface User {
   id: number;
   home_id: number;
   username: string;
+  email: string | null;
   gold_balance: number;
   xp: number;
   level: number;
+  created_at: string;
   active_xp_boost_count: number;
   active_shield_expiry: string | null;
 }
@@ -95,6 +97,10 @@ export interface LoginResponse {
   token_type: string;
   user_id: number;
   home_id: number;
+}
+
+export interface DetailResponse {
+  detail: string;
 }
 
 export interface QuestCompleteResponse {
@@ -192,6 +198,16 @@ export interface QuestCreateRequest {
   quest_template_id: number;
   due_date?: string | null;
   participant_user_ids?: number[];
+}
+
+export interface UserProfileUpdateRequest {
+  username?: string;
+  email?: string;
+}
+
+export interface HomeUpdateRequest {
+  name?: string;
+  timezone?: string;
 }
 
 export interface Achievement {

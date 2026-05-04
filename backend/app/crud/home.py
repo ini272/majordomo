@@ -7,7 +7,7 @@ from sqlmodel import Session, delete, select
 from app.crud import reward as crud_reward
 from app.models.achievement import Achievement, UserAchievement
 from app.models.daily_bounty import DailyBounty
-from app.models.home import Home, HomeCreate
+from app.models.home import Home, HomeCreate, HomeUpdate
 from app.models.quest import Quest, QuestParticipant, QuestTemplate, UserTemplateSubscription
 from app.models.reward import Reward, UserRewardClaim
 from app.models.user import User
@@ -63,6 +63,46 @@ def create_home(db: Session, home_in: HomeCreate) -> Home:
     # Ensure each home starts with the default shop consumables.
     crud_reward.ensure_starter_rewards(db, db_home.id)
 
+    return db_home
+
+
+def update_home(db: Session, home_id: int, home_in: HomeUpdate) -> Optional[Home]:
+    """Update mutable home settings."""
+    db_home = get_home(db, home_id)
+    if not db_home:
+        return None
+
+    update_data = home_in.model_dump(exclude_unset=True)
+
+    if "name" in update_data:
+        name = update_data["name"].strip()
+        if not name:
+            raise ValueError("Home name cannot be empty")
+
+        existing_home = get_home_by_name(db, name)
+        if existing_home and existing_home.id != home_id:
+            raise ValueError(f"A home with the name '{name}' already exists")
+
+        update_data["name"] = name
+
+    if "timezone" in update_data:
+        timezone = update_data["timezone"].strip()
+        if not timezone:
+            raise ValueError("Home timezone cannot be empty")
+
+        try:
+            ZoneInfo(timezone)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(f"Invalid home timezone: {timezone}") from exc
+
+        update_data["timezone"] = timezone
+
+    for key, value in update_data.items():
+        setattr(db_home, key, value)
+
+    db.add(db_home)
+    db.commit()
+    db.refresh(db_home)
     return db_home
 
 
