@@ -35,6 +35,17 @@ def test_update_home_settings(client: TestClient, home_with_user):
     assert response.json()["timezone"] == "Europe/Berlin"
 
 
+def test_update_home_settings_rejects_other_home(client: TestClient, home_with_user):
+    """Home settings updates should be limited to the authenticated home."""
+    other_home = client.post("/api/homes", json={"name": "Other Manor"})
+    assert other_home.status_code == 200
+
+    response = client.put(f"/api/homes/{other_home.json()['id']}", json={"name": "Stolen Manor"})
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "UNAUTHORIZED_ACCESS"
+
+
 def test_update_home_settings_rejects_duplicate_name(client: TestClient, home_with_user):
     """Home settings updates should preserve globally unique home names."""
     home_id, user_id, invite_code = home_with_user

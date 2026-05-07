@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   addHoursToApiDateTime,
   formatQuestDateTime,
+  formatTimeZoneLabel,
   parseApiDateTime,
 } from "../src/utils/dateTime";
 
@@ -34,5 +35,23 @@ describe("formatQuestDateTime", () => {
 
     expect(formatQuestDateTime(createdAt, { timeZone: "Europe/Berlin" })).toBe("21 Apr, 14:00");
     expect(formatQuestDateTime(dueAt, { timeZone: "Europe/Berlin" })).toBe("21 Apr, 16:00");
+  });
+});
+
+describe("formatTimeZoneLabel", () => {
+  test("includes the source timezone and a readable offset for valid timezone names", () => {
+    const label = formatTimeZoneLabel("Europe/Berlin");
+
+    expect(label.startsWith("Europe/Berlin")).toBe(true);
+    expect(label).toContain("(");
+    expect(label).toContain("GMT");
+  });
+
+  test("falls back to UTC when no timezone is stored", () => {
+    expect(formatTimeZoneLabel(null).startsWith("UTC")).toBe(true);
+  });
+
+  test("returns invalid timezone names unchanged", () => {
+    expect(formatTimeZoneLabel("Mars/Olympus")).toBe("Mars/Olympus");
   });
 });
