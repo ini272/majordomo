@@ -266,6 +266,14 @@ class QuestRead(SQLModel):
         return _as_utc_datetime(value)
 
 
+class QuestScribePreviewRead(SQLModel):
+    """Schema for previewing regenerated Scribe copy without persisting it."""
+
+    display_name: str
+    description: str
+    tags: str
+
+
 class QuestCreate(SQLModel):
     """Schema for creating a quest from a template"""
 

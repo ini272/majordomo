@@ -66,7 +66,7 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 flex items-stretch justify-around border-t px-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 md:px-8 md:pt-4"
+      className="fixed bottom-0 left-0 right-0 flex items-stretch justify-around border-t px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 md:px-8 md:pt-4"
       style={{
         background: "linear-gradient(180deg, #1c1b18 0%, #11100f 46%, #0d0d0d 100%)",
         borderTopColor: COLORS.gold,
