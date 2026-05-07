@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import random
 from typing import Optional
 
 from groq import Groq
@@ -10,6 +11,21 @@ from groq import Groq
 logger = logging.getLogger(__name__)
 
 GROQ_MODEL = "llama-3.3-70b-versatile"  # Latest fast model, free tier available
+GROQ_TEMPERATURE = 0.85
+GROQ_MAX_TOKENS = 300
+
+STYLE_ANGLES = [
+    "frame the task as a tiny monster encounter",
+    "start from the concrete object or mess",
+    "focus on the heroic result of finishing the task",
+    "write it like a guild notice for household adventurers",
+    "make the household magic feel slightly out of control",
+    "treat the task like a small ritual of order and restoration",
+]
+
+SCRIBE_SYSTEM_PROMPT = """You are a fantasy game quest designer for a household chore app.
+Keep the tone witty, specific, and RPG-flavored without becoming grandiose.
+Use fresh sentence openings and concrete details from the actual task instead of stock call-to-adventure formulas."""
 
 # Available tags for validation
 AVAILABLE_TAGS = [
@@ -61,29 +77,38 @@ def generate_quest_content(quest_title: str) -> Optional[ScribeResponse]:
 
     try:
         client = Groq(api_key=groq_api_key)
+        style_angle = random.choice(STYLE_ANGLES)
+        available_tags = ", ".join(AVAILABLE_TAGS)
 
-        prompt = f"""You are a fantasy game quest designer. Generate engaging quest content for this quest title:
+        prompt = f"""Generate engaging quest content for this quest title:
 
 "{quest_title}"
 
+Creative angle for this request: {style_angle}.
+
 Return ONLY a valid JSON object (no markdown, no code blocks) with these exact fields:
 - display_name: A fantasy variant of the title (1-2 words, creative and thematic)
-- description: A witty, engaging description (1-2 sentences, in fantasy RPG style)
-- tags: Comma-separated tags from this list: chores, cleaning, exercise, health, learning, organization
+- description: A witty, engaging description (1-2 sentences). Start from the task's object, mess, action, outcome, or magical mishap.
+- tags: Comma-separated tags from this list: {available_tags}
 - time: Estimated time on scale 1-5 (1=quick, 5=long)
 - effort: Physical/mental effort on scale 1-5 (1=easy, 5=hard)
 - dread: How much you dread doing it on scale 1-5 (1=love it, 5=hate it)
 
-Example output:
-{{"display_name": "The Cookery Cleanup", "description": "Vanquish the grimy counters and slay the sink dragon.", "tags": "chores,cleaning", "time": 3, "effort": 2, "dread": 4}}
+Example outputs:
+{{"display_name": "Sink Dragon", "description": "The sink dragon has grown bold; remove its greasy tribute before the counters join its cause.", "tags": "chores,cleaning", "time": 3, "effort": 2, "dread": 4}}
+{{"display_name": "Cable Hunt", "description": "The lost charging cable has slipped into the shadow realm of drawers, bags, and couch seams. Track it down before the phone crystal fades.", "tags": "organization", "time": 2, "effort": 2, "dread": 2}}
+{{"display_name": "Laundry Rite", "description": "Sort the laundry relics by color, cloth, and suspected curse, then return them to wearable order.", "tags": "chores,cleaning", "time": 4, "effort": 2, "dread": 3}}
 
 Now generate for: {quest_title}"""
 
         response = client.chat.completions.create(
             model=GROQ_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=500,
+            messages=[
+                {"role": "system", "content": SCRIBE_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=GROQ_TEMPERATURE,
+            max_tokens=GROQ_MAX_TOKENS,
         )
 
         response_text = response.choices[0].message.content.strip()

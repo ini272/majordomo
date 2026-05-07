@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.scribe import ScribeResponse, generate_quest_content
+from app.services.scribe import GROQ_MAX_TOKENS, GROQ_TEMPERATURE, ScribeResponse, generate_quest_content
 
 
 def test_scribe_response_xp_calculation():
@@ -63,16 +63,21 @@ def test_generate_quest_content_parses_mocked_groq_response(monkeypatch):
 
     class FakeCompletions:
         def create(self, **kwargs):
-            assert kwargs["messages"][0]["role"] == "user"
+            assert kwargs["temperature"] == GROQ_TEMPERATURE
+            assert kwargs["max_tokens"] == GROQ_MAX_TOKENS
+            assert kwargs["messages"][0]["role"] == "system"
+            assert "household chore app" in kwargs["messages"][0]["content"]
+            assert kwargs["messages"][1]["role"] == "user"
+            user_prompt = kwargs["messages"][1]["content"]
+            assert "Creative angle for this request: start from the concrete object or mess." in user_prompt
+            assert "Example outputs:" in user_prompt
             content = (
                 '{"display_name": "The Kitchen Cleanse", '
                 '"description": "Vanquish grime from the counters.", '
                 '"tags": "chores,cleaning", '
                 '"time": 3, "effort": 2, "dread": 4}'
             )
-            return SimpleNamespace(
-                choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
-            )
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
 
     class FakeGroq:
         def __init__(self, api_key: str):
@@ -81,6 +86,10 @@ def test_generate_quest_content_parses_mocked_groq_response(monkeypatch):
 
     monkeypatch.setenv("GROQ_API_KEY", "test-groq-key")
     monkeypatch.setattr("app.services.scribe.Groq", FakeGroq)
+    monkeypatch.setattr(
+        "app.services.scribe.random.choice",
+        lambda _angles: "start from the concrete object or mess",
+    )
 
     response = generate_quest_content("Clean Kitchen")
 
