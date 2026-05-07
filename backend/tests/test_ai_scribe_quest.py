@@ -99,3 +99,87 @@ def test_apply_scribe_response_to_quest_preserves_manual_copy(db: Session, db_ho
     assert quest.tags == "chores"
     assert quest.xp_reward == 30
     assert quest.gold_reward == 15
+
+
+def test_regenerate_scribe_preview_returns_copy_without_updating_quest(
+    client: TestClient,
+    db: Session,
+    db_home_with_users,
+    monkeypatch,
+):
+    home, user, _other_user = db_home_with_users
+    quest = crud_quest.create_standalone_quest(
+        db,
+        home.id,
+        user.id,
+        [user.id],
+        QuestCreateStandalone(
+            title="Clean Kitchen",
+            display_name="Old Name",
+            description="Old description",
+            tags="chores",
+            xp_reward=12,
+            gold_reward=6,
+        ),
+    )
+
+    def fake_generate_quest_content(quest_title: str):
+        assert quest_title == "Clean Kitchen"
+        return ScribeResponse(
+            {
+                "display_name": "Sink Dragon",
+                "description": "The sink dragon has grown bold.",
+                "tags": "chores,cleaning",
+                "time": 4,
+                "effort": 4,
+                "dread": 4,
+            }
+        )
+
+    monkeypatch.setattr(quest_routes, "generate_quest_content", fake_generate_quest_content)
+
+    response = client.post(f"/api/quests/{quest.id}/scribe-preview")
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "display_name": "Sink Dragon",
+        "description": "The sink dragon has grown bold.",
+        "tags": "chores,cleaning",
+    }
+
+    db.refresh(quest)
+    assert quest.display_name == "Old Name"
+    assert quest.description == "Old description"
+    assert quest.tags == "chores"
+    assert quest.xp_reward == 12
+    assert quest.gold_reward == 6
+
+
+def test_regenerate_scribe_preview_rejects_completed_quest(
+    client: TestClient,
+    db: Session,
+    db_home_with_users,
+    monkeypatch,
+):
+    home, user, _other_user = db_home_with_users
+    quest = crud_quest.create_standalone_quest(
+        db,
+        home.id,
+        user.id,
+        [user.id],
+        QuestCreateStandalone(title="Clean Kitchen"),
+    )
+    quest.completed = True
+    db.add(quest)
+    db.commit()
+    db.refresh(quest)
+
+    def fail_generate_quest_content(_quest_title: str):
+        raise AssertionError("completed quests should not call Scribe")
+
+    monkeypatch.setattr(quest_routes, "generate_quest_content", fail_generate_quest_content)
+
+    response = client.post(f"/api/quests/{quest.id}/scribe-preview")
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "QUEST_ALREADY_COMPLETED"

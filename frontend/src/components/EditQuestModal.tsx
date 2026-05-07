@@ -31,8 +31,22 @@ import {
   waitForScribeContent,
 } from "./editQuestModalHelpers";
 
-const AVAILABLE_TAGS = ["Chores", "Learning", "Exercise", "Health", "Organization"];
+const AVAILABLE_TAGS = ["Chores", "Cleaning", "Learning", "Exercise", "Health", "Organization"];
 type CorruptionTimerMode = "preset" | "custom";
+
+interface ScribeDraft {
+  displayName: string;
+  description: string;
+  selectedTags: string[];
+}
+
+const toSelectedTags = (tags?: string | null): string[] =>
+  tags
+    ? tags.split(",").map((tag) => {
+        const trimmed = tag.trim();
+        return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+      })
+    : [];
 
 interface TemplateInitialData {
   title: string;
@@ -96,6 +110,8 @@ export default function EditQuestModal({
   const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [regeneratingScribe, setRegeneratingScribe] = useState(false);
+  const [preRegenerateDraft, setPreRegenerateDraft] = useState<ScribeDraft | null>(null);
   const [time, setTime] = useState(2);
   const [effort, setEffort] = useState(2);
   const [dread, setDread] = useState(2);
@@ -181,6 +197,9 @@ export default function EditQuestModal({
   // Load data based on mode
   useEffect(() => {
     const loadData = async () => {
+      setPreRegenerateDraft(null);
+      setRegeneratingScribe(false);
+      setSelectedTags([]);
       try {
         if (isCreateMode) {
           // CREATE MODE (Random): Use provided initial data
@@ -192,11 +211,7 @@ export default function EditQuestModal({
 
           // Parse tags
           if (initialData.tags) {
-            const tags = initialData.tags.split(",").map((t) => {
-              const trimmed = t.trim();
-              return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-            });
-            setSelectedTags(tags);
+            setSelectedTags(toSelectedTags(initialData.tags));
           }
           const createModeSliders = deriveDifficultySlidersFromXP(initialData.xp_reward);
           setTime(createModeSliders.time);
@@ -230,11 +245,7 @@ export default function EditQuestModal({
           setDescription(response.description || "");
 
           if (response.tags) {
-            const tags = response.tags.split(",").map((t) => {
-              const trimmed = t.trim();
-              return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-            });
-            setSelectedTags(tags);
+            setSelectedTags(toSelectedTags(response.tags));
           }
           const templateSliders = deriveDifficultySlidersFromXP(response.xp_reward);
           setTime(templateSliders.time);
@@ -283,11 +294,7 @@ export default function EditQuestModal({
           setDescription(response.description || "");
 
           if (response.tags) {
-            const tags = response.tags.split(",").map((t) => {
-              const trimmed = t.trim();
-              return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-            });
-            setSelectedTags(tags);
+            setSelectedTags(toSelectedTags(response.tags));
           }
           const editModeSliders = deriveDifficultySlidersFromXP(response.xp_reward);
           setTime(editModeSliders.time);
@@ -539,10 +546,51 @@ export default function EditQuestModal({
 
   const xp = (time + effort + dread) * 2;
   const gold = Math.floor(xp / 2);
+  const canRegenerateScribe = Boolean(
+    questId && quest && !quest.completed && !templateId && !isCreateMode
+  );
+
+  const handleRegenerateScribe = async () => {
+    if (!quest || !canRegenerateScribe || regeneratingScribe) return;
+
+    const previousDraft = {
+      displayName,
+      description,
+      selectedTags: [...selectedTags],
+    };
+
+    setRegeneratingScribe(true);
+    setError(null);
+    setShowTypeWriter(false);
+    setNameAnimationDone(false);
+
+    try {
+      const preview = await api.quests.regenerateScribePreview(quest.id, token);
+      setPreRegenerateDraft((current) => current ?? previousDraft);
+      setDisplayName(preview.display_name || "");
+      setDescription(preview.description || "");
+      setSelectedTags(toSelectedTags(preview.tags));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to regenerate quest description");
+    } finally {
+      setRegeneratingScribe(false);
+    }
+  };
+
+  const handleRevertRegeneratedScribe = () => {
+    if (!preRegenerateDraft) return;
+
+    setDisplayName(preRegenerateDraft.displayName);
+    setDescription(preRegenerateDraft.description);
+    setSelectedTags([...preRegenerateDraft.selectedTags]);
+    setPreRegenerateDraft(null);
+    setShowTypeWriter(false);
+    setNameAnimationDone(false);
+  };
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!saving && !loading) {
+    if (!saving && !loading && !regeneratingScribe) {
       handleSave();
     }
   };
@@ -612,7 +660,7 @@ export default function EditQuestModal({
     <ModalShell
       isOpen={true}
       onClose={onClose}
-      closeOnEscape={!loading && !saving}
+      closeOnEscape={!loading && !saving && !regeneratingScribe}
       overlayClassName="items-start sm:items-center p-4"
       panelClassName="w-full max-w-4xl"
       zIndex={LAYERS.nestedModal}
@@ -637,7 +685,7 @@ export default function EditQuestModal({
                 onClick={onClose}
                 className="text-2xl leading-none"
                 style={{ color: COLORS.gold }}
-                disabled={loading || saving}
+                disabled={loading || saving || regeneratingScribe}
               >
                 ✕
               </button>
@@ -821,7 +869,7 @@ export default function EditQuestModal({
                         color: PARCHMENT_STYLES.textColor,
                         fontFamily: "Georgia, serif",
                       }}
-                      disabled={saving}
+                      disabled={saving || regeneratingScribe}
                     />
                   </div>
                 )}
@@ -829,12 +877,57 @@ export default function EditQuestModal({
 
               {/* Description */}
               <div className="mb-6">
-                <label
-                  className="block text-sm uppercase tracking-wider mb-2 font-serif"
-                  style={{ color: COLORS.gold }}
-                >
-                  Description
-                </label>
+                <div className="mb-2 flex min-h-9 items-center justify-between gap-3">
+                  <label
+                    className="block text-sm uppercase tracking-wider font-serif"
+                    style={{ color: COLORS.gold }}
+                  >
+                    Description
+                  </label>
+                  {canRegenerateScribe && (
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleRegenerateScribe}
+                        disabled={saving || regeneratingScribe}
+                        aria-label="Regenerate quest description"
+                        title="Regenerate quest description"
+                        className="min-h-9 rounded px-2.5 py-1.5 font-serif text-xs uppercase tracking-wider transition-all"
+                        style={{
+                          backgroundColor: `rgba(212, 175, 55, 0.1)`,
+                          border: `1px solid ${COLORS.gold}`,
+                          color: COLORS.gold,
+                          cursor: saving || regeneratingScribe ? "not-allowed" : "pointer",
+                          opacity: saving || regeneratingScribe ? 0.65 : 1,
+                        }}
+                      >
+                        <span aria-hidden="true" className="mr-1.5">
+                          ↻
+                        </span>
+                        {regeneratingScribe ? "Working" : "Regenerate"}
+                      </button>
+                      {preRegenerateDraft && (
+                        <button
+                          type="button"
+                          onClick={handleRevertRegeneratedScribe}
+                          disabled={saving || regeneratingScribe}
+                          aria-label="Revert regenerated quest description"
+                          title="Revert regenerated quest description"
+                          className="flex min-h-9 min-w-9 items-center justify-center rounded px-2 transition-all"
+                          style={{
+                            backgroundColor: `rgba(212, 175, 55, 0.08)`,
+                            border: `1px solid ${COLORS.gold}`,
+                            color: COLORS.gold,
+                            cursor: saving || regeneratingScribe ? "not-allowed" : "pointer",
+                            opacity: saving || regeneratingScribe ? 0.65 : 1,
+                          }}
+                        >
+                          <span aria-hidden="true">↶</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {showTypeWriter && nameAnimationDone ? (
                   <div
                     onClick={() => setShowTypeWriter(false)}
@@ -882,7 +975,7 @@ export default function EditQuestModal({
                         fontFamily: "Georgia, serif",
                         resize: "none",
                       }}
-                      disabled={saving}
+                      disabled={saving || regeneratingScribe}
                     />
                   </div>
                 )}
@@ -915,9 +1008,9 @@ export default function EditQuestModal({
                           : `rgba(212, 175, 55, 0.2)`,
                         color: selectedTags.includes(tag) ? COLORS.darkPanel : COLORS.gold,
                         border: `1px solid ${COLORS.gold}`,
-                        cursor: saving ? "not-allowed" : "pointer",
+                        cursor: saving || regeneratingScribe ? "not-allowed" : "pointer",
                       }}
-                      disabled={saving}
+                      disabled={saving || regeneratingScribe}
                     >
                       {tag}
                     </button>
@@ -1493,15 +1586,15 @@ export default function EditQuestModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  disabled={saving}
+                  disabled={saving || regeneratingScribe}
                   className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all"
                   style={{
                     backgroundColor: `rgba(212, 175, 55, 0.1)`,
                     borderColor: COLORS.gold,
                     borderWidth: "2px",
                     color: COLORS.gold,
-                    cursor: saving ? "not-allowed" : "pointer",
-                    opacity: saving ? 0.5 : 1,
+                    cursor: saving || regeneratingScribe ? "not-allowed" : "pointer",
+                    opacity: saving || regeneratingScribe ? 0.5 : 1,
                   }}
                 >
                   Cancel
@@ -1510,7 +1603,7 @@ export default function EditQuestModal({
                   <button
                     type="button"
                     onClick={() => handleSave({ createQuestAfterTemplateSave: true })}
-                    disabled={saving}
+                    disabled={saving || regeneratingScribe}
                     className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all"
                     style={{
                       backgroundColor: saving
@@ -1519,8 +1612,8 @@ export default function EditQuestModal({
                       borderColor: "#38bdf8",
                       borderWidth: "2px",
                       color: "#bae6fd",
-                      cursor: saving ? "not-allowed" : "pointer",
-                      opacity: saving ? 0.5 : 1,
+                      cursor: saving || regeneratingScribe ? "not-allowed" : "pointer",
+                      opacity: saving || regeneratingScribe ? 0.5 : 1,
                     }}
                   >
                     {saving ? "Saving..." : "Save Defaults & Create Quest"}
@@ -1528,15 +1621,15 @@ export default function EditQuestModal({
                 )}
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={saving || regeneratingScribe}
                   className="flex-1 py-3 font-serif font-semibold text-sm uppercase tracking-wider transition-all"
                   style={{
                     backgroundColor: saving ? `rgba(212, 175, 55, 0.1)` : `rgba(212, 175, 55, 0.2)`,
                     borderColor: COLORS.gold,
                     borderWidth: "2px",
                     color: COLORS.gold,
-                    cursor: saving ? "not-allowed" : "pointer",
-                    opacity: saving ? 0.5 : 1,
+                    cursor: saving || regeneratingScribe ? "not-allowed" : "pointer",
+                    opacity: saving || regeneratingScribe ? 0.5 : 1,
                   }}
                 >
                   {saving ? "Saving..." : modalLabels.submitLabel}

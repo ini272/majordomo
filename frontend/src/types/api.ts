@@ -54,6 +54,12 @@ export interface Quest {
   participants: QuestParticipant[];
 }
 
+export interface QuestScribePreview {
+  display_name: string;
+  description: string;
+  tags: string;
+}
+
 export interface QuestParticipant {
   id: number;
   quest_id: number;

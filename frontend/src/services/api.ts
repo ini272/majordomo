@@ -5,6 +5,7 @@ import type {
   User,
   Home,
   Quest,
+  QuestScribePreview,
   QuestTemplate,
   QuestCompleteResponse,
   QuestTemplateCreateRequest,
@@ -326,6 +327,13 @@ export const api = {
         `/quests/${questId}`,
         { headers: buildHeaders(token) },
         "Failed to fetch quest"
+      ),
+
+    regenerateScribePreview: async (questId: number, token: string): Promise<QuestScribePreview> =>
+      requestJSON<QuestScribePreview>(
+        `/quests/${questId}/scribe-preview`,
+        { method: "POST", headers: buildHeaders(token) },
+        "Failed to regenerate quest description"
       ),
 
     update: async (

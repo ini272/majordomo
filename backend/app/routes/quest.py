@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlmodel import Session
@@ -16,6 +16,7 @@ from app.models.quest import (
     QuestCreate,
     QuestCreateStandalone,
     QuestRead,
+    QuestScribePreviewRead,
     QuestTemplateCreate,
     QuestTemplateRead,
     QuestTemplateUpdate,
@@ -425,6 +426,53 @@ def complete_quest(quest_id: int, db: Session = Depends(get_db), auth: dict = De
         )
 
     return complete_quest_with_rewards(db, quest, auth)
+
+
+@router.post("/{quest_id}/scribe-preview", response_model=QuestScribePreviewRead)
+def regenerate_quest_scribe_preview(
+    quest_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    auth: Annotated[dict, Depends(get_current_user)],
+):
+    """
+    Generate fresh Scribe copy for an active quest without saving it.
+
+    The edit modal applies this response to its local draft. Persistence still
+    goes through the existing quest update endpoint.
+    """
+    quest = crud_quest.get_quest(db, quest_id)
+    if not quest or quest.home_id != auth["home_id"]:
+        raise HTTPException(
+            status_code=404,
+            detail=create_error_detail(ErrorCode.QUEST_NOT_FOUND, details={"quest_id": quest_id}),
+        )
+
+    if quest.completed:
+        raise HTTPException(
+            status_code=400,
+            detail=create_error_detail(
+                ErrorCode.QUEST_ALREADY_COMPLETED,
+                message="Completed quests cannot regenerate Scribe copy",
+                details={"quest_id": quest_id},
+            ),
+        )
+
+    scribe_response = generate_quest_content(quest.title)
+    if not scribe_response:
+        raise HTTPException(
+            status_code=503,
+            detail=create_error_detail(
+                ErrorCode.INVALID_INPUT,
+                message="Scribe preview is temporarily unavailable",
+                details={"quest_id": quest_id},
+            ),
+        )
+
+    return QuestScribePreviewRead(
+        display_name=scribe_response.display_name,
+        description=scribe_response.description,
+        tags=scribe_response.tags,
+    )
 
 
 def _validate_quest_schedule(recurrence: str, schedule: Optional[str]) -> None:
