@@ -54,6 +54,7 @@ Last verified: 2026-04-20
 - Rewards: `/api/rewards/*`
 - Achievements: `/api/achievements/*`
 - Users/homes: `/api/users/*`, `/api/homes/*`
+  Settings-related self-service flows use `GET/PUT/DELETE /api/users/me` and `PUT /api/homes/{home_id}`.
 - Triggers: `/api/triggers/*`
 
 ## Deployment shape

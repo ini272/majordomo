@@ -1,4 +1,5 @@
 import type {
+  DetailResponse,
   LoginResponse,
   TriggerQuestResponse,
   User,
@@ -20,6 +21,8 @@ import type {
   UserTemplateSubscriptionUpdate,
   UpcomingSubscription,
   ConvertToTemplateRequest,
+  UserProfileUpdateRequest,
+  HomeUpdateRequest,
 } from "../types/api";
 
 export interface RequestError extends Error {
@@ -182,6 +185,27 @@ export const api = {
         "/users/me",
         { headers: buildHeaders(token) },
         "Failed to fetch user stats"
+      ),
+
+    updateMe: async (userData: UserProfileUpdateRequest, token: string): Promise<User> =>
+      requestJSON<User>(
+        "/users/me",
+        {
+          method: "PUT",
+          headers: buildHeaders(token, true),
+          body: JSON.stringify(userData),
+        },
+        "Failed to update account settings"
+      ),
+
+    deleteMe: async (token: string): Promise<DetailResponse> =>
+      requestJSON<DetailResponse>(
+        "/users/me",
+        {
+          method: "DELETE",
+          headers: buildHeaders(token),
+        },
+        "Failed to delete account"
       ),
   },
 
@@ -421,6 +445,17 @@ export const api = {
         `/homes/${homeId}`,
         { headers: buildHeaders(token) },
         "Failed to fetch home details"
+      ),
+
+    update: async (homeId: number, homeData: HomeUpdateRequest, token: string): Promise<Home> =>
+      requestJSON<Home>(
+        `/homes/${homeId}`,
+        {
+          method: "PUT",
+          headers: buildHeaders(token, true),
+          body: JSON.stringify(homeData),
+        },
+        "Failed to update home settings"
       ),
 
     getInviteCode: async (

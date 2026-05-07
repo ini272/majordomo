@@ -146,3 +146,20 @@ export const formatQuestDateTime = (
     ...(options.timeZone ? { timeZone: options.timeZone } : {}),
   });
 };
+
+export const formatTimeZoneLabel = (timeZone: string | null | undefined): string => {
+  const resolvedTimeZone = timeZone || "UTC";
+
+  try {
+    const formatter = new Intl.DateTimeFormat("en", {
+      timeZone: resolvedTimeZone,
+      timeZoneName: "shortOffset",
+    });
+    const offset = formatter
+      .formatToParts(new Date())
+      .find((part) => part.type === "timeZoneName")?.value;
+    return offset ? `${resolvedTimeZone} (${offset})` : resolvedTimeZone;
+  } catch {
+    return resolvedTimeZone;
+  }
+};

@@ -6,7 +6,7 @@ from app.crud import home as crud_home
 from app.crud import user as crud_user
 from app.database import get_db
 from app.errors import ErrorCode, create_error_detail
-from app.models.home import HomeCreate, HomeRead
+from app.models.home import HomeCreate, HomeRead, HomeUpdate
 from app.models.user import UserRead
 
 router = APIRouter(prefix="/api/homes", tags=["homes"])
@@ -78,6 +78,48 @@ def get_invite_code(home_id: int, db: Session = Depends(get_db), auth: dict = De
         )
 
     return {"invite_code": home.invite_code, "home_name": home.name}
+
+
+@router.put("/{home_id}", response_model=HomeRead)
+def update_home_settings(
+    home_id: int, home_update: HomeUpdate, db: Session = Depends(get_db), auth: dict = Depends(get_current_user)
+):
+    """Update settings for the authenticated user's home."""
+    if auth["home_id"] != home_id:
+        raise HTTPException(
+            status_code=403,
+            detail=create_error_detail(
+                ErrorCode.UNAUTHORIZED_ACCESS,
+                message="You are not authorized to update this home",
+                details={"home_id": home_id, "your_home_id": auth["home_id"]},
+            ),
+        )
+
+    try:
+        updated_home = crud_home.update_home(db, home_id, home_update)
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "already exists" in error_msg:
+            raise HTTPException(
+                status_code=400,
+                detail=create_error_detail(
+                    ErrorCode.DUPLICATE_HOME_NAME,
+                    message=error_msg,
+                    details={"home_id": home_id},
+                ),
+            )
+
+        raise HTTPException(
+            status_code=400,
+            detail=create_error_detail(ErrorCode.INVALID_INPUT, message=error_msg, details={"home_id": home_id}),
+        )
+
+    if not updated_home:
+        raise HTTPException(
+            status_code=404, detail=create_error_detail(ErrorCode.HOME_NOT_FOUND, details={"home_id": home_id})
+        )
+
+    return updated_home
 
 
 # POST endpoints

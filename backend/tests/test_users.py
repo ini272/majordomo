@@ -27,6 +27,67 @@ def test_update_user(client: TestClient, home_with_user):
     assert response.json()["xp"] == 100
 
 
+def test_update_current_user_profile(client: TestClient, home_with_user):
+    """Authenticated users can update their own username and email."""
+    home_id, user_id, invite_code = home_with_user
+
+    response = client.put(
+        "/api/users/me",
+        json={"username": "renamed-user", "email": "renamed@example.com"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["username"] == "renamed-user"
+    assert response.json()["email"] == "renamed@example.com"
+
+    fetched_user = client.get(f"/api/users/{user_id}")
+    assert fetched_user.status_code == 200
+    assert fetched_user.json()["username"] == "renamed-user"
+    assert fetched_user.json()["email"] == "renamed@example.com"
+
+
+def test_update_current_user_profile_rejects_duplicate_username(client: TestClient, home_with_user):
+    """Authenticated profile update should preserve home-local username uniqueness."""
+    home_id, user_id, invite_code = home_with_user
+
+    join_response = client.post(
+        "/api/auth/join",
+        json={
+            "invite_code": invite_code,
+            "email": "teammate@example.com",
+            "username": "teammate",
+            "password": "testpass",
+        },
+    )
+    assert join_response.status_code == 200
+
+    response = client.put("/api/users/me", json={"username": "teammate"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "DUPLICATE_USERNAME"
+
+
+def test_update_current_user_profile_rejects_duplicate_email(client: TestClient, home_with_user):
+    """Authenticated profile update should preserve globally unique emails."""
+    home_id, user_id, invite_code = home_with_user
+
+    other_home_signup = client.post(
+        "/api/auth/signup",
+        json={
+            "email": "already-taken@example.com",
+            "username": "otherhomeuser",
+            "password": "testpass",
+            "home_name": "Other Home",
+        },
+    )
+    assert other_home_signup.status_code == 200
+
+    response = client.put("/api/users/me", json={"email": "already-taken@example.com"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "DUPLICATE_EMAIL"
+
+
 def test_add_xp_to_user(client: TestClient, home_with_user):
     """Test adding XP to a user"""
     home_id, user_id, invite_code = home_with_user
@@ -69,6 +130,35 @@ def test_delete_user(client: TestClient, home_with_user):
     # Verify user is deleted
     response = client.get(f"/api/users/{user_id}")
     assert response.status_code == 404
+
+
+def test_delete_current_user_account_keeps_other_home_members(client: TestClient, db_home_with_users, auth_context):
+    """Deleting the authenticated account should keep the rest of the home intact."""
+    home, user1, user2 = db_home_with_users
+    auth_context.set_user(user1.id, home.id)
+
+    response = client.delete("/api/users/me")
+
+    assert response.status_code == 200
+    assert response.json()["detail"] == "Account deleted"
+
+    auth_context.set_user(user2.id, home.id)
+    remaining_users = client.get(f"/api/homes/{home.id}/users")
+    assert remaining_users.status_code == 200
+    assert [user["id"] for user in remaining_users.json()] == [user2.id]
+
+
+def test_delete_current_user_account_deletes_empty_home(client: TestClient, home_with_user):
+    """Deleting the last account should also remove the now-empty home."""
+    home_id, user_id, invite_code = home_with_user
+
+    response = client.delete("/api/users/me")
+
+    assert response.status_code == 200
+    assert response.json()["detail"] == "Account and home deleted"
+
+    missing_home = client.get(f"/api/homes/{home_id}")
+    assert missing_home.status_code == 404
 
 
 def test_delete_user_reassigns_shared_quest_primary(client: TestClient, db_home_with_users, auth_context):

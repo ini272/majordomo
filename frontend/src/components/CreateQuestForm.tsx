@@ -11,6 +11,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSound } from "../contexts/SoundContext";
 import ModalShell from "./modal/ModalShell";
 import { sortHomeUsers } from "../utils/homeUsers";
+import { readStoredSkipAiQuestCreationPreference } from "../utils/preferences";
 
 type CreationMode = "ai-scribe" | "random" | "from-template";
 type TemplateAction = "quick-create" | "edit-defaults";
@@ -21,6 +22,11 @@ interface CreateQuestFormProps {
   onClose: () => void;
 }
 
+const getInitialSkipAiQuestCreationPreference = (): boolean => {
+  if (typeof window === "undefined") return false;
+  return readStoredSkipAiQuestCreationPreference(window.localStorage);
+};
+
 export default function CreateQuestForm({ token, onQuestCreated, onClose }: CreateQuestFormProps) {
   const { userId } = useAuth();
   const { playSound } = useSound();
@@ -29,7 +35,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [skipAI, setSkipAI] = useState(false);
+  const [skipAI, setSkipAI] = useState(getInitialSkipAiQuestCreationPreference);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingQuestId, setEditingQuestId] = useState<number | null>(null);
   const [createdTemplateId, setCreatedTemplateId] = useState<number | null>(null);
@@ -130,7 +136,7 @@ export default function CreateQuestForm({ token, onQuestCreated, onClose }: Crea
       // Reset form
       setTitle("");
       setSelectedTags([]);
-      setSkipAI(false);
+      setSkipAI(getInitialSkipAiQuestCreationPreference());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create quest");
     } finally {

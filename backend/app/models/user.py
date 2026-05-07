@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
+from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -68,3 +69,10 @@ class UserUpdate(SQLModel):
     level: Optional[int] = Field(default=None, ge=1)
     xp: Optional[int] = Field(default=None, ge=0)
     gold_balance: Optional[int] = Field(default=None, ge=0)
+
+
+class UserProfileUpdate(SQLModel):
+    """Schema for updating the authenticated user's profile settings"""
+
+    username: Optional[str] = Field(default=None, min_length=1, max_length=50)
+    email: Optional[EmailStr] = None

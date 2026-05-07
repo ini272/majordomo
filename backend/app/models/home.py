@@ -44,6 +44,13 @@ class HomeCreate(SQLModel):
     timezone: str = Field(default="UTC", min_length=1, max_length=100)
 
 
+class HomeUpdate(SQLModel):
+    """Schema for updating home settings"""
+
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    timezone: Optional[str] = Field(default=None, min_length=1, max_length=100)
+
+
 class HomeJoin(SQLModel):
     """Schema for joining a home"""
 
