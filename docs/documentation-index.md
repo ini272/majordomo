@@ -16,6 +16,7 @@ Last verified: 2026-04-29
 
 - `docs/archive/`
 - `docs/archive/testing-quest-first-manual-tests.md` (manual QA checklist)
+- `docs/archive/architecture-review-2026-05-11.md` (point-in-time architecture risk review)
 
 ## Maintenance rules
 
