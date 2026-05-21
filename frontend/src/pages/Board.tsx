@@ -15,6 +15,7 @@ import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
 import { LAYERS } from "../constants/layers";
 import boardBackground from "../assets/empty_board.png";
+import createQuestFabIcon from "../assets/quill_and_scroll_with_plus_fab.png";
 import type { Quest, DailyBounty, UpcomingSubscription } from "../types/api";
 import { useAuth } from "../contexts/AuthContext";
 import { useSound } from "../contexts/SoundContext";
@@ -1489,17 +1490,27 @@ export default function Board() {
       )}
 
       <button
+        type="button"
         onClick={() => setShowCreateForm(true)}
-        className="fixed right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl transition-all hover:shadow-xl active:scale-95"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] md:bottom-[calc(env(safe-area-inset-bottom,0px)+7rem)] flex items-center justify-center overflow-hidden rounded-full transition-transform duration-200 hover:scale-[1.03] focus-visible:outline-none active:scale-95"
         style={{
-          backgroundColor: COLORS.gold,
-          color: COLORS.darkPanel,
-          bottom: "6rem",
+          width: "clamp(4.25rem, 11vw, 5rem)",
+          height: "clamp(4.25rem, 11vw, 5rem)",
+          right: "max(1rem, calc(env(safe-area-inset-right, 0px) + 1rem))",
+          backgroundColor: "transparent",
+          boxShadow: "0 14px 28px rgba(0, 0, 0, 0.42), 0 0 14px rgba(212, 175, 55, 0.14)",
           zIndex: LAYERS.floatingAction,
         }}
         title="Create Quest"
+        aria-label="Create Quest"
       >
-        +
+        <img
+          src={createQuestFabIcon}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="h-full w-full object-cover"
+        />
       </button>
 
       {showCreateForm && token && (
