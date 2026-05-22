@@ -1,28 +1,64 @@
 import { useState, useEffect, useMemo } from "react";
 import { COLORS } from "../constants/colors";
 import { api } from "../services/api";
-import type { User, Quest, Achievement, UserAchievement } from "../types/api";
+import type { User, Quest, Achievement, UserAchievement, Home } from "../types/api";
 import { useAuth } from "../contexts/AuthContext";
 import QuestCard from "../components/QuestCard";
 import EditQuestModal from "../components/EditQuestModal";
 import ModalShell from "../components/modal/ModalShell";
 import { LAYERS } from "../constants/layers";
-import { copyTextToClipboard } from "../utils/clipboard";
+import { sortHomeUsers } from "../utils/homeUsers";
+
+function HomeIcon() {
+  return (
+    <svg
+      className="h-7 w-7"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={1.7}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M4.2 20.2V8.5l2.2 1.3 2.2-1.3 2.2 1.3 2.2-1.3 2.2 1.3 2.2-1.3 2.4 1.3v10.4" />
+      <path d="M7.2 8V4.2h3.1V8" />
+      <path d="M13.7 8V4.2h3.1V8" />
+      <path d="M9.3 20.2v-4.5a2.7 2.7 0 0 1 5.4 0v4.5" />
+      <path d="M3.2 20.2h17.6" />
+    </svg>
+  );
+}
+
+function getLevelProgress(xp: number, level: number) {
+  const xpForCurrentLevel = level > 1 ? (100 * (level - 1) * level) / 2 : 0;
+  const xpForNextLevel = (100 * level * (level + 1)) / 2;
+  const xpProgress = xp - xpForCurrentLevel;
+  const xpNeeded = xpForNextLevel - xpForCurrentLevel;
+
+  return {
+    xpProgress,
+    xpNeeded,
+    progressPercent: Math.min((xpProgress / xpNeeded) * 100, 100),
+  };
+}
 
 export default function Profile() {
-  const { token, userId } = useAuth();
+  const { token, userId, homeId, username } = useAuth();
   const [userStats, setUserStats] = useState<User | null>(null);
   const [quests, setQuests] = useState<Quest[]>([]);
+  const [homeCompletedQuests, setHomeCompletedQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAllQuests, setShowAllQuests] = useState(false);
-  const [homeInfo, setHomeInfo] = useState<{ invite_code: string; home_name: string } | null>(null);
-  const [copiedInvite, setCopiedInvite] = useState(false);
+  const [home, setHome] = useState<Home | null>(null);
+  const [homeUsers, setHomeUsers] = useState<User[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const [homeUsersById, setHomeUsersById] = useState<Record<number, string>>({});
   const [selectedCompletedQuest, setSelectedCompletedQuest] = useState<Quest | null>(null);
   const [showCompletedQuestEditModal, setShowCompletedQuestEditModal] = useState(false);
+  const [showHomeMembersModal, setShowHomeMembersModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,7 +83,15 @@ export default function Profile() {
         setUserAchievements(userAchievementsData);
 
         try {
+          const homeQuestsData = await api.quests.getAll(token);
+          setHomeCompletedQuests(homeQuestsData.filter((quest) => quest.completed));
+        } catch {
+          setHomeCompletedQuests([]);
+        }
+
+        try {
           const homeUsersData = await api.user.getAll(token);
+          setHomeUsers(sortHomeUsers(homeUsersData, userId));
           setHomeUsersById(
             homeUsersData.reduce<Record<number, string>>((usersById, homeUser) => {
               usersById[homeUser.id] = homeUser.username;
@@ -55,13 +99,20 @@ export default function Profile() {
             }, {})
           );
         } catch {
+          setHomeUsers([]);
           setHomeUsersById({});
         }
 
-        // Fetch home info after we have the user stats
-        if (stats.home_id) {
-          const homeData = await api.home.getInviteCode(stats.home_id, token);
-          setHomeInfo(homeData);
+        try {
+          const resolvedHomeId = homeId ?? stats.home_id;
+          if (resolvedHomeId) {
+            const homeData = await api.home.get(resolvedHomeId, token);
+            setHome(homeData);
+          } else {
+            setHome(null);
+          }
+        } catch {
+          setHome(null);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load profile data");
@@ -71,7 +122,7 @@ export default function Profile() {
     };
 
     fetchData();
-  }, [token, userId]);
+  }, [homeId, token, userId]);
 
   const completedQuests = useMemo(() => quests.filter((q) => q.completed), [quests]);
   const sortedCompletedQuests = useMemo(
@@ -103,16 +154,32 @@ export default function Profile() {
       gold: participantAward?.gold_awarded ?? quest.gold_reward,
     };
   };
+  const getQuestHouseholdAward = (quest: Quest) => {
+    if (quest.participants && quest.participants.length > 0) {
+      return quest.participants.reduce(
+        (totals, participant) => ({
+          xp: totals.xp + (participant.xp_awarded ?? quest.xp_reward),
+          gold: totals.gold + (participant.gold_awarded ?? quest.gold_reward),
+        }),
+        { xp: 0, gold: 0 }
+      );
+    }
 
-  const handleCopyInviteCode = async () => {
-    if (!homeInfo) return;
-
-    const copied = await copyTextToClipboard(homeInfo.invite_code);
-    if (!copied) return;
-
-    setCopiedInvite(true);
-    setTimeout(() => setCopiedInvite(false), 2000);
+    return {
+      xp: quest.xp_reward,
+      gold: quest.gold_reward,
+    };
   };
+  const homeTotalXpEarned = useMemo(
+    () =>
+      homeCompletedQuests.reduce((total, quest) => total + getQuestHouseholdAward(quest).xp, 0),
+    [homeCompletedQuests]
+  );
+  const homeTotalGoldEarned = useMemo(
+    () =>
+      homeCompletedQuests.reduce((total, quest) => total + getQuestHouseholdAward(quest).gold, 0),
+    [homeCompletedQuests]
+  );
 
   const closeCompletedQuestDetails = () => {
     setShowCompletedQuestEditModal(false);
@@ -131,6 +198,11 @@ export default function Profile() {
     try {
       const updatedQuests = await api.quests.getByUser(userId, token, true);
       setQuests(updatedQuests);
+
+      try {
+        const updatedHomeQuests = await api.quests.getAll(token);
+        setHomeCompletedQuests(updatedHomeQuests.filter((quest) => quest.completed));
+      } catch {}
 
       if (updatedQuest) {
         const refreshedQuest =
@@ -217,11 +289,10 @@ export default function Profile() {
   // Based on backend formula: Level N requires 100 * (N-1) * N / 2 total XP
   const currentLevel = userStats.level;
   const currentXP = userStats.xp;
-  const xpForCurrentLevel = currentLevel > 1 ? (100 * (currentLevel - 1) * currentLevel) / 2 : 0;
-  const xpForNextLevel = (100 * currentLevel * (currentLevel + 1)) / 2;
-  const xpProgress = currentXP - xpForCurrentLevel;
-  const xpNeeded = xpForNextLevel - xpForCurrentLevel;
-  const progressPercent = (xpProgress / xpNeeded) * 100;
+  const { xpProgress, xpNeeded, progressPercent } = getLevelProgress(currentXP, currentLevel);
+  const displayHeroName = username ?? userStats.username;
+  const homeMembersCount = homeUsers.length;
+  const homeTotalQuestsCompleted = homeCompletedQuests.length;
 
   return (
     <div className="py-6 px-4">
@@ -270,13 +341,13 @@ export default function Profile() {
             </p>
           </div>
 
-          {/* Gold */}
+          {/* Quests Completed */}
           <div className="text-center">
             <p className="text-xs uppercase tracking-widest mb-2" style={{ color: COLORS.brown }}>
-              Gold
+              Quests Done
             </p>
-            <p className="text-4xl md:text-5xl font-bold" style={{ color: COLORS.gold }}>
-              {userStats.gold_balance}
+            <p className="text-3xl md:text-4xl font-bold" style={{ color: COLORS.greenSuccess }}>
+              {completedCount}
             </p>
           </div>
 
@@ -290,13 +361,13 @@ export default function Profile() {
             </p>
           </div>
 
-          {/* Quests Completed */}
+          {/* Total Gold */}
           <div className="text-center">
             <p className="text-xs uppercase tracking-widest mb-2" style={{ color: COLORS.brown }}>
-              Quests Done
+              Total Gold
             </p>
-            <p className="text-3xl md:text-4xl font-bold" style={{ color: COLORS.greenSuccess }}>
-              {completedCount}
+            <p className="text-4xl md:text-5xl font-bold" style={{ color: COLORS.gold }}>
+              {userStats.gold_balance}
             </p>
           </div>
         </div>
@@ -327,7 +398,7 @@ export default function Profile() {
       </div>
 
       {/* Home Information Section */}
-      {homeInfo && (
+      {home && (
         <div
           className="p-6 rounded-lg mb-8"
           style={{
@@ -342,38 +413,68 @@ export default function Profile() {
           >
             Your Home
           </h3>
-          <div className="text-center mb-6">
-            <p className="text-xs uppercase tracking-widest mb-1" style={{ color: COLORS.brown }}>
-              Home Name
-            </p>
-            <p className="text-2xl font-serif font-bold" style={{ color: COLORS.parchment }}>
-              {homeInfo.home_name}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs uppercase tracking-widest mb-2" style={{ color: COLORS.brown }}>
-              Invite Code
-            </p>
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <p className="text-xl font-mono font-bold" style={{ color: COLORS.gold }}>
-                {homeInfo.invite_code}
-              </p>
-              <button
-                onClick={handleCopyInviteCode}
-                className="px-3 py-1 text-xs font-serif uppercase tracking-wider transition-all"
-                style={{
-                  backgroundColor: copiedInvite ? COLORS.greenSuccess : "transparent",
-                  borderColor: copiedInvite ? COLORS.greenSuccess : COLORS.gold,
-                  borderWidth: "2px",
-                  color: copiedInvite ? COLORS.dark : COLORS.gold,
-                }}
+          <div className="mx-auto flex w-fit max-w-full items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => setShowHomeMembersModal(true)}
+              aria-label={`View members of ${home.name}`}
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full focus-visible:outline-none sm:h-18 sm:w-18"
+              style={{
+                color: COLORS.gold,
+                backgroundColor: COLORS.dark,
+                border: `2px solid ${COLORS.gold}`,
+              }}
+            >
+              <HomeIcon />
+            </button>
+            <div className="min-w-0 max-w-xs sm:max-w-sm">
+              <h3
+                className="text-2xl font-serif font-bold"
+                style={{ color: COLORS.parchment }}
               >
-                {copiedInvite ? "Copied!" : "Copy"}
-              </button>
+                {home.name}
+              </h3>
+              <p className="mt-1 font-serif text-sm" style={{ color: COLORS.brown }}>
+                Home of {displayHeroName}
+              </p>
+              <p className="mt-2 text-xs uppercase tracking-widest" style={{ color: COLORS.gold }}>
+                Tap the crest to view members
+              </p>
             </div>
-            <p className="font-serif text-sm" style={{ color: COLORS.parchment, opacity: 0.7 }}>
-              Share this code with others to invite them to your home
-            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4 md:gap-6 mt-6">
+            <div className="text-center">
+              <p className="text-xs uppercase tracking-widest mb-2" style={{ color: COLORS.brown }}>
+                Members
+              </p>
+              <p className="text-3xl md:text-4xl font-bold" style={{ color: COLORS.gold }}>
+                {homeMembersCount}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs uppercase tracking-widest mb-2" style={{ color: COLORS.brown }}>
+                Quests Done
+              </p>
+              <p className="text-3xl md:text-4xl font-bold" style={{ color: COLORS.greenSuccess }}>
+                {homeTotalQuestsCompleted}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs uppercase tracking-widest mb-2" style={{ color: COLORS.brown }}>
+                Total XP
+              </p>
+              <p className="text-3xl md:text-4xl font-bold" style={{ color: COLORS.parchment }}>
+                {homeTotalXpEarned}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs uppercase tracking-widest mb-2" style={{ color: COLORS.brown }}>
+                Total Gold
+              </p>
+              <p className="text-3xl md:text-4xl font-bold" style={{ color: COLORS.gold }}>
+                {homeTotalGoldEarned}
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -663,6 +764,143 @@ export default function Profile() {
           onSave={(result) => handleCompletedQuestEditSaved(result.quest)}
           onClose={() => setShowCompletedQuestEditModal(false)}
         />
+      )}
+
+      {home && (
+        <ModalShell
+          isOpen={showHomeMembersModal}
+          onClose={() => setShowHomeMembersModal(false)}
+          closeOnBackdrop={true}
+          overlayClassName="p-3 sm:p-6 items-end sm:items-center bg-black/75"
+          panelClassName="w-full max-w-2xl max-h-[88dvh]"
+          zIndex={LAYERS.modal}
+        >
+          <div
+            className="p-6 rounded-lg"
+            style={{
+              backgroundColor: COLORS.darkPanel,
+              borderColor: COLORS.gold,
+              borderWidth: "2px",
+            }}
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-widest" style={{ color: COLORS.brown }}>
+                  Your Home
+                </p>
+                <h3 className="mt-2 font-serif text-2xl font-bold" style={{ color: COLORS.gold }}>
+                  {home.name}
+                </h3>
+                <p className="mt-2 font-serif text-sm" style={{ color: COLORS.parchment }}>
+                  {homeUsers.length} member{homeUsers.length === 1 ? "" : "s"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHomeMembersModal(false)}
+                className="px-3 py-1 font-serif text-xs uppercase tracking-wider"
+                style={{
+                  border: `1px solid ${COLORS.gold}`,
+                  color: COLORS.gold,
+                  backgroundColor: "rgba(24, 17, 14, 0.85)",
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {homeUsers.length > 0 ? (
+                homeUsers.map((member) => {
+                  const isCurrentUser = member.id === userId;
+                  const memberLevelProgress = getLevelProgress(member.xp, member.level);
+
+                  return (
+                    <div
+                      key={member.id}
+                      className="p-4 rounded-lg"
+                      style={{
+                        backgroundColor: COLORS.dark,
+                        borderColor: isCurrentUser ? COLORS.gold : COLORS.brown,
+                        borderWidth: "2px",
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p
+                              className="truncate font-serif text-lg font-bold"
+                              style={{ color: isCurrentUser ? COLORS.gold : COLORS.parchment }}
+                            >
+                              {member.username}
+                            </p>
+                            {isCurrentUser && (
+                              <span
+                                className="px-2 py-0.5 text-xs font-serif uppercase tracking-wider"
+                                style={{
+                                  color: COLORS.dark,
+                                  backgroundColor: COLORS.gold,
+                                }}
+                              >
+                                You
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-xs uppercase tracking-widest" style={{ color: COLORS.brown }}>
+                            Level {member.level}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="font-serif text-sm" style={{ color: COLORS.gold }}>
+                            {member.xp} XP
+                          </p>
+                          <p className="mt-1 font-serif text-sm" style={{ color: COLORS.parchment }}>
+                            {member.gold_balance} Gold
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <p className="text-xs uppercase tracking-widest" style={{ color: COLORS.brown }}>
+                            Progress to Level {member.level + 1}
+                          </p>
+                          <p className="text-xs" style={{ color: COLORS.parchment }}>
+                            {memberLevelProgress.xpProgress} / {memberLevelProgress.xpNeeded} XP
+                          </p>
+                        </div>
+                        <div
+                          className="w-full h-4 rounded-full overflow-hidden"
+                          style={{ backgroundColor: COLORS.darkPanel }}
+                        >
+                          <div
+                            className="h-full transition-all duration-500"
+                            style={{
+                              width: `${memberLevelProgress.progressPercent}%`,
+                              backgroundColor: COLORS.gold,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div
+                  className="p-4 rounded-lg text-center"
+                  style={{
+                    backgroundColor: COLORS.dark,
+                    borderColor: COLORS.brown,
+                    borderWidth: "2px",
+                  }}
+                >
+                  <p className="font-serif text-base" style={{ color: COLORS.parchment }}>
+                    House members are not available right now.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </ModalShell>
       )}
     </div>
   );
