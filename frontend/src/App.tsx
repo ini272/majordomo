@@ -16,9 +16,12 @@ function AuthenticatedLayout() {
   const { isMuted, toggleMute } = useSound();
   const location = useLocation();
   const isSettingsPage = location.pathname === "/settings";
+  const isBoardPage = location.pathname === "/board";
 
   return (
-    <div className={`${isSettingsPage ? "max-w-5xl" : "max-w-4xl"} mx-auto pb-32`}>
+    <div
+      className={`${isSettingsPage || isBoardPage ? "max-w-5xl" : "max-w-4xl"} mx-auto pb-32`}
+    >
       {!isSettingsPage && (
         <header
           className="text-center mb-6 md:mb-8 pb-4 md:pb-6"

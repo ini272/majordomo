@@ -14,8 +14,10 @@ import EditQuestModal from "../components/EditQuestModal";
 import { api } from "../services/api";
 import { COLORS } from "../constants/colors";
 import { LAYERS } from "../constants/layers";
+import bountyEmblem from "../assets/bounty_emblem_cutout.png";
 import boardBackground from "../assets/empty_board.png";
 import createQuestFabIcon from "../assets/quill_and_scroll_with_plus_fab.png";
+import hourglassEmblem from "../assets/hourglass_emblem_cutout.png";
 import type { Quest, DailyBounty, UpcomingSubscription } from "../types/api";
 import { useAuth } from "../contexts/AuthContext";
 import { useSound } from "../contexts/SoundContext";
@@ -34,13 +36,15 @@ const SWIPE_DISTANCE_THRESHOLD = 72;
 const SWIPE_VELOCITY_THRESHOLD = 420;
 const TRACKPAD_NAVIGATION_THRESHOLD = 60;
 const TRACKPAD_NAVIGATION_COOLDOWN_MS = 450;
+const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
 type QuestCollectionView = "current" | "upcoming";
-type CurrentQuestSort = "newest" | "expiring-soon" | "user-az";
+type CurrentQuestSort = "newest" | "expiring-soon";
 type UpcomingQuestSort = "spawn-soonest" | "spawn-latest" | "user-az";
-type QuestFilter = "all" | "mine";
+type CurrentQuestFilter = "all" | "mine";
+type UpcomingQuestFilter = "all" | "mine";
 
 interface BoardControlOption<T extends string> {
   value: T;
@@ -83,7 +87,6 @@ const CURRENT_SORT_OPTIONS: BoardControlOption<CurrentQuestSort>[] = [
     label: "Corrupted / Expiring",
     shortLabel: "Expiring",
   },
-  { value: "user-az", label: "User A-Z", shortLabel: "User A-Z" },
 ];
 
 const UPCOMING_SORT_OPTIONS: BoardControlOption<UpcomingQuestSort>[] = [
@@ -92,7 +95,12 @@ const UPCOMING_SORT_OPTIONS: BoardControlOption<UpcomingQuestSort>[] = [
   { value: "user-az", label: "User A-Z", shortLabel: "User A-Z" },
 ];
 
-const FILTER_OPTIONS: BoardControlOption<QuestFilter>[] = [
+const CURRENT_FILTER_OPTIONS: BoardControlOption<CurrentQuestFilter>[] = [
+  { value: "all", label: "All Quests", shortLabel: "All" },
+  { value: "mine", label: "My Quests", shortLabel: "Mine" },
+];
+
+const UPCOMING_FILTER_OPTIONS: BoardControlOption<UpcomingQuestFilter>[] = [
   { value: "all", label: "All Quests", shortLabel: "All" },
   { value: "mine", label: "My Quests", shortLabel: "Mine" },
 ];
@@ -118,6 +126,33 @@ const FilterIcon = () => (
       strokeWidth="1.6"
       strokeLinejoin="round"
       strokeLinecap="round"
+    />
+  </svg>
+);
+
+const NewestSortIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor">
+    <path d="M10 3.75v12.5" strokeWidth="1.7" strokeLinecap="round" />
+    <path d="M6.25 7.5 10 3.75 13.75 7.5" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M5 15.25h10" strokeWidth="1.7" strokeLinecap="round" />
+  </svg>
+);
+
+const CorruptionSortIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor">
+    <path d="M6.25 3.75h7.5" strokeWidth="1.6" strokeLinecap="round" />
+    <path d="M6.25 16.25h7.5" strokeWidth="1.6" strokeLinecap="round" />
+    <path
+      d="M7.5 4.1v2.7c0 1 .42 1.9 1.15 2.5l1.35 1.05-1.35 1.05A3.17 3.17 0 0 0 7.5 13.95v1.95"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M12.5 4.1v2.7c0 1-.42 1.9-1.15 2.5L10 10.35l1.35 1.05a3.17 3.17 0 0 1 1.15 2.55v1.95"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
@@ -235,6 +270,33 @@ function BoardControlMenu<T extends string>({
   );
 }
 
+interface CurrentSortButtonProps {
+  label: string;
+  icon: ReactNode;
+  isActive: boolean;
+  onClick: () => void;
+}
+
+function CurrentSortButton({ label, icon, isActive, onClick }: CurrentSortButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={isActive}
+      className="flex h-10 items-center gap-2 rounded-sm px-3 font-serif text-xs uppercase tracking-[0.18em] transition-all"
+      style={{
+        backgroundColor: isActive ? "rgba(212, 175, 55, 0.16)" : "rgba(14, 10, 8, 0.92)",
+        border: `1px solid ${isActive ? COLORS.gold : COLORS.brown}`,
+        color: isActive ? COLORS.gold : COLORS.parchment,
+        boxShadow: isActive ? "0 0 0 1px rgba(212, 175, 55, 0.16) inset" : "none",
+      }}
+    >
+      <span style={{ color: isActive ? COLORS.gold : COLORS.brown }}>{icon}</span>
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  );
+}
+
 const getCurrentQuestStatusChip = (quest: Quest): CompactQuestStatusChip | null => {
   if (quest.completed) return null;
   if (quest.quest_type === "corrupted") return null;
@@ -300,6 +362,105 @@ const getUpcomingQuestStatusChip = (upcomingSpawnTime?: string): CompactQuestSta
   };
 };
 
+const formatCorruptionCountdown = (value?: string | Date | null, hours?: number | null) => {
+  const deadline = getQuestDeadlineDate(value, hours);
+  if (!deadline) return null;
+
+  const diffMs = deadline.getTime() - Date.now();
+  if (diffMs <= 0) return "Corrupted";
+
+  if (diffMs < HOUR_MS) {
+    const minutes = Math.max(1, Math.ceil(diffMs / MINUTE_MS));
+    return `${minutes}m left`;
+  }
+
+  if (diffMs < DAY_MS) {
+    const totalMinutes = Math.max(1, Math.ceil(diffMs / MINUTE_MS));
+    const hoursLeft = Math.floor(totalMinutes / 60);
+    const minutesLeft = totalMinutes % 60;
+    return minutesLeft > 0 ? `${hoursLeft}h ${minutesLeft}m left` : `${hoursLeft}h left`;
+  }
+
+  const daysLeft = Math.floor(diffMs / DAY_MS);
+  const hoursLeft = Math.floor((diffMs % DAY_MS) / HOUR_MS);
+  return hoursLeft > 0 && daysLeft < 4 ? `${daysLeft}d ${hoursLeft}h left` : `${daysLeft}d left`;
+};
+
+function QuestCardEmblem({
+  accentColor,
+  backgroundColor,
+}: {
+  accentColor: string;
+  backgroundColor: string;
+}) {
+  return (
+    <div
+      className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border sm:h-12 sm:w-12 xl:h-14 xl:w-14"
+      style={{
+        borderColor: accentColor,
+        background: `radial-gradient(circle at 30% 30%, rgba(212, 175, 55, 0.16), ${backgroundColor} 72%)`,
+        boxShadow: "inset 0 0 18px rgba(0, 0, 0, 0.45), 0 8px 16px rgba(0, 0, 0, 0.22)",
+      }}
+      aria-hidden="true"
+    >
+      <svg
+        viewBox="0 0 48 48"
+        className="h-6 w-6 sm:h-7 sm:w-7 xl:h-8 xl:w-8"
+        fill="none"
+        stroke={accentColor}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="24" cy="24" r="17" strokeWidth="1.4" opacity="0.35" />
+        <path d="M24 10v7" strokeWidth="1.8" />
+        <path d="M24 31v7" strokeWidth="1.8" />
+        <path d="M10 24h7" strokeWidth="1.8" />
+        <path d="M31 24h7" strokeWidth="1.8" />
+        <path d="m15 15 5 5" strokeWidth="1.4" opacity="0.85" />
+        <path d="m28 28 5 5" strokeWidth="1.4" opacity="0.85" />
+        <path d="m33 15-5 5" strokeWidth="1.4" opacity="0.85" />
+        <path d="m20 28-5 5" strokeWidth="1.4" opacity="0.85" />
+        <path d="m24 16 5.6 5.6L24 32l-5.6-10.4L24 16Z" strokeWidth="1.8" />
+        <circle cx="24" cy="24" r="2.4" strokeWidth="1.6" />
+      </svg>
+    </div>
+  );
+}
+
+function QuestParticipantIcon({
+  multiple,
+  color,
+}: {
+  multiple: boolean;
+  color: string;
+}) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4"
+      fill="none"
+      stroke={color}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {multiple ? (
+        <>
+          <circle cx="7" cy="7.25" r="2.1" strokeWidth="1.4" />
+          <path d="M3.9 14.2c.7-1.8 2-2.8 3.9-2.8 1.5 0 2.7.6 3.5 1.8" strokeWidth="1.4" />
+          <circle cx="13.3" cy="8.2" r="1.75" strokeWidth="1.3" opacity="0.85" />
+          <path d="M11.3 14.2c.5-1.3 1.5-2.1 3.1-2.1 1 0 1.9.3 2.5 1.1" strokeWidth="1.3" opacity="0.85" />
+        </>
+      ) : (
+        <>
+          <circle cx="10" cy="6.75" r="2.35" strokeWidth="1.45" />
+          <path d="M5.7 14.5c.8-2.1 2.4-3.2 4.8-3.2 2.1 0 3.7 1 4.5 3.2" strokeWidth="1.45" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 function CompactQuestCard({
   quest,
   questParticipantNames,
@@ -308,7 +469,7 @@ function CompactQuestCard({
   upcomingSpawnTime,
   onClick,
 }: CompactQuestCardProps) {
-  const participantLabel = (quest.participants?.length || 1) > 1 ? "Party" : "For";
+  const participantCount = quest.participants?.length || 1;
   const isCorrupted = quest.quest_type === "corrupted";
   const hasCorruptionDebuff =
     !quest.completed && quest.corruption_debuff_active && (quest.corruption_debuff ?? 1) < 1;
@@ -327,6 +488,58 @@ function CompactQuestCard({
   const statusChip = isUpcoming
     ? getUpcomingQuestStatusChip(upcomingSpawnTime)
     : getCurrentQuestStatusChip(quest);
+  const cardBackgroundColor = isDailyBounty ? "rgba(42, 28, 62, 0.72)" : "rgba(30, 21, 17, 0.7)";
+  const questTitle = quest.display_name || quest.title || "Unknown Quest";
+  const questDescription = quest.description || "No description";
+  const participantNames = (questParticipantNames || "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+  const hiddenParticipantCount = Math.max(0, participantNames.length - 2);
+  const displayParticipantNames =
+    hiddenParticipantCount > 0
+      ? `${participantNames.slice(0, 2).join(", ")} +${hiddenParticipantCount} more`
+      : participantNames.join(", ");
+  const renderStatusChips = () => (
+    <>
+      {statusChip && (
+        <span
+          className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
+          style={{
+            backgroundColor: statusChip.backgroundColor,
+            border: `1px solid ${statusChip.borderColor}`,
+            color: statusChip.textColor,
+          }}
+        >
+          {statusChip.label}
+        </span>
+      )}
+      {isCorrupted && (
+        <span
+          className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
+          style={{ backgroundColor: "rgba(139, 58, 58, 0.28)", color: "#ff8080" }}
+        >
+          Corrupted
+        </span>
+      )}
+      {isDailyBounty && (
+        <span
+          className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
+          style={{ backgroundColor: "rgba(107, 95, 183, 0.3)", color: "#c0b4ff" }}
+        >
+          Bounty x3
+        </span>
+      )}
+      {quest.completed && (
+        <span
+          className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
+          style={{ backgroundColor: "rgba(95, 183, 84, 0.2)", color: COLORS.greenSuccess }}
+        >
+          Done
+        </span>
+      )}
+    </>
+  );
 
   return (
     <button
@@ -334,7 +547,7 @@ function CompactQuestCard({
       onClick={onClick}
       className="w-full text-left p-3 sm:p-4 rounded-sm transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
       style={{
-        backgroundColor: isDailyBounty ? "rgba(42, 28, 62, 0.72)" : "rgba(30, 21, 17, 0.7)",
+        backgroundColor: cardBackgroundColor,
         border: `2px solid ${borderColor}`,
         boxShadow: isDailyBounty
           ? "0 0 0 1px rgba(157, 132, 255, 0.3), 0 10px 18px rgba(40, 20, 68, 0.35)"
@@ -342,95 +555,63 @@ function CompactQuestCard({
         opacity: isUpcoming ? 0.8 : 1,
       }}
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <h3
-          className="text-sm sm:text-base font-serif font-bold leading-tight line-clamp-2"
-          style={{ color: titleColor }}
-        >
-          {quest.display_name || quest.title || "Unknown Quest"}
-        </h3>
-        <div className="flex shrink-0 flex-wrap justify-end gap-1">
-          {statusChip && (
-            <span
-              className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
-              style={{
-                backgroundColor: statusChip.backgroundColor,
-                border: `1px solid ${statusChip.borderColor}`,
-                color: statusChip.textColor,
-              }}
-            >
-              {statusChip.label}
-            </span>
-          )}
-          {isCorrupted && (
-            <span
-              className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
-              style={{ backgroundColor: "rgba(139, 58, 58, 0.28)", color: "#ff8080" }}
-            >
-              Corrupted
-            </span>
-          )}
-          {isDailyBounty && (
-            <span
-              className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
-              style={{ backgroundColor: "rgba(107, 95, 183, 0.3)", color: "#c0b4ff" }}
-            >
-              Bounty x3
-            </span>
-          )}
-          {quest.completed && (
-            <span
-              className="text-[10px] sm:text-xs px-2 py-0.5 font-serif uppercase"
-              style={{ backgroundColor: "rgba(95, 183, 84, 0.2)", color: COLORS.greenSuccess }}
-            >
-              Done
-            </span>
-          )}
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="mt-0.5 flex shrink-0">
+          <QuestCardEmblem
+            accentColor={borderColor}
+            backgroundColor={cardBackgroundColor}
+          />
         </div>
-      </div>
 
-      <p
-        className="text-xs sm:text-sm font-serif mb-3 line-clamp-2"
-        style={{ color: "rgba(241, 231, 214, 0.88)" }}
-      >
-        {quest.description || "No description"}
-      </p>
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <h3
+              className="text-sm sm:text-base font-serif font-bold leading-tight line-clamp-2"
+              style={{ color: titleColor }}
+            >
+              {questTitle}
+            </h3>
+            <div className="flex shrink-0 flex-wrap justify-end gap-1">{renderStatusChips()}</div>
+          </div>
 
-      {questParticipantNames && (
-        <div className="mb-3 text-[11px] sm:text-xs font-serif uppercase tracking-wide">
-          <span style={{ color: COLORS.brown }}>{participantLabel}:</span>{" "}
-          <span style={{ color: COLORS.gold }}>{questParticipantNames}</span>
-        </div>
-      )}
+          <p
+            className="mb-3 text-xs sm:text-sm font-serif line-clamp-2"
+            style={{ color: "rgba(241, 231, 214, 0.88)" }}
+          >
+            {questDescription}
+          </p>
 
-      <div
-        className="flex items-center justify-between gap-3 text-xs font-serif"
-        style={{ color: COLORS.brown }}
-      >
-        <div className="flex gap-2">
-          {(quest.tags || "")
-            .split(",")
-            .map((tag) => tag.trim())
-            .filter(Boolean)
-            .slice(0, 2)
-            .map((tag) => (
-              <span
-                key={`${quest.id}-${tag}`}
-                className="px-1.5 py-0.5 uppercase"
-                style={{ border: `1px solid ${COLORS.brown}`, color: COLORS.parchment }}
-              >
-                {tag}
-              </span>
-            ))}
-        </div>
-        <span className="min-w-0 text-right" style={{ color: rewardColor }}>
-          +{previewXpReward} XP / +{displayGoldReward} Gold
-          {hasCorruptionDebuff && (
-            <span className="ml-1" style={{ color: "#ff8080" }}>
-              -{corruptionPenaltyPercent}%
+          <div
+            className={`flex items-end gap-3 text-xs font-serif ${
+              displayParticipantNames ? "justify-between" : "justify-end"
+            }`}
+            style={{ color: COLORS.brown }}
+          >
+            {displayParticipantNames && (
+              <div className="min-w-0 flex flex-1 items-center gap-1.5 text-[11px] sm:text-xs tracking-wide">
+                <QuestParticipantIcon
+                  multiple={participantCount > 1}
+                  color={COLORS.brown}
+                />
+                <span
+                  className="truncate uppercase"
+                  style={{ color: COLORS.gold }}
+                >
+                  {displayParticipantNames}
+                </span>
+              </div>
+            )}
+
+            <span className="shrink-0 text-right" style={{ color: rewardColor }}>
+              +{previewXpReward} XP / +{displayGoldReward} Gold
+              {hasCorruptionDebuff && (
+                <span className="ml-1" style={{ color: "#ff8080" }}>
+                  -{corruptionPenaltyPercent}%
+                </span>
+              )}
             </span>
-          )}
-        </span>
+          </div>
+        </div>
       </div>
     </button>
   );
@@ -559,8 +740,8 @@ export default function Board() {
   const [upcomingSearchTerm, setUpcomingSearchTerm] = useState("");
   const [currentSort, setCurrentSort] = useState<CurrentQuestSort>("newest");
   const [upcomingSort, setUpcomingSort] = useState<UpcomingQuestSort>("spawn-soonest");
-  const [currentFilter, setCurrentFilter] = useState<QuestFilter>("all");
-  const [upcomingFilter, setUpcomingFilter] = useState<QuestFilter>("all");
+  const [currentFilter, setCurrentFilter] = useState<CurrentQuestFilter>("all");
+  const [upcomingFilter, setUpcomingFilter] = useState<UpcomingQuestFilter>("all");
   const userLevelRef = useRef<number | null>(null);
   const lastDetailWheelNavigationAtRef = useRef(0);
 
@@ -783,14 +964,14 @@ export default function Board() {
     () => new Map(quests.map((quest) => [quest.id, quest])),
     [quests]
   );
-  const activeBountyQuest =
-    dailyBounty?.status === "assigned" && dailyBounty.quest && !dailyBounty.quest.completed
+  const bountyDecisionQuest =
+    dailyBounty?.status === "assigned" && dailyBounty.quest
       ? (currentQuestById.get(dailyBounty.quest.id) ?? dailyBounty.quest)
       : null;
-  const activeBountyXpReward =
-    activeBountyQuest?.effective_xp_reward ?? activeBountyQuest?.xp_reward ?? 0;
-  const activeBountyGoldReward =
-    activeBountyQuest?.effective_gold_reward ?? activeBountyQuest?.gold_reward ?? 0;
+  const activeBountyQuest =
+    bountyDecisionQuest && !bountyDecisionQuest.completed ? bountyDecisionQuest : null;
+  const fulfilledBountyQuest =
+    bountyDecisionQuest && bountyDecisionQuest.completed ? bountyDecisionQuest : null;
   const currentQuestEntries = useMemo<QuestBoardEntry[]>(
     () =>
       quests.map((quest) => ({
@@ -846,13 +1027,6 @@ export default function Board() {
 
           return right.createdTimestamp - left.createdTimestamp;
         }
-
-        if (currentSort === "user-az") {
-          const participantCompare = compareText(left.participantNames, right.participantNames);
-          return participantCompare !== 0
-            ? participantCompare
-            : compareText(left.title, right.title);
-        }
         return right.createdTimestamp - left.createdTimestamp;
       })
       .map(({ quest }) => quest);
@@ -885,11 +1059,15 @@ export default function Board() {
     upcomingQuestEntries.length === 1 ? "quest" : "quests"
   }`;
   const activeSearchTerm = view === "current" ? currentSearchTerm : upcomingSearchTerm;
-  const activeSort = view === "current" ? currentSort : upcomingSort;
   const activeFilter = view === "current" ? currentFilter : upcomingFilter;
-  const activeSortOptions = view === "current" ? CURRENT_SORT_OPTIONS : UPCOMING_SORT_OPTIONS;
-  const activeSortOption = activeSortOptions.find((option) => option.value === activeSort);
-  const activeFilterOption = FILTER_OPTIONS.find((option) => option.value === activeFilter);
+  const activeSortOption =
+    view === "current"
+      ? CURRENT_SORT_OPTIONS.find((option) => option.value === currentSort)
+      : UPCOMING_SORT_OPTIONS.find((option) => option.value === upcomingSort);
+  const activeFilterOption =
+    view === "current"
+      ? CURRENT_FILTER_OPTIONS.find((option) => option.value === currentFilter)
+      : UPCOMING_FILTER_OPTIONS.find((option) => option.value === upcomingFilter);
   const hasBoardContent =
     view === "current"
       ? quests.length > 0 || currentSearchTerm.trim().length > 0
@@ -903,6 +1081,24 @@ export default function Board() {
   const activeCorruptedQuestCount =
     activeCorruptionDebuffQuest?.corrupted_quest_count ??
     quests.filter((quest) => quest.quest_type === "corrupted").length;
+  const hasActiveCorruption = activeCorruptedQuestCount > 0 || activeCorruptionPenaltyPercent > 0;
+  const nextCorruptionQuest = useMemo(() => {
+    const now = Date.now();
+    const [nearestQuest] = currentQuestEntries
+      .filter(
+        ({ quest, deadlineTimestamp }) =>
+          !quest.completed &&
+          quest.quest_type !== "corrupted" &&
+          deadlineTimestamp !== null &&
+          deadlineTimestamp > now
+      )
+      .sort((left, right) => (left.deadlineTimestamp ?? 0) - (right.deadlineTimestamp ?? 0));
+
+    return nearestQuest?.quest ?? null;
+  }, [currentQuestEntries]);
+  const nextCorruptionCountdown = nextCorruptionQuest
+    ? formatCorruptionCountdown(nextCorruptionQuest.created_at, nextCorruptionQuest.due_in_hours)
+    : null;
   const visibleCurrentQuestIds = useMemo(
     () => new Set(filteredCurrentQuests.map((quest) => quest.id)),
     [filteredCurrentQuests]
@@ -910,6 +1106,18 @@ export default function Board() {
   const isActiveBountyVisible = activeBountyQuest
     ? visibleCurrentQuestIds.has(activeBountyQuest.id)
     : false;
+  const showActiveBountySummary = Boolean(activeBountyQuest && isActiveBountyVisible);
+  const showFulfilledBountySummary = Boolean(fulfilledBountyQuest);
+  const showBountySummary = showActiveBountySummary || showFulfilledBountySummary;
+  const hasUpcomingCorruptionRisk = !hasActiveCorruption && Boolean(nextCorruptionCountdown);
+  const canFocusCorruption = hasActiveCorruption || hasUpcomingCorruptionRisk;
+  const showCorruptionSummary = !loading;
+
+  const handleCorruptionSummaryClick = useCallback(() => {
+    if (!canFocusCorruption) return;
+    setCurrentFilter("all");
+    setCurrentSort("expiring-soon");
+  }, [canFocusCorruption]);
 
   const selectedQuestSequence = useMemo(() => {
     if (selectedQuestView === "current") return filteredCurrentQuests;
@@ -1210,81 +1418,206 @@ export default function Board() {
         </div>
       )}
 
-      {view === "current" && activeCorruptionPenaltyPercent > 0 && (
+      {view === "current" && (showBountySummary || showCorruptionSummary) && (
         <div
-          className="mb-6 flex flex-col gap-1 rounded-sm px-4 py-3 font-serif sm:flex-row sm:items-center sm:justify-between"
+          className="mb-6 overflow-hidden rounded-lg"
           style={{
-            backgroundColor: "rgba(139, 58, 58, 0.18)",
-            border: "1px solid #8b3a3a",
-            color: "#ff8080",
+            backgroundColor: "rgba(10, 9, 7, 0.96)",
+            border: `2px solid rgba(116, 88, 50, 0.75)`,
+            boxShadow: "0 12px 22px rgba(0, 0, 0, 0.26)",
           }}
         >
-          <span className="font-bold uppercase tracking-wide">Household Corruption</span>
-          <span className="text-sm">
-            {activeCorruptedQuestCount} corrupted{" "}
-            {activeCorruptedQuestCount === 1 ? "quest" : "quests"} • -
-            {activeCorruptionPenaltyPercent}% XP and gold
-          </span>
-        </div>
-      )}
-
-      {view === "current" && activeBountyQuest && isActiveBountyVisible && (
-        <div className="mb-4">
-          <button
-            type="button"
-            onClick={() => openQuestDetails(activeBountyQuest, "current")}
-            className="w-full rounded-lg px-4 py-3 text-left transition-all duration-200 hover:translate-y-[-1px]"
-            style={{
-              backgroundColor: "rgba(54, 36, 82, 0.24)",
-              border: "2px solid #6b5fb7",
-              boxShadow: "0 8px 18px rgba(36, 19, 62, 0.28)",
-            }}
+          <div
+            className={`grid ${showBountySummary && showCorruptionSummary ? "lg:grid-cols-2" : "grid-cols-1"}`}
           >
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="min-w-0">
-                <div
-                  className="mb-1 text-[11px] font-serif font-bold uppercase tracking-[0.22em]"
-                  style={{ color: "#9d84ff" }}
-                >
-                  Today&apos;s Bounty
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className="min-w-0 text-base font-serif font-bold sm:text-lg"
-                    style={{ color: "#c9b7ff" }}
-                  >
-                    {activeBountyQuest.display_name || activeBountyQuest.title}
-                  </span>
-                  <span
-                    className="rounded px-2 py-1 text-[10px] font-serif font-bold uppercase tracking-wide"
+            {showActiveBountySummary && activeBountyQuest && (
+              <button
+                type="button"
+                onClick={() => openQuestDetails(activeBountyQuest, "current")}
+                className="w-full text-left transition-transform duration-200 hover:translate-y-[-1px]"
+                style={{
+                  background:
+                    "radial-gradient(circle at 16% 50%, rgba(212, 175, 55, 0.1), transparent 24%), linear-gradient(135deg, rgba(11, 12, 10, 0.98), rgba(9, 14, 14, 0.94))",
+                }}
+              >
+                <div className="flex min-h-[6.25rem] items-center gap-3 px-4 py-3 sm:min-h-[6.75rem] sm:gap-3.5 sm:px-4">
+                  <img
+                    src={bountyEmblem}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14 lg:h-[4rem] lg:w-[4rem]"
+                    style={{ filter: "drop-shadow(0 10px 14px rgba(0, 0, 0, 0.38))" }}
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <div
+                      className="mb-1 text-[10px] font-serif font-bold uppercase tracking-[0.18em] sm:text-[11px]"
+                      style={{ color: COLORS.gold }}
+                    >
+                      Daily Bounty
+                    </div>
+                    <div
+                      className="text-lg font-serif font-bold leading-tight sm:text-[1.4rem] lg:text-[1.5rem]"
+                      style={{ color: COLORS.parchment }}
+                    >
+                      {activeBountyQuest.display_name || activeBountyQuest.title}
+                    </div>
+                    <div className="mt-1.5 text-xs font-serif sm:text-sm" style={{ color: COLORS.parchment }}>
+                      Gold reward{" "}
+                      <span style={{ color: COLORS.gold }}>
+                        x{dailyBounty?.bonus_multiplier ?? 3}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full font-serif text-[1.55rem] font-bold sm:h-14 sm:w-14 sm:text-[1.85rem] lg:h-[3.75rem] lg:w-[3.75rem] lg:text-[2.1rem]"
                     style={{
-                      backgroundColor: "rgba(107, 95, 183, 0.3)",
-                      color: "#c0b4ff",
+                      color: COLORS.gold,
+                      border: "2px solid rgba(167, 122, 45, 0.8)",
+                      background:
+                        "radial-gradient(circle at 32% 28%, rgba(235, 196, 104, 0.28), rgba(45, 25, 8, 0.96) 72%)",
+                      boxShadow:
+                        "inset 0 0 18px rgba(0, 0, 0, 0.42), 0 10px 18px rgba(0, 0, 0, 0.26)",
                     }}
                   >
-                    3x Gold
-                  </span>
+                    x{dailyBounty?.bonus_multiplier ?? 3}
+                  </div>
+                </div>
+              </button>
+            )}
+
+            {!showActiveBountySummary && showFulfilledBountySummary && fulfilledBountyQuest && (
+              <div
+                style={{
+                  background:
+                    "radial-gradient(circle at 16% 50%, rgba(212, 175, 55, 0.08), transparent 24%), linear-gradient(135deg, rgba(11, 12, 10, 0.98), rgba(9, 14, 14, 0.94))",
+                }}
+              >
+                <div className="flex min-h-[6.25rem] items-center gap-3 px-4 py-3 sm:min-h-[6.75rem] sm:gap-3.5 sm:px-4">
+                  <img
+                    src={bountyEmblem}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14 lg:h-[4rem] lg:w-[4rem]"
+                    style={{ filter: "drop-shadow(0 10px 14px rgba(0, 0, 0, 0.38))" }}
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <div
+                      className="mb-1 text-[10px] font-serif font-bold uppercase tracking-[0.18em] sm:text-[11px]"
+                      style={{ color: COLORS.gold }}
+                    >
+                      Daily Bounty
+                    </div>
+                    <div
+                      className="text-lg font-serif font-bold leading-tight sm:text-[1.4rem] lg:text-[1.5rem]"
+                      style={{ color: COLORS.parchment }}
+                    >
+                      Daily bounty fulfilled
+                    </div>
+                    <div className="mt-1.5 text-xs font-serif sm:text-sm" style={{ color: COLORS.parchment }}>
+                      Next bounty at midnight.
+                    </div>
+                  </div>
+
+                  <div
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full font-serif text-[1.55rem] font-bold sm:h-14 sm:w-14 sm:text-[1.85rem] lg:h-[3.75rem] lg:w-[3.75rem] lg:text-[2.1rem]"
+                    style={{
+                      color: COLORS.gold,
+                      border: "2px solid rgba(167, 122, 45, 0.8)",
+                      background:
+                        "radial-gradient(circle at 32% 28%, rgba(235, 196, 104, 0.28), rgba(45, 25, 8, 0.96) 72%)",
+                      boxShadow:
+                        "inset 0 0 18px rgba(0, 0, 0, 0.42), 0 10px 18px rgba(0, 0, 0, 0.26)",
+                    }}
+                  >
+                    x{dailyBounty?.bonus_multiplier ?? 3}
+                  </div>
                 </div>
               </div>
+            )}
 
-              <div className="flex flex-wrap items-center gap-3 text-xs font-serif sm:text-sm">
-                <span style={{ color: COLORS.gold }}>Your XP: {activeBountyXpReward}</span>
-                <span style={{ color: COLORS.gold }}>
-                  Your Gold: {activeBountyGoldReward} x3 = {activeBountyGoldReward * 3}
-                </span>
-                <span
-                  className="rounded px-3 py-1 font-serif font-semibold uppercase tracking-wide"
-                  style={{
-                    backgroundColor: "rgba(107, 95, 183, 0.3)",
-                    border: "1px solid #6b5fb7",
-                    color: "#c9b7ff",
-                  }}
+            {showCorruptionSummary && (
+              <div className="relative">
+                <div
+                  className={`h-full ${showBountySummary ? "border-t lg:border-t-0 lg:border-l" : ""}`}
+                  style={{ borderColor: "rgba(116, 88, 50, 0.5)" }}
                 >
-                  Open
-                </span>
+                  <button
+                    type="button"
+                    onClick={handleCorruptionSummaryClick}
+                    disabled={!canFocusCorruption}
+                    className="flex min-h-[6.25rem] w-full items-center gap-3 px-4 py-3 text-left sm:min-h-[6.75rem] sm:gap-3.5 sm:px-4"
+                    style={{
+                      background:
+                        "radial-gradient(circle at 16% 50%, rgba(139, 58, 58, 0.18), transparent 24%), linear-gradient(135deg, rgba(12, 10, 9, 0.98), rgba(17, 10, 8, 0.94))",
+                      cursor: canFocusCorruption ? "pointer" : "default",
+                    }}
+                  >
+                    <img
+                      src={hourglassEmblem}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14 lg:h-[3.7rem] lg:w-[3.7rem]"
+                      style={{ filter: "drop-shadow(0 10px 14px rgba(0, 0, 0, 0.38))" }}
+                    />
+
+                    <div className="min-w-0 flex-1">
+                      <div
+                        className="mb-1 text-[10px] font-serif font-bold uppercase tracking-[0.18em] sm:text-[11px]"
+                        style={{ color: COLORS.gold }}
+                      >
+                        Quest Corruption
+                      </div>
+                      <div
+                        className="text-base font-serif font-bold leading-tight sm:text-[1.3rem] lg:text-[1.4rem]"
+                        style={{ color: COLORS.parchment }}
+                      >
+                        {hasActiveCorruption
+                          ? "Corruption is already active"
+                          : hasUpcomingCorruptionRisk
+                            ? "Overdue quests will become Corrupted"
+                            : "No active quests with corruption"}
+                      </div>
+                      {hasActiveCorruption && (
+                        <div className="mt-1.5 text-xs font-serif sm:text-sm" style={{ color: "#ff9b80" }}>
+                          {activeCorruptedQuestCount} corrupted{" "}
+                          {activeCorruptedQuestCount === 1 ? "quest" : "quests"} • -
+                          {activeCorruptionPenaltyPercent}% XP and gold
+                        </div>
+                      )}
+                    </div>
+
+                    {hasUpcomingCorruptionRisk && nextCorruptionCountdown && (
+                      <div className="shrink-0 text-right">
+                        <div
+                          className="flex items-center justify-end gap-1.5 text-xs font-serif font-bold sm:text-sm"
+                          style={{ color: "#ff6b4a" }}
+                        >
+                          <svg
+                            aria-hidden="true"
+                            viewBox="0 0 20 20"
+                            className="h-4 w-4 shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M6 3.5h8" strokeWidth="1.6" />
+                            <path d="M6 16.5h8" strokeWidth="1.6" />
+                            <path d="M7.5 3.8v3.1c0 1.2.5 2.2 1.4 2.9l1.1.8-1.1.8c-.9.7-1.4 1.7-1.4 2.9v1.9" strokeWidth="1.6" />
+                            <path d="M12.5 3.8v3.1c0 1.2-.5 2.2-1.4 2.9l-1.1.8 1.1.8c.9.7 1.4 1.7 1.4 2.9v1.9" strokeWidth="1.6" />
+                          </svg>
+                          <span>{nextCorruptionCountdown}</span>
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-          </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -1354,24 +1687,39 @@ export default function Board() {
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <BoardControlMenu
-                    label="Sort Quests"
-                    icon={<SortIcon />}
-                    options={activeSortOptions}
-                    value={activeSort}
-                    onSelect={(value) =>
-                      view === "current"
-                        ? setCurrentSort(value as CurrentQuestSort)
-                        : setUpcomingSort(value as UpcomingQuestSort)
-                    }
-                  />
+                  {view === "current" ? (
+                    <>
+                      <CurrentSortButton
+                        label="Newest"
+                        icon={<NewestSortIcon />}
+                        isActive={currentSort === "newest"}
+                        onClick={() => setCurrentSort("newest")}
+                      />
+                      <CurrentSortButton
+                        label="Corrupted / Expiring"
+                        icon={<CorruptionSortIcon />}
+                        isActive={currentSort === "expiring-soon"}
+                        onClick={() => setCurrentSort("expiring-soon")}
+                      />
+                    </>
+                  ) : (
+                    <BoardControlMenu
+                      label="Sort Quests"
+                      icon={<SortIcon />}
+                      options={UPCOMING_SORT_OPTIONS}
+                      value={upcomingSort}
+                      onSelect={setUpcomingSort}
+                    />
+                  )}
                   <BoardControlMenu
                     label="Filter Quests"
                     icon={<FilterIcon />}
-                    options={FILTER_OPTIONS}
+                    options={view === "current" ? CURRENT_FILTER_OPTIONS : UPCOMING_FILTER_OPTIONS}
                     value={activeFilter}
                     onSelect={(value) =>
-                      view === "current" ? setCurrentFilter(value) : setUpcomingFilter(value)
+                      view === "current"
+                        ? setCurrentFilter(value as CurrentQuestFilter)
+                        : setUpcomingFilter(value as UpcomingQuestFilter)
                     }
                   />
                 </div>
