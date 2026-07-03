@@ -24,7 +24,13 @@ export default function TypeWriter({
   onCompleteRef.current = onComplete;
 
   useEffect(() => {
-    if (!text) return;
+    setDisplayedText("");
+    setIsComplete(false);
+
+    if (!text) {
+      setIsComplete(true);
+      return;
+    }
 
     let index = 0;
     let timeoutId: NodeJS.Timeout;

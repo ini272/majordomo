@@ -73,8 +73,14 @@ playwright-cli -s=majordomo-ui close
 
 Notes:
 
+- Always pass `--browser=firefox` for Codex-driven local checks unless you have a known-good
+  system Chrome install. The default `playwright-cli open` path may try `/opt/google/chrome/chrome`
+  and fail on some development machines.
 - If port `3000` is busy, start Vite on another local port and open that URL instead.
 - For app flows that need the real API, run the backend locally too.
+- For quick frontend-only checks, use `playwright-cli route` endpoint-by-endpoint to mock API
+  responses. Avoid one very large `run-code` script that installs all routes at once; it has made
+  sessions close unexpectedly in this project.
 - For quick browser-driven checks, `playwright-cli` is preferred over writing a one-off test.
 
 ## Playwright tests

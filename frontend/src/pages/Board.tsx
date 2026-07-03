@@ -4,6 +4,9 @@ import {
   useMemo,
   useRef,
   useCallback,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type WheelEvent,
 } from "react";
@@ -11,8 +14,9 @@ import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import QuestCard from "../components/QuestCard";
 import CreateQuestForm from "../components/CreateQuestForm";
 import EditQuestModal from "../components/EditQuestModal";
+import TypeWriter from "../components/TypeWriter";
 import { api } from "../services/api";
-import { COLORS } from "../constants/colors";
+import { COLORS, PARCHMENT_STYLES } from "../constants/colors";
 import { LAYERS } from "../constants/layers";
 import bountyEmblem from "../assets/bounty_emblem_cutout.png";
 import boardBackground from "../assets/empty_board.png";
@@ -36,6 +40,10 @@ const SWIPE_DISTANCE_THRESHOLD = 72;
 const SWIPE_VELOCITY_THRESHOLD = 420;
 const TRACKPAD_NAVIGATION_THRESHOLD = 60;
 const TRACKPAD_NAVIGATION_COOLDOWN_MS = 450;
+const QUEST_PROMPT_LONG_PRESS_MS = 560;
+const QUEST_PROMPT_HOVER_MS = 450;
+const QUEST_PROMPT_MOVE_CANCEL_PX = 12;
+const QUEST_PROMPT_AUTO_HIDE_MS = 2000;
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -71,6 +79,10 @@ interface CompactQuestCardProps {
   isDailyBounty?: boolean;
   upcomingSpawnTime?: string;
   onClick: () => void;
+  isPromptRevealed?: boolean;
+  promptRevealMode?: QuestPromptRevealMode | null;
+  onPromptReveal?: (quest: Quest, mode: QuestPromptRevealMode) => void;
+  onPromptHide?: (questId: number) => void;
 }
 
 interface CompactQuestStatusChip {
@@ -78,6 +90,27 @@ interface CompactQuestStatusChip {
   backgroundColor: string;
   borderColor: string;
   textColor: string;
+}
+
+type QuestPromptRevealMode = "hover" | "press" | "keyboard";
+
+interface QuestPromptRevealState {
+  questId: number;
+  mode: QuestPromptRevealMode;
+}
+
+interface QuestPromptContentProps {
+  quest: Quest;
+  compact?: boolean;
+  className?: string;
+  lineClampClassName?: string;
+  onTypingComplete?: () => void;
+}
+
+interface QuestPromptFaceProps {
+  quest: Quest;
+  compact?: boolean;
+  onTypingComplete?: () => void;
 }
 
 const CURRENT_SORT_OPTIONS: BoardControlOption<CurrentQuestSort>[] = [
@@ -133,7 +166,12 @@ const FilterIcon = () => (
 const NewestSortIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor">
     <path d="M10 3.75v12.5" strokeWidth="1.7" strokeLinecap="round" />
-    <path d="M6.25 7.5 10 3.75 13.75 7.5" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    <path
+      d="M6.25 7.5 10 3.75 13.75 7.5"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
     <path d="M5 15.25h10" strokeWidth="1.7" strokeLinecap="round" />
   </svg>
 );
@@ -427,13 +465,7 @@ function QuestCardEmblem({
   );
 }
 
-function QuestParticipantIcon({
-  multiple,
-  color,
-}: {
-  multiple: boolean;
-  color: string;
-}) {
+function QuestParticipantIcon({ multiple, color }: { multiple: boolean; color: string }) {
   return (
     <svg
       aria-hidden="true"
@@ -449,7 +481,11 @@ function QuestParticipantIcon({
           <circle cx="7" cy="7.25" r="2.1" strokeWidth="1.4" />
           <path d="M3.9 14.2c.7-1.8 2-2.8 3.9-2.8 1.5 0 2.7.6 3.5 1.8" strokeWidth="1.4" />
           <circle cx="13.3" cy="8.2" r="1.75" strokeWidth="1.3" opacity="0.85" />
-          <path d="M11.3 14.2c.5-1.3 1.5-2.1 3.1-2.1 1 0 1.9.3 2.5 1.1" strokeWidth="1.3" opacity="0.85" />
+          <path
+            d="M11.3 14.2c.5-1.3 1.5-2.1 3.1-2.1 1 0 1.9.3 2.5 1.1"
+            strokeWidth="1.3"
+            opacity="0.85"
+          />
         </>
       ) : (
         <>
@@ -461,6 +497,114 @@ function QuestParticipantIcon({
   );
 }
 
+const getQuestDisplayTitle = (quest: Quest) =>
+  quest.display_name?.trim() || quest.title?.trim() || "Unknown Quest";
+
+const getQuestPromptInput = (quest: Quest) => quest.title?.trim() || "";
+
+const canRevealQuestPrompt = (quest: Quest) => {
+  const promptInput = getQuestPromptInput(quest);
+  if (!promptInput) return false;
+
+  return promptInput !== getQuestDisplayTitle(quest);
+};
+
+function QuestPromptContent({
+  quest,
+  compact = false,
+  className = "",
+  lineClampClassName = "",
+  onTypingComplete,
+}: QuestPromptContentProps) {
+  const promptInput = getQuestPromptInput(quest);
+  const [isTyping, setIsTyping] = useState(true);
+
+  useEffect(() => {
+    setIsTyping(true);
+  }, [promptInput, quest.id]);
+
+  return (
+    <div className={`relative z-10 flex h-full flex-col ${className}`.trim()}>
+      <div
+        className="mb-2 font-serif text-[10px] font-bold uppercase tracking-[0.22em]"
+        style={{ color: COLORS.brown }}
+      >
+        Original Request
+      </div>
+      <div className="flex-1">
+        <p
+          className={`font-serif font-semibold leading-relaxed ${compact ? "text-sm" : "text-base"} ${lineClampClassName}`.trim()}
+          style={{ color: PARCHMENT_STYLES.textColor }}
+        >
+          <TypeWriter
+            key={`${quest.id}-${promptInput}`}
+            text={promptInput}
+            speed={30}
+            delay={200}
+            hideCursor
+            onComplete={() => {
+              setIsTyping(false);
+              onTypingComplete?.();
+            }}
+          />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none inline-flex align-baseline"
+            style={{
+              width: compact ? "23px" : "26px",
+              marginLeft: "4px",
+            }}
+          >
+            {isTyping ? (
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [1, 0.5] }}
+                transition={{ duration: 0.6, repeat: Infinity }}
+                style={{ fontSize: compact ? "17px" : "20px" }}
+              >
+                🖋️
+              </motion.span>
+            ) : (
+              <span
+                style={{
+                  fontSize: compact ? "17px" : "20px",
+                  visibility: "hidden",
+                }}
+              >
+                🖋️
+              </span>
+            )}
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function QuestPromptFace({ quest, compact = false, onTypingComplete }: QuestPromptFaceProps) {
+  return (
+    <div
+      className={`relative h-full overflow-hidden ${compact ? "px-3 py-3 sm:px-4 sm:py-4" : "p-5"}`}
+      style={{
+        backgroundColor: PARCHMENT_STYLES.backgroundColor,
+        backgroundImage: PARCHMENT_STYLES.backgroundImage,
+      }}
+    >
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{ backgroundImage: PARCHMENT_STYLES.burnt }}
+        aria-hidden="true"
+      />
+      <QuestPromptContent
+        quest={quest}
+        compact={compact}
+        lineClampClassName={compact ? "line-clamp-5 sm:line-clamp-6" : ""}
+        onTypingComplete={onTypingComplete}
+      />
+    </div>
+  );
+}
+
 function CompactQuestCard({
   quest,
   questParticipantNames,
@@ -468,7 +612,21 @@ function CompactQuestCard({
   isDailyBounty = false,
   upcomingSpawnTime,
   onClick,
+  isPromptRevealed = false,
+  promptRevealMode = null,
+  onPromptReveal,
+  onPromptHide,
 }: CompactQuestCardProps) {
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressClickRef = useRef(false);
+  const suppressClickClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pointerStartRef = useRef<{
+    x: number;
+    y: number;
+    pointerType: string;
+  } | null>(null);
   const participantCount = quest.participants?.length || 1;
   const isCorrupted = quest.quest_type === "corrupted";
   const hasCorruptionDebuff =
@@ -489,8 +647,11 @@ function CompactQuestCard({
     ? getUpcomingQuestStatusChip(upcomingSpawnTime)
     : getCurrentQuestStatusChip(quest);
   const cardBackgroundColor = isDailyBounty ? "rgba(42, 28, 62, 0.72)" : "rgba(30, 21, 17, 0.7)";
-  const questTitle = quest.display_name || quest.title || "Unknown Quest";
+  const questTitle = getQuestDisplayTitle(quest);
   const questDescription = quest.description || "No description";
+  const canRevealPrompt = Boolean(onPromptReveal && canRevealQuestPrompt(quest));
+  const isPersistentPromptReveal = promptRevealMode === "press" || promptRevealMode === "keyboard";
+  const showPromptFace = canRevealPrompt && isPromptRevealed;
   const participantNames = (questParticipantNames || "")
     .split(",")
     .map((name) => name.trim())
@@ -541,11 +702,214 @@ function CompactQuestCard({
     </>
   );
 
+  const clearHoverTimer = () => {
+    if (hoverTimerRef.current !== null) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+  };
+
+  const clearPressTimer = () => {
+    if (pressTimerRef.current !== null) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+  };
+
+  const clearAutoHideTimer = () => {
+    if (autoHideTimerRef.current !== null) {
+      clearTimeout(autoHideTimerRef.current);
+      autoHideTimerRef.current = null;
+    }
+  };
+
+  const revealPrompt = (mode: QuestPromptRevealMode) => {
+    if (!canRevealPrompt) return;
+    onPromptReveal?.(quest, mode);
+  };
+
+  const scheduleHoverReveal = () => {
+    clearHoverTimer();
+    hoverTimerRef.current = setTimeout(() => {
+      hoverTimerRef.current = null;
+      revealPrompt("hover");
+    }, QUEST_PROMPT_HOVER_MS);
+  };
+
+  const handlePointerEnter = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!canRevealPrompt || event.pointerType !== "mouse") return;
+
+    pointerStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      pointerType: event.pointerType,
+    };
+    scheduleHoverReveal();
+  };
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!canRevealPrompt || event.pointerType === "mouse") return;
+
+    if (showPromptFace && isPersistentPromptReveal) {
+      suppressClickRef.current = false;
+      clearAutoHideTimer();
+      if (suppressClickClearTimerRef.current !== null) {
+        clearTimeout(suppressClickClearTimerRef.current);
+        suppressClickClearTimerRef.current = null;
+      }
+    }
+
+    pointerStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      pointerType: event.pointerType,
+    };
+    clearPressTimer();
+    pressTimerRef.current = setTimeout(() => {
+      pressTimerRef.current = null;
+      suppressClickRef.current = true;
+
+      if (suppressClickClearTimerRef.current !== null) {
+        clearTimeout(suppressClickClearTimerRef.current);
+      }
+      suppressClickClearTimerRef.current = setTimeout(() => {
+        suppressClickRef.current = false;
+        suppressClickClearTimerRef.current = null;
+      }, 900);
+
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate?.(8);
+      }
+
+      revealPrompt("press");
+    }, QUEST_PROMPT_LONG_PRESS_MS);
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const start = pointerStartRef.current;
+    if (!start) return;
+
+    const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y);
+    if (moved < QUEST_PROMPT_MOVE_CANCEL_PX) return;
+
+    if (event.pointerType === "mouse" && hoverTimerRef.current !== null) {
+      pointerStartRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+        pointerType: event.pointerType,
+      };
+      scheduleHoverReveal();
+      return;
+    }
+
+    if (event.pointerType !== "mouse") {
+      clearPressTimer();
+      pointerStartRef.current = null;
+    }
+  };
+
+  const handlePointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType !== "mouse") {
+      clearPressTimer();
+      pointerStartRef.current = null;
+    }
+  };
+
+  const handlePointerCancel = () => {
+    clearPressTimer();
+    pointerStartRef.current = null;
+  };
+
+  const handlePointerLeave = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === "mouse") {
+      clearHoverTimer();
+      onPromptHide?.(quest.id);
+    } else {
+      clearPressTimer();
+    }
+    pointerStartRef.current = null;
+  };
+
+  const handleClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (suppressClickRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressClickRef.current = false;
+      return;
+    }
+
+    if (showPromptFace && isPersistentPromptReveal) {
+      event.preventDefault();
+      event.stopPropagation();
+      clearAutoHideTimer();
+      onPromptHide?.(quest.id);
+      return;
+    }
+
+    onClick();
+  };
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (!canRevealPrompt || event.defaultPrevented) return;
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.key.toLowerCase() !== "i") return;
+
+    event.preventDefault();
+    if (showPromptFace && isPersistentPromptReveal) {
+      clearAutoHideTimer();
+      onPromptHide?.(quest.id);
+      return;
+    }
+    revealPrompt("keyboard");
+  };
+
+  const handleContextMenu = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (suppressClickRef.current) {
+      event.preventDefault();
+    }
+  };
+
+  const handlePromptTypingComplete = () => {
+    if (!showPromptFace || promptRevealMode !== "press") return;
+
+    clearAutoHideTimer();
+    autoHideTimerRef.current = setTimeout(() => {
+      autoHideTimerRef.current = null;
+      onPromptHide?.(quest.id);
+    }, QUEST_PROMPT_AUTO_HIDE_MS);
+  };
+
+  useEffect(() => {
+    if (!showPromptFace || promptRevealMode !== "press") {
+      clearAutoHideTimer();
+    }
+  }, [promptRevealMode, showPromptFace]);
+
+  useEffect(
+    () => () => {
+      clearHoverTimer();
+      clearPressTimer();
+      clearAutoHideTimer();
+      if (suppressClickClearTimerRef.current !== null) {
+        clearTimeout(suppressClickClearTimerRef.current);
+      }
+    },
+    []
+  );
+
   return (
     <button
       type="button"
-      onClick={onClick}
-      className="w-full text-left p-3 sm:p-4 rounded-sm transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+      onClick={handleClick}
+      onContextMenu={handleContextMenu}
+      onKeyDown={handleKeyDown}
+      onPointerCancel={handlePointerCancel}
+      onPointerDown={handlePointerDown}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      className="relative w-full overflow-hidden rounded-sm p-3 text-left transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] sm:p-4"
       style={{
         backgroundColor: cardBackgroundColor,
         border: `2px solid ${borderColor}`,
@@ -553,65 +917,94 @@ function CompactQuestCard({
           ? "0 0 0 1px rgba(157, 132, 255, 0.3), 0 10px 18px rgba(40, 20, 68, 0.35)"
           : "0 6px 12px rgba(0, 0, 0, 0.25)",
         opacity: isUpcoming ? 0.8 : 1,
+        touchAction: "pan-y",
+        perspective: "1400px",
       }}
     >
-      <div className="flex items-start gap-3 sm:gap-4">
-        <div className="mt-0.5 flex shrink-0">
-          <QuestCardEmblem
-            accentColor={borderColor}
-            backgroundColor={cardBackgroundColor}
-          />
-        </div>
+      <div className="relative">
+        <motion.div
+          animate={
+            showPromptFace
+              ? { opacity: 0, rotateY: -180, scale: 0.985 }
+              : { opacity: 1, rotateY: 0, scale: 1 }
+          }
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          style={{ backfaceVisibility: "hidden", transformStyle: "preserve-3d" }}
+          aria-hidden={showPromptFace}
+        >
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="mt-0.5 flex shrink-0">
+              <QuestCardEmblem accentColor={borderColor} backgroundColor={cardBackgroundColor} />
+            </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="mb-2 flex items-start justify-between gap-2">
-            <h3
-              className="text-sm sm:text-base font-serif font-bold leading-tight line-clamp-2"
-              style={{ color: titleColor }}
-            >
-              {questTitle}
-            </h3>
-            <div className="flex shrink-0 flex-wrap justify-end gap-1">{renderStatusChips()}</div>
-          </div>
-
-          <p
-            className="mb-3 text-xs sm:text-sm font-serif line-clamp-2"
-            style={{ color: "rgba(241, 231, 214, 0.88)" }}
-          >
-            {questDescription}
-          </p>
-
-          <div
-            className={`flex items-end gap-3 text-xs font-serif ${
-              displayParticipantNames ? "justify-between" : "justify-end"
-            }`}
-            style={{ color: COLORS.brown }}
-          >
-            {displayParticipantNames && (
-              <div className="min-w-0 flex flex-1 items-center gap-1.5 text-[11px] sm:text-xs tracking-wide">
-                <QuestParticipantIcon
-                  multiple={participantCount > 1}
-                  color={COLORS.brown}
-                />
-                <span
-                  className="truncate uppercase"
-                  style={{ color: COLORS.gold }}
+            <div className="min-w-0 flex-1">
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <h3
+                  className="line-clamp-2 text-sm font-serif font-bold leading-tight sm:text-base"
+                  style={{ color: titleColor }}
                 >
-                  {displayParticipantNames}
+                  {questTitle}
+                </h3>
+                <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                  {renderStatusChips()}
+                </div>
+              </div>
+
+              <p
+                className="mb-3 line-clamp-2 text-xs font-serif sm:text-sm"
+                style={{ color: "rgba(241, 231, 214, 0.88)" }}
+              >
+                {questDescription}
+              </p>
+
+              <div
+                className={`flex items-end gap-3 text-xs font-serif ${
+                  displayParticipantNames ? "justify-between" : "justify-end"
+                }`}
+                style={{ color: COLORS.brown }}
+              >
+                {displayParticipantNames && (
+                  <div className="min-w-0 flex flex-1 items-center gap-1.5 text-[11px] tracking-wide sm:text-xs">
+                    <QuestParticipantIcon multiple={participantCount > 1} color={COLORS.brown} />
+                    <span className="truncate uppercase" style={{ color: COLORS.gold }}>
+                      {displayParticipantNames}
+                    </span>
+                  </div>
+                )}
+
+                <span className="shrink-0 text-right" style={{ color: rewardColor }}>
+                  +{previewXpReward} XP / +{displayGoldReward} Gold
+                  {hasCorruptionDebuff && (
+                    <span className="ml-1" style={{ color: "#ff8080" }}>
+                      -{corruptionPenaltyPercent}%
+                    </span>
+                  )}
                 </span>
               </div>
-            )}
-
-            <span className="shrink-0 text-right" style={{ color: rewardColor }}>
-              +{previewXpReward} XP / +{displayGoldReward} Gold
-              {hasCorruptionDebuff && (
-                <span className="ml-1" style={{ color: "#ff8080" }}>
-                  -{corruptionPenaltyPercent}%
-                </span>
-              )}
-            </span>
+            </div>
           </div>
-        </div>
+        </motion.div>
+
+        <AnimatePresence initial={false}>
+          {showPromptFace && (
+            <motion.div
+              key={`${quest.id}-${promptRevealMode ?? "prompt"}`}
+              initial={{ opacity: 0, rotateY: 180, scale: 0.985 }}
+              animate={{ opacity: 1, rotateY: 0, scale: 1 }}
+              exit={{ opacity: 0, rotateY: 180, scale: 0.985 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="absolute inset-[-0.75rem] sm:inset-[-1rem]"
+              style={{ backfaceVisibility: "hidden", transformStyle: "preserve-3d" }}
+              aria-hidden={!showPromptFace}
+            >
+              <QuestPromptFace
+                quest={quest}
+                compact
+                onTypingComplete={handlePromptTypingComplete}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </button>
   );
@@ -668,7 +1061,7 @@ const getQuestParticipantNames = (quest: Quest, homeUsers: Record<number, string
     .map((participantUserId) => homeUsers[participantUserId])
     .filter(Boolean)
     .join(", ");
-const getQuestTitle = (quest: Quest) => quest.display_name || quest.title || "Unknown Quest";
+const getQuestTitle = getQuestDisplayTitle;
 const getTimestamp = (value: string | null | undefined) => {
   const parsed = parseApiDateTime(value);
   return parsed ? parsed.getTime() : 0;
@@ -732,6 +1125,9 @@ export default function Board() {
   const [selectedQuestView, setSelectedQuestView] = useState<QuestCollectionView | null>(null);
   const [selectedUpcomingSpawnTime, setSelectedUpcomingSpawnTime] = useState<string | undefined>();
   const [selectedIsDailyBounty, setSelectedIsDailyBounty] = useState(false);
+  const [revealedQuestPrompt, setRevealedQuestPrompt] = useState<QuestPromptRevealState | null>(
+    null
+  );
   const [questPendingAbandon, setQuestPendingAbandon] = useState<Quest | null>(null);
   const [abandoningQuestId, setAbandoningQuestId] = useState<number | null>(null);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
@@ -1176,6 +1572,7 @@ export default function Board() {
     sourceView: QuestCollectionView,
     upcomingSpawnTime?: string
   ) => {
+    setRevealedQuestPrompt(null);
     setSelectedQuest(quest);
     setSelectedQuestView(sourceView);
 
@@ -1190,6 +1587,7 @@ export default function Board() {
   };
 
   const closeQuestDetails = () => {
+    setRevealedQuestPrompt(null);
     setShowEditQuestModal(false);
     setEditQuestStartsAsTemplate(false);
     setSelectedQuest(null);
@@ -1198,6 +1596,16 @@ export default function Board() {
     setSelectedIsDailyBounty(false);
     setQuestPendingAbandon(null);
   };
+
+  const showQuestPromptPreview = useCallback((quest: Quest, mode: QuestPromptRevealMode) => {
+    if (!canRevealQuestPrompt(quest)) return;
+
+    setRevealedQuestPrompt({ questId: quest.id, mode });
+  }, []);
+
+  const hideQuestPromptPreview = useCallback((questId: number) => {
+    setRevealedQuestPrompt((current) => (current?.questId === questId ? null : current));
+  }, []);
 
   const handleQuestEditSaved = async (updatedQuest?: Quest) => {
     setShowEditQuestModal(false);
@@ -1233,6 +1641,21 @@ export default function Board() {
   const canNavigatePrevQuest = selectedQuestIndex > 0;
   const canNavigateNextQuest =
     selectedQuestIndex !== -1 && selectedQuestIndex < selectedQuestSequence.length - 1;
+
+  useEffect(() => {
+    if (!revealedQuestPrompt) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setRevealedQuestPrompt(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [revealedQuestPrompt]);
 
   const moveSelectedQuest = useCallback(
     (delta: 1 | -1) => {
@@ -1462,7 +1885,10 @@ export default function Board() {
                     >
                       {activeBountyQuest.display_name || activeBountyQuest.title}
                     </div>
-                    <div className="mt-1.5 text-xs font-serif sm:text-sm" style={{ color: COLORS.parchment }}>
+                    <div
+                      className="mt-1.5 text-xs font-serif sm:text-sm"
+                      style={{ color: COLORS.parchment }}
+                    >
                       Gold reward{" "}
                       <span style={{ color: COLORS.gold }}>
                         x{dailyBounty?.bonus_multiplier ?? 3}
@@ -1516,7 +1942,10 @@ export default function Board() {
                     >
                       Daily bounty fulfilled
                     </div>
-                    <div className="mt-1.5 text-xs font-serif sm:text-sm" style={{ color: COLORS.parchment }}>
+                    <div
+                      className="mt-1.5 text-xs font-serif sm:text-sm"
+                      style={{ color: COLORS.parchment }}
+                    >
                       Next bounty at midnight.
                     </div>
                   </div>
@@ -1581,7 +2010,10 @@ export default function Board() {
                             : "No active quests with corruption"}
                       </div>
                       {hasActiveCorruption && (
-                        <div className="mt-1.5 text-xs font-serif sm:text-sm" style={{ color: "#ff9b80" }}>
+                        <div
+                          className="mt-1.5 text-xs font-serif sm:text-sm"
+                          style={{ color: "#ff9b80" }}
+                        >
                           {activeCorruptedQuestCount} corrupted{" "}
                           {activeCorruptedQuestCount === 1 ? "quest" : "quests"} • -
                           {activeCorruptionPenaltyPercent}% XP and gold
@@ -1606,8 +2038,14 @@ export default function Board() {
                           >
                             <path d="M6 3.5h8" strokeWidth="1.6" />
                             <path d="M6 16.5h8" strokeWidth="1.6" />
-                            <path d="M7.5 3.8v3.1c0 1.2.5 2.2 1.4 2.9l1.1.8-1.1.8c-.9.7-1.4 1.7-1.4 2.9v1.9" strokeWidth="1.6" />
-                            <path d="M12.5 3.8v3.1c0 1.2-.5 2.2-1.4 2.9l-1.1.8 1.1.8c.9.7 1.4 1.7 1.4 2.9v1.9" strokeWidth="1.6" />
+                            <path
+                              d="M7.5 3.8v3.1c0 1.2.5 2.2 1.4 2.9l1.1.8-1.1.8c-.9.7-1.4 1.7-1.4 2.9v1.9"
+                              strokeWidth="1.6"
+                            />
+                            <path
+                              d="M12.5 3.8v3.1c0 1.2-.5 2.2-1.4 2.9l-1.1.8 1.1.8c.9.7 1.4 1.7 1.4 2.9v1.9"
+                              strokeWidth="1.6"
+                            />
                           </svg>
                           <span>{nextCorruptionCountdown}</span>
                         </div>
@@ -1758,7 +2196,15 @@ export default function Board() {
                         quest={quest}
                         questParticipantNames={getQuestParticipantNames(quest, homeUsers)}
                         isDailyBounty={activeBountyQuest?.id === quest.id}
+                        isPromptRevealed={revealedQuestPrompt?.questId === quest.id}
+                        promptRevealMode={
+                          revealedQuestPrompt?.questId === quest.id
+                            ? revealedQuestPrompt.mode
+                            : null
+                        }
                         onClick={() => openQuestDetails(quest, "current")}
+                        onPromptReveal={showQuestPromptPreview}
+                        onPromptHide={hideQuestPromptPreview}
                       />
                     ))}
 
@@ -1772,9 +2218,17 @@ export default function Board() {
                           questParticipantNames={getQuestParticipantNames(quest, homeUsers)}
                           isUpcoming={true}
                           upcomingSpawnTime={upcoming?.next_spawn_at}
+                          isPromptRevealed={revealedQuestPrompt?.questId === quest.id}
+                          promptRevealMode={
+                            revealedQuestPrompt?.questId === quest.id
+                              ? revealedQuestPrompt.mode
+                              : null
+                          }
                           onClick={() =>
                             openQuestDetails(quest, "upcoming", upcoming?.next_spawn_at)
                           }
+                          onPromptReveal={showQuestPromptPreview}
+                          onPromptHide={hideQuestPromptPreview}
                         />
                       );
                     })}

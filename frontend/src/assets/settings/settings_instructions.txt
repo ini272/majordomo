@@ -1,0 +1,49 @@
+Implement a visual-only Settings page for Majordomo.
+
+Important:
+- Focus only on matching the visual design from my saved Settings screenshot.
+- Do not wire real functionality yet.
+- No backend/auth/theme persistence work.
+- No API calls.
+- Toggles can be local UI state only, or static if easier.
+- Rows like Invite Codes, House Name, Username, Email, Timezone, Logout, Delete Account should be visual placeholders only.
+- Delete Account does not need to actually delete anything.
+
+Goal:
+Create a Settings page that visually matches the dark fantasy/RPG style of the app and the screenshot.
+
+Sections:
+1. Appearance
+   - Theme segmented control: Dark / Light
+
+2. House & Account
+   - Invite Codes
+   - House Name
+   - Username
+   - Email
+
+3. Preferences
+   - Sound toggle
+   - Always Skip AI Quest Creation toggle
+   - Timezone row
+
+4. Account
+   - Logout row/button
+   - Delete Account danger row/button
+
+Requirements:
+- Reuse existing typography, colors, borders, cards, spacing, and bottom navigation style.
+- Mobile-first.
+- Add Settings to navigation only if that fits the existing app structure.
+- Keep everything visual/static for now.
+- Use mock values:
+  - House Name: Panketal Manor
+  - Username: Frechdachs
+  - Email: frechdachs@example.com
+  - Timezone: Europe/Berlin (GMT+2)
+- After implementing, run the available build/type/lint checks.
+
+Before coding:
+1. Inspect the existing UI structure.
+2. Tell me which files you will modify.
+3. Then implement the visual-only page.

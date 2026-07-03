@@ -845,6 +845,7 @@ export default function EditQuestModal({
                       speed={30}
                       delay={200}
                       onComplete={() => setNameAnimationDone(true)}
+                      textStyle={{ lineHeight: "1.5" }}
                     />
                   </div>
                 ) : (
@@ -868,6 +869,9 @@ export default function EditQuestModal({
                         border: "none",
                         color: PARCHMENT_STYLES.textColor,
                         fontFamily: "Georgia, serif",
+                        fontSize: "16px",
+                        lineHeight: "1.5",
+                        letterSpacing: "0.5px",
                       }}
                       disabled={saving || regeneratingScribe}
                     />
@@ -939,16 +943,18 @@ export default function EditQuestModal({
                       speed={40}
                       delay={200}
                       onComplete={() => setShowTypeWriter(false)}
+                      minHeight="88px"
+                      textStyle={{ lineHeight: "1.5", whiteSpace: "pre-wrap" }}
                     />
                   </div>
                 ) : showTypeWriter ? (
                   <div
-                    className="p-6 rounded"
+                    className="rounded px-3 py-2"
                     style={{
                       backgroundColor: PARCHMENT_STYLES.backgroundColor,
                       backgroundImage: PARCHMENT_STYLES.backgroundImage,
                       border: `2px solid ${PARCHMENT_STYLES.borderColor}`,
-                      minHeight: "100px",
+                      minHeight: "88px",
                       boxShadow: PARCHMENT_STYLES.boxShadow,
                     }}
                   />
@@ -973,6 +979,9 @@ export default function EditQuestModal({
                         border: "none",
                         color: PARCHMENT_STYLES.textColor,
                         fontFamily: "Georgia, serif",
+                        fontSize: "16px",
+                        lineHeight: "1.5",
+                        letterSpacing: "0.5px",
                         resize: "none",
                       }}
                       disabled={saving || regeneratingScribe}
