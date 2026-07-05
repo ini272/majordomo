@@ -172,8 +172,8 @@ class Quest(SQLModel, table=True):
 
     # Corruption system fields
     quest_type: str = Field(default="standard")  # standard, bounty, corrupted
-    due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)  # hours until corruption
-    due_date: Optional[datetime] = None  # DEPRECATED: calculated from due_in_hours
+    due_in_hours: Optional[int] = Field(default=None, ge=1, le=8760)  # timer configured for corruption
+    due_date: Optional[datetime] = None  # absolute quest deadline when an active quest timer is edited
     corrupted_at: Optional[datetime] = None  # when quest became corrupted
 
     # Relationships

@@ -42,8 +42,8 @@ export interface Quest {
   schedule: string | null; // Snapshot of schedule when quest was created
 
   quest_type: string;
-  due_in_hours: number | null; // Hours until corruption (deadline = created_at + due_in_hours)
-  due_date: string | null; // DEPRECATED: use due_in_hours instead
+  due_in_hours: number | null; // Corruption timer configuration for this quest
+  due_date: string | null; // Absolute corruption deadline when an active quest timer has been edited
   corrupted_at: string | null;
   effective_xp_reward: number | null; // Current user's reward preview after household corruption
   effective_gold_reward: number | null;

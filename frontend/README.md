@@ -139,8 +139,8 @@ Rules:
   - `formatUpcomingSpawnLabel`
 - Keep rounding behavior consistent across views: whole hours/days are floored so compact board
   chips and detail views do not drift.
-- Quest corruption deadline is `created_at + due_in_hours`; do not recompute it with separate
-  local-time assumptions in individual components.
+- Quest corruption deadline is `due_date` when present, otherwise `created_at + due_in_hours`;
+  do not recompute it with separate local-time assumptions in individual components.
 
 If a new page needs "time left", "spawns in", or similar quest timing text, add or reuse a shared
 helper in `src/utils/dateTime.ts` instead of creating page-local formatting logic.

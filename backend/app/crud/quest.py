@@ -1,10 +1,39 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import delete
 from sqlmodel import Session, select
 
 from app.models.quest import Quest, QuestCreate, QuestCreateStandalone, QuestParticipant, QuestTemplate, QuestUpdate
+
+
+def _as_utc_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def get_quest_deadline(quest: Quest) -> Optional[datetime]:
+    """
+    Resolve the active corruption deadline for a quest.
+
+    Quest instances normally inherit a relative timer from creation time.
+    Once a user edits the timer on an existing quest, `due_date` becomes the
+    authoritative absolute deadline so extensions work from "now".
+    """
+    if quest.due_date is not None:
+        return _as_utc_datetime(quest.due_date)
+
+    if quest.due_in_hours is None:
+        return None
+
+    created_at = _as_utc_datetime(quest.created_at)
+    return created_at + timedelta(hours=quest.due_in_hours)
+
+
+def _clear_corruption_state(quest: Quest) -> None:
+    quest.quest_type = "standard"
+    quest.corrupted_at = None
 
 
 def get_quest(db: Session, quest_id: int) -> Optional[Quest]:
@@ -208,8 +237,27 @@ def update_quest(db: Session, quest_id: int, quest_in: QuestUpdate) -> Optional[
     if participant_user_ids is None and update_data.get("user_id") is not None:
         participant_user_ids = [update_data["user_id"]]
 
+    due_in_hours_updated = "due_in_hours" in update_data
+    next_due_in_hours = update_data.pop("due_in_hours", None) if due_in_hours_updated else None
+
     for key, value in update_data.items():
         setattr(db_quest, key, value)
+
+    if due_in_hours_updated:
+        db_quest.due_in_hours = next_due_in_hours
+
+        if next_due_in_hours is None:
+            db_quest.due_date = None
+            if not db_quest.completed and (
+                db_quest.quest_type == "corrupted" or db_quest.corrupted_at is not None
+            ):
+                _clear_corruption_state(db_quest)
+        else:
+            db_quest.due_date = datetime.now(timezone.utc) + timedelta(hours=next_due_in_hours)
+            if not db_quest.completed and (
+                db_quest.quest_type == "corrupted" or db_quest.corrupted_at is not None
+            ):
+                _clear_corruption_state(db_quest)
 
     db.add(db_quest)
     if participant_user_ids is not None:
@@ -237,8 +285,6 @@ def check_and_corrupt_overdue_quests(db: Session) -> list[Quest]:
     Mark them as corrupted if they haven't been corrupted already.
     Returns list of newly corrupted quests.
     """
-    from datetime import timedelta
-
     now = datetime.now(timezone.utc)
 
     # Find quests that are:
@@ -256,13 +302,10 @@ def check_and_corrupt_overdue_quests(db: Session) -> list[Quest]:
 
     corrupted_quests = []
     for quest in all_quests_with_deadline:
-        # Calculate deadline from created_at + due_in_hours
-        # Ensure created_at is timezone-aware
-        created_at = quest.created_at
-        if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
+        deadline = get_quest_deadline(quest)
+        if deadline is None:
+            continue
 
-        deadline = created_at + timedelta(hours=quest.due_in_hours)
         if deadline < now:
             quest.quest_type = "corrupted"
             quest.corrupted_at = now

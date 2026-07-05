@@ -339,8 +339,14 @@ const getCurrentQuestStatusChip = (quest: Quest): CompactQuestStatusChip | null 
   if (quest.completed) return null;
   if (quest.quest_type === "corrupted") return null;
 
-  const relativeDeadline = describeQuestDeadline(quest.created_at, quest.due_in_hours);
-  const label = formatQuestDeadlineLabel(quest.created_at, quest.due_in_hours, { compact: true });
+  const relativeDeadline = describeQuestDeadline(
+    quest.created_at,
+    quest.due_in_hours,
+    quest.due_date
+  );
+  const label = formatQuestDeadlineLabel(quest.created_at, quest.due_in_hours, quest.due_date, {
+    compact: true,
+  });
   if (!relativeDeadline || !label) return null;
 
   if (relativeDeadline.bucket === "past") {
@@ -400,8 +406,12 @@ const getUpcomingQuestStatusChip = (upcomingSpawnTime?: string): CompactQuestSta
   };
 };
 
-const formatCorruptionCountdown = (value?: string | Date | null, hours?: number | null) => {
-  const deadline = getQuestDeadlineDate(value, hours);
+const formatCorruptionCountdown = (
+  value?: string | Date | null,
+  hours?: number | null,
+  dueDate?: string | Date | null
+) => {
+  const deadline = getQuestDeadlineDate(value, hours, dueDate);
   if (!deadline) return null;
 
   const diffMs = deadline.getTime() - Date.now();
@@ -1067,7 +1077,7 @@ const getTimestamp = (value: string | null | undefined) => {
   return parsed ? parsed.getTime() : 0;
 };
 const getQuestDeadlineTimestamp = (quest: Quest) => {
-  const deadline = getQuestDeadlineDate(quest.created_at, quest.due_in_hours);
+  const deadline = getQuestDeadlineDate(quest.created_at, quest.due_in_hours, quest.due_date);
   return deadline ? deadline.getTime() : null;
 };
 const compareText = (left: string, right: string) =>
@@ -1493,7 +1503,11 @@ export default function Board() {
     return nearestQuest?.quest ?? null;
   }, [currentQuestEntries]);
   const nextCorruptionCountdown = nextCorruptionQuest
-    ? formatCorruptionCountdown(nextCorruptionQuest.created_at, nextCorruptionQuest.due_in_hours)
+    ? formatCorruptionCountdown(
+        nextCorruptionQuest.created_at,
+        nextCorruptionQuest.due_in_hours,
+        nextCorruptionQuest.due_date
+      )
     : null;
   const visibleCurrentQuestIds = useMemo(
     () => new Set(filteredCurrentQuests.map((quest) => quest.id)),

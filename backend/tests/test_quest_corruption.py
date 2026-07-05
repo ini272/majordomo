@@ -36,6 +36,17 @@ def home_with_user_and_template(client: TestClient):
     return home_id, user_id, template_id
 
 
+def _parse_api_datetime(value: str | None) -> datetime | None:
+    if value is None:
+        return None
+
+    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 def test_create_quest_with_due_in_hours(client: TestClient, home_with_user_and_template):
     """Test creating a quest with due_in_hours from template"""
     home_id, user_id, template_id = home_with_user_and_template
@@ -541,11 +552,137 @@ def test_update_quest_due_in_hours(client: TestClient):
     quest_id = quest_response.json()["id"]
 
     # Update with due_in_hours
+    before_update = datetime.now(timezone.utc)
     update_response = client.put(
         f"/api/quests/{quest_id}?user_id={user_id}",
         json={"due_in_hours": 48},
     )
+    after_update = datetime.now(timezone.utc)
 
     assert update_response.status_code == 200
     data = update_response.json()
     assert data["due_in_hours"] == 48
+    due_date = _parse_api_datetime(data["due_date"])
+    assert due_date is not None
+    assert before_update + timedelta(hours=48) <= due_date <= after_update + timedelta(hours=48)
+
+
+def test_extending_corrupted_quest_clears_corruption_and_restarts_deadline(
+    client: TestClient, home_with_user_and_template, db: Session
+):
+    """Updating a corrupted quest timer should heal it and start the new deadline from now."""
+    home_id, user_id, template_id = home_with_user_and_template
+
+    quest_response = client.post(
+        f"/api/quests?user_id={user_id}",
+        json={"quest_template_id": template_id},
+    )
+    quest_id = quest_response.json()["id"]
+
+    quest = db.exec(select(Quest).where(Quest.id == quest_id)).first()
+    quest.created_at = datetime.now(timezone.utc) - timedelta(hours=26)
+    db.add(quest)
+    db.commit()
+
+    client.post("/api/quests/check-corruption")
+
+    before_update = datetime.now(timezone.utc)
+    update_response = client.put(
+        f"/api/quests/{quest_id}?user_id={user_id}",
+        json={"due_in_hours": 24 * 14},
+    )
+    after_update = datetime.now(timezone.utc)
+
+    assert update_response.status_code == 200
+    data = update_response.json()
+    assert data["quest_type"] == "standard"
+    assert data["corrupted_at"] is None
+    assert data["due_in_hours"] == 24 * 14
+
+    due_date = _parse_api_datetime(data["due_date"])
+    assert due_date is not None
+    assert before_update + timedelta(days=14) <= due_date <= after_update + timedelta(days=14)
+
+    client.post("/api/quests/check-corruption")
+    refreshed = client.get(f"/api/quests/{quest_id}?user_id={user_id}").json()
+    assert refreshed["quest_type"] == "standard"
+    assert refreshed["corrupted_at"] is None
+
+
+def test_clearing_corrupted_quest_timer_removes_corruption(
+    client: TestClient, home_with_user_and_template, db: Session
+):
+    """Removing the timer from a corrupted quest should clear its corrupted state."""
+    home_id, user_id, template_id = home_with_user_and_template
+
+    quest_response = client.post(
+        f"/api/quests?user_id={user_id}",
+        json={"quest_template_id": template_id},
+    )
+    quest_id = quest_response.json()["id"]
+
+    quest = db.exec(select(Quest).where(Quest.id == quest_id)).first()
+    quest.created_at = datetime.now(timezone.utc) - timedelta(hours=26)
+    db.add(quest)
+    db.commit()
+
+    client.post("/api/quests/check-corruption")
+
+    update_response = client.put(
+        f"/api/quests/{quest_id}?user_id={user_id}",
+        json={"due_in_hours": None},
+    )
+
+    assert update_response.status_code == 200
+    data = update_response.json()
+    assert data["due_in_hours"] is None
+    assert data["due_date"] is None
+    assert data["quest_type"] == "standard"
+    assert data["corrupted_at"] is None
+
+    client.post("/api/quests/check-corruption")
+    refreshed = client.get(f"/api/quests/{quest_id}?user_id={user_id}").json()
+    assert refreshed["quest_type"] == "standard"
+    assert refreshed["corrupted_at"] is None
+
+
+def test_clearing_one_corrupted_quest_keeps_household_debuff_if_others_remain(
+    client: TestClient, home_with_user_and_template, db: Session
+):
+    """Healing one quest should not clear the household debuff while another corruption remains."""
+    home_id, user_id, template_id = home_with_user_and_template
+
+    quest_ids = []
+    for _i in range(2):
+        quest_response = client.post(
+            f"/api/quests?user_id={user_id}",
+            json={"quest_template_id": template_id},
+        )
+        quest_ids.append(quest_response.json()["id"])
+
+    for quest_id in quest_ids:
+        quest = db.exec(select(Quest).where(Quest.id == quest_id)).first()
+        quest.created_at = datetime.now(timezone.utc) - timedelta(hours=26)
+        db.add(quest)
+    db.commit()
+
+    client.post("/api/quests/check-corruption")
+
+    update_response = client.put(
+        f"/api/quests/{quest_ids[0]}?user_id={user_id}",
+        json={"due_in_hours": None},
+    )
+    assert update_response.status_code == 200
+
+    quests = client.get("/api/quests").json()
+    quest_by_id = {quest["id"]: quest for quest in quests}
+    healed_quest = quest_by_id[quest_ids[0]]
+    still_corrupted_quest = quest_by_id[quest_ids[1]]
+
+    assert healed_quest["quest_type"] == "standard"
+    assert healed_quest["corrupted_quest_count"] == 1
+    assert healed_quest["corruption_debuff"] == 0.8
+    assert healed_quest["corruption_debuff_active"] is True
+
+    assert still_corrupted_quest["quest_type"] == "corrupted"
+    assert still_corrupted_quest["corrupted_quest_count"] == 1

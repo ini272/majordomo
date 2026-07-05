@@ -42,8 +42,9 @@ export const addHoursToApiDateTime = (
 
 export const getQuestDeadlineDate = (
   value?: string | Date | null,
-  hours?: number | null
-): Date | null => addHoursToApiDateTime(value, hours);
+  hours?: number | null,
+  dueDate?: string | Date | null
+): Date | null => parseApiDateTime(dueDate) ?? addHoursToApiDateTime(value, hours);
 
 const getRelativeQuestTime = (value?: string | Date | null): RelativeQuestTime | null => {
   const date = parseApiDateTime(value);
@@ -88,15 +89,17 @@ const formatRelativeUnit = (value: number, unit: "hour" | "day", compact: boolea
 
 export const describeQuestDeadline = (
   value?: string | Date | null,
-  hours?: number | null
-): RelativeQuestTime | null => getRelativeQuestTime(getQuestDeadlineDate(value, hours));
+  hours?: number | null,
+  dueDate?: string | Date | null
+): RelativeQuestTime | null => getRelativeQuestTime(getQuestDeadlineDate(value, hours, dueDate));
 
 export const formatQuestDeadlineLabel = (
   value?: string | Date | null,
   hours?: number | null,
+  dueDate?: string | Date | null,
   options: { compact?: boolean } = {}
 ): string | null => {
-  const relativeTime = describeQuestDeadline(value, hours);
+  const relativeTime = describeQuestDeadline(value, hours, dueDate);
   if (!relativeTime) return null;
 
   const compact = options.compact ?? false;

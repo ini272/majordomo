@@ -117,8 +117,8 @@ export default function QuestCard({
   }, [quest.id]);
 
   const timingStart = isUpcoming && upcomingSpawnTime ? upcomingSpawnTime : quest.created_at;
-  const deadline = getQuestDeadlineDate(timingStart, quest.due_in_hours);
-  const deadlineLabel = formatQuestDeadlineLabel(timingStart, quest.due_in_hours);
+  const deadline = getQuestDeadlineDate(timingStart, quest.due_in_hours, quest.due_date);
+  const deadlineLabel = formatQuestDeadlineLabel(timingStart, quest.due_in_hours, quest.due_date);
   const upcomingLabel = formatUpcomingSpawnLabel(upcomingSpawnTime);
 
   const scheduleInfo = formatScheduleLabel(
