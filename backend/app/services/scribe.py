@@ -10,7 +10,7 @@ from groq import Groq
 
 logger = logging.getLogger(__name__)
 
-GROQ_MODEL = "llama-3.3-70b-versatile"  # Latest fast model, free tier available
+GROQ_MODEL = "openai/gpt-oss-120b"
 GROQ_TEMPERATURE = 0.85
 GROQ_MAX_TOKENS = 300
 
@@ -109,6 +109,8 @@ Now generate for: {quest_title}"""
             ],
             temperature=GROQ_TEMPERATURE,
             max_tokens=GROQ_MAX_TOKENS,
+            reasoning_effort="low",
+            response_format={"type": "json_object"},
         )
 
         response_text = response.choices[0].message.content.strip()

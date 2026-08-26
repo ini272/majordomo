@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.scribe import GROQ_MAX_TOKENS, GROQ_TEMPERATURE, ScribeResponse, generate_quest_content
+from app.services.scribe import GROQ_MAX_TOKENS, GROQ_MODEL, GROQ_TEMPERATURE, ScribeResponse, generate_quest_content
 
 
 def test_scribe_response_xp_calculation():
@@ -63,8 +63,11 @@ def test_generate_quest_content_parses_mocked_groq_response(monkeypatch):
 
     class FakeCompletions:
         def create(self, **kwargs):
+            assert kwargs["model"] == GROQ_MODEL
             assert kwargs["temperature"] == GROQ_TEMPERATURE
             assert kwargs["max_tokens"] == GROQ_MAX_TOKENS
+            assert kwargs["reasoning_effort"] == "low"
+            assert kwargs["response_format"] == {"type": "json_object"}
             assert kwargs["messages"][0]["role"] == "system"
             assert "household chore app" in kwargs["messages"][0]["content"]
             assert kwargs["messages"][1]["role"] == "user"
